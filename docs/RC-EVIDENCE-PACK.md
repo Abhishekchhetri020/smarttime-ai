@@ -28,3 +28,8 @@ Date: 2026-02-27
 1. Execute emulator CI run and capture successful run URL.
 2. Complete role-based UAT sign-off (super admin/incharge/teacher/student/parent).
 3. Validate Android production Firebase config and store signing flow.
+
+## Latest execution note
+- Tried local emulator integration run with `firebase-tools emulators:exec`.
+- Blocked due to missing Java Runtime on host (`Unable to locate a Java Runtime`).
+- CI path remains valid for evidence once Java/runtime dependency is satisfied in runner/host.

@@ -9,6 +9,7 @@ Date: 2026-02-27
 - Status: Open
 - Owner: DevOps/Engineering
 - Action: Run GitHub Actions `functions-emulator-tests` and attach run URL in RC evidence pack.
+- Local check note: emulator run currently blocked on this machine because Java Runtime is missing (`Unable to locate a Java Runtime`).
 
 ### B2 — Android staging Firebase production-like config validation
 - Severity: High
