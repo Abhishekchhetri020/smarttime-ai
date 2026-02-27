@@ -15,15 +15,17 @@ Date: 2026-02-27
 
 ### B2 — Android staging Firebase production-like config validation
 - Severity: High
-- Status: Open
+- Status: In Progress
 - Owner: Mobile
 - Action: Validate `google-services.json`, package IDs, SHA fingerprints, Google Sign-In client IDs.
+- Tracking doc: `docs/ANDROID-STAGING-VALIDATION.md`
 
 ### B3 — Role-based UAT formal sign-off
 - Severity: High
-- Status: Open
+- Status: In Progress
 - Owner: QA/Product
 - Action: Execute `docs/UAT-SCRIPT.md` and mark sign-off table.
+- Tracking doc: `docs/UAT-EXECUTION-LOG.md`
 
 ### B4 — Release metadata completion for Play Store
 - Severity: Medium

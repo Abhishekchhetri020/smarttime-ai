@@ -21,6 +21,6 @@ Product is technically close, but release freeze should wait until all ⚠️ cr
 
 ## Required to move to GO
 - Attach successful emulator CI run links
-- Complete and sign role-based UAT
-- Validate Android staging auth/sign-in package
+- Complete and sign role-based UAT (use `docs/UAT-EXECUTION-LOG.md`)
+- Validate Android staging auth/sign-in package (use `docs/ANDROID-STAGING-VALIDATION.md`)
 - Complete store assets/listing package
