@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole, AuthedRequest } from '../middleware/auth';
 import { createSolverJob, listCollection, upsertEntity } from '../services/firestoreRepo';
+import { runSolverJob } from '../services/solverClient';
 
 export const router = Router();
 
@@ -29,7 +30,32 @@ for (const entity of entities) {
 }
 
 router.post('/schools/:schoolId/solver/jobs', requireRole(['super_admin', 'incharge']), async (req: AuthedRequest, res) => {
-  const job = await createSolverJob(req.params.schoolId, req.body || {}, req.user?.uid || 'unknown');
-  // Phase 2: async trigger placeholder (Pub/Sub wiring in next step)
-  res.json({ schoolId: req.params.schoolId, jobId: job.id, status: job.status });
+  const schoolId = req.params.schoolId;
+  const job = await createSolverJob(schoolId, req.body || {}, req.user?.uid || 'unknown');
+
+  // Fire-and-forget async run (Phase 2). Replace with Pub/Sub worker in Phase 3.
+  setTimeout(() => {
+    runSolverJob(schoolId, job.id).catch(() => null);
+  }, 50);
+
+  res.json({ schoolId, jobId: job.id, status: job.status });
+});
+
+router.post('/schools/:schoolId/solver/jobs/:jobId/run', requireRole(['super_admin', 'incharge']), async (req, res) => {
+  try {
+    const result = await runSolverJob(req.params.schoolId, req.params.jobId);
+    res.json({ ok: true, ...result });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || 'run_failed' });
+  }
+});
+
+router.get('/schools/:schoolId/solver/jobs', requireRole(['super_admin', 'incharge']), async (req, res) => {
+  const items = await listCollection(req.params.schoolId, 'solverJobs');
+  res.json({ items });
+});
+
+router.get('/schools/:schoolId/timetables', requireRole(['super_admin', 'incharge', 'teacher', 'student', 'parent']), async (req, res) => {
+  const items = await listCollection(req.params.schoolId, 'timetables');
+  res.json({ items });
 });

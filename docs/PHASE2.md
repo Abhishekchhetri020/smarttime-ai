@@ -10,8 +10,8 @@
 - Firestore security rules and indexes templates added.
 
 ## Remaining for full Phase 2 completion
-1. Pub/Sub trigger from job create -> invoke solver -> persist timetable version.
-2. Firebase custom claims management flow.
-3. Admin pages for classes/subjects/constraints + solver run UI.
-4. Android auth + published timetable Firestore read.
-5. Integration tests (functions + solver contracts).
+1. Replace temporary fire-and-forget trigger with Pub/Sub worker execution (current: async immediate run).
+2. Firebase custom claims management flow (admin utility).
+3. Expand admin UI from baseline pages to full CRUD forms with validation.
+4. Wire Android auth gate to FirebaseAuth stream + role claims.
+5. CI pipeline for integration tests (solver tests added; functions tests pending).
