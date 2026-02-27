@@ -13,8 +13,12 @@ export default function ConstraintsPage() {
   useEffect(() => { load(); }, []);
 
   async function addItem() {
+    if (!type.trim() || Number.isNaN(weight)) {
+      alert('Constraint type and valid weight are required');
+      return;
+    }
     const id = `k_${Date.now()}`;
-    await apiPut(`/schools/demo-school/constraints/${id}`, { type, weight, enabled: true });
+    await apiPut(`/schools/demo-school/constraints/${id}`, { type: type.trim(), weight, enabled: true });
     await load();
   }
 

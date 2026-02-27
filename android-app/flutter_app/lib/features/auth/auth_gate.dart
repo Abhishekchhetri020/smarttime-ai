@@ -21,7 +21,15 @@ class AuthGate extends StatelessWidget {
           builder: (context, tokenSnap) {
             if (!tokenSnap.hasData) return const Center(child: CircularProgressIndicator());
             final role = tokenSnap.data!.claims?['role']?.toString() ?? 'teacher';
-            return Center(child: Text('Signed in as $role'));
+            final screen = switch (role) {
+              'super_admin' => 'Super Admin Console',
+              'incharge' => 'Timetable In-Charge Console',
+              'teacher' => 'Teacher Timetable View',
+              'student' => 'Student Timetable View',
+              'parent' => 'Parent Timetable View',
+              _ => 'Teacher Timetable View',
+            };
+            return Center(child: Text('Signed in as $role • $screen'));
           },
         );
       },

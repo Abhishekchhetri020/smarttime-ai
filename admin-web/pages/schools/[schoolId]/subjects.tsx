@@ -12,8 +12,12 @@ export default function SubjectsPage() {
   useEffect(() => { load(); }, []);
 
   async function addItem() {
+    if (!name.trim()) {
+      alert('Subject name is required');
+      return;
+    }
     const id = `s_${Date.now()}`;
-    await apiPut(`/schools/demo-school/subjects/${id}`, { name });
+    await apiPut(`/schools/demo-school/subjects/${id}`, { name: name.trim() });
     await load();
   }
 
