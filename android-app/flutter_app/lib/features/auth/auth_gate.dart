@@ -42,9 +42,8 @@ class AuthGate extends StatelessWidget {
                 child = const TeacherScreen();
             }
             return Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(child: Center(child: child)),
+                Expanded(child: child),
                 TextButton(
                   onPressed: () async => FirebaseAuth.instance.signOut(),
                   child: const Text('Sign Out'),

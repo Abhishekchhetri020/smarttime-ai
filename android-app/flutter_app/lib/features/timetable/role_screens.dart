@@ -62,35 +62,63 @@ class TimetableEntriesView extends StatelessWidget {
           grid['$d-$p'] = '${e['subjectId'] ?? ''}\n${e['classId'] ?? ''}'.trim();
         }
 
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Table(
-                border: TableBorder.all(color: Colors.grey.shade300),
-                defaultColumnWidth: const FixedColumnWidth(120),
-                children: [
-                  TableRow(
-                    children: [
-                      const _Cell('P/D', header: true),
-                      for (int d = 1; d <= maxDay; d++) _Cell('Day $d', header: true),
-                    ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const SizedBox(width: 80),
+                for (int d = 1; d <= maxDay; d++)
+                  Container(
+                    width: 120,
+                    padding: const EdgeInsets.all(8),
+                    color: Colors.grey.shade200,
+                    child: Text('Day $d', style: const TextStyle(fontWeight: FontWeight.w600)),
                   ),
-                  for (int p = 1; p <= maxPeriod; p++)
-                    TableRow(
+              ],
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Column(
                       children: [
-                        _Cell('P$p', header: true),
-                        for (int d = 1; d <= maxDay; d++)
-                          _Cell(grid['$d-$p'] ?? '-', header: false),
+                        for (int p = 1; p <= maxPeriod; p++)
+                          Container(
+                            width: 80,
+                            height: 64,
+                            alignment: Alignment.center,
+                            color: Colors.grey.shade100,
+                            child: Text('P$p', style: const TextStyle(fontWeight: FontWeight.w600)),
+                          ),
                       ],
                     ),
-                ],
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Column(
+                        children: [
+                          for (int p = 1; p <= maxPeriod; p++)
+                            Row(
+                              children: [
+                                for (int d = 1; d <= maxDay; d++)
+                                  _Cell(
+                                    grid['$d-$p'] ?? '-',
+                                    header: false,
+                                    empty: (grid['$d-$p'] == null),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
@@ -100,12 +128,22 @@ class TimetableEntriesView extends StatelessWidget {
 class _Cell extends StatelessWidget {
   final String text;
   final bool header;
-  const _Cell(this.text, {required this.header});
+  final bool empty;
+  const _Cell(this.text, {required this.header, this.empty = false});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: header ? Colors.grey.shade200 : null,
+      width: 120,
+      height: 64,
+      decoration: BoxDecoration(
+        color: header
+            ? Colors.grey.shade200
+            : empty
+                ? Colors.orange.shade50
+                : null,
+        border: Border.all(color: Colors.grey.shade300),
+      ),
       padding: const EdgeInsets.all(8),
       child: Text(
         text,

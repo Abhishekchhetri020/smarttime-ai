@@ -50,11 +50,11 @@ export default function ConflictsPage() {
                     {v.type || 'violation'}: {v.reason || JSON.stringify(v)}
                     {v.type === 'unscheduled_lesson' && ' → Suggestion: reduce constraints or free slot for this teacher/class.'}
                     <span style={{ marginLeft: 8 }}>
-                      <a href="/schools/demo-school/teachers">Teacher</a>
+                      <a href={`/schools/demo-school/teachers?focus=${encodeURIComponent(v.teacherId || '')}`}>Teacher</a>
                       {' | '}
-                      <a href="/schools/demo-school/classes">Class</a>
+                      <a href={`/schools/demo-school/classes?focus=${encodeURIComponent(v.classId || '')}`}>Class</a>
                       {' | '}
-                      <a href="/schools/demo-school/constraints">Constraints</a>
+                      <a href={`/schools/demo-school/constraints?hint=${encodeURIComponent(v.type || '')}`}>Constraints</a>
                     </span>
                   </li>
                 ))}
