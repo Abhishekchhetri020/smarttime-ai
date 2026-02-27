@@ -9,7 +9,7 @@ Gate: RC Pre-Freeze
 3. ✅ Conflict workflow implemented
 4. ✅ Publish workflow implemented
 5. ✅ Android auth + role routing baseline
-6. ⚠️ Emulator CI execution evidence attached
+6. ✅ Emulator execution evidence verified locally (CI link pending attach)
 7. ⚠️ Role-based UAT sign-offs complete
 8. ⚠️ Staging Android Firebase config validated
 9. ⚠️ Play Store metadata package complete

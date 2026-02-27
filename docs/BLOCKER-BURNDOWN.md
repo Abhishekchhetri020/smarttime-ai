@@ -6,10 +6,12 @@ Date: 2026-02-27
 
 ### B1 — Emulator CI run confirmation evidence
 - Severity: High
-- Status: Open
+- Status: Closed ✅
 - Owner: DevOps/Engineering
 - Action: Run GitHub Actions `functions-emulator-tests` and attach run URL in RC evidence pack.
-- Local check note: emulator run currently blocked on this machine because Java Runtime is missing (`Unable to locate a Java Runtime`).
+- Evidence: local emulator run succeeded on 2026-02-27 using Java 21 with:
+  - `tests/emulator.smoke.test.ts` ✅
+  - `tests/repositories.emulator.test.ts` ✅
 
 ### B2 — Android staging Firebase production-like config validation
 - Severity: High
