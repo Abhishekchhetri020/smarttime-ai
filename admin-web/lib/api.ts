@@ -13,17 +13,29 @@ export async function apiGet(path: string) {
   return res.json();
 }
 
+const defaultHeaders = {
+  'content-type': 'application/json',
+  'x-role': 'incharge',
+  'x-school-id': 'demo-school',
+  'x-uid': 'admin-demo',
+};
+
 export async function apiPut(path: string, body: any) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'PUT',
-    headers: {
-      'content-type': 'application/json',
-      'x-role': 'incharge',
-      'x-school-id': 'demo-school',
-      'x-uid': 'admin-demo',
-    },
+    headers: defaultHeaders,
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`PUT ${path} failed`);
+  return res.json();
+}
+
+export async function apiPost(path: string, body: any = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: defaultHeaders,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`POST ${path} failed`);
   return res.json();
 }

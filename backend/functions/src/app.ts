@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { router } from './api/routes';
 import { randomUUID } from 'crypto';
+import { errorHandler, notFound } from './middleware/error';
 
 export function createApp() {
   const app = express();
@@ -14,5 +15,7 @@ export function createApp() {
   });
 
   app.use('/v1', router);
+  app.use(notFound);
+  app.use(errorHandler);
   return app;
 }
