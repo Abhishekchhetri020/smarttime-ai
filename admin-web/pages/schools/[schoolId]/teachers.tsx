@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/router';
 import { apiGet, apiPut } from '../../../lib/api';
 
 export default function TeachersPage() {
+  const router = useRouter();
+  const focus = (router.query.focus as string) || '';
   const [items, setItems] = useState<any[]>([]);
   const [name, setName] = useState('');
 
@@ -11,6 +14,8 @@ export default function TeachersPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  const focusedExists = useMemo(() => items.some((x) => x.id === focus || x.code === focus), [items, focus]);
 
   async function addTeacher() {
     if (!name.trim()) {
@@ -26,9 +31,20 @@ export default function TeachersPage() {
   return (
     <main style={{ fontFamily: 'Arial', padding: 24 }}>
       <h2>Teachers</h2>
+      {focus && (
+        <div style={{ marginBottom: 10, padding: 8, background: '#fff8e1', border: '1px solid #ffe082' }}>
+          Focus: <b>{focus}</b> {focusedExists ? 'found' : 'not found'}
+        </div>
+      )}
       <input value={name} onChange={e => setName(e.target.value)} placeholder="Teacher name" />
       <button onClick={addTeacher}>Add</button>
-      <ul>{items.map((x) => <li key={x.id}>{x.name || x.id}</li>)}</ul>
+      <ul>
+        {items.map((x) => (
+          <li key={x.id} style={{ background: (x.id === focus || x.code === focus) ? '#e3f2fd' : undefined }}>
+            {x.name || x.id} ({x.code || x.id})
+          </li>
+        ))}
+      </ul>
     </main>
   );
 }
