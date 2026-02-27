@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class AuthGate extends StatelessWidget {
@@ -5,7 +6,25 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Phase 2: Replace with FirebaseAuth stream + role claims.
-    return const Center(child: Text('Auth Gate (Phase 2 placeholder)'));
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final user = snap.data;
+        if (user == null) {
+          return const Center(child: Text('Please sign in'));
+        }
+        return FutureBuilder<IdTokenResult>(
+          future: user.getIdTokenResult(true),
+          builder: (context, tokenSnap) {
+            if (!tokenSnap.hasData) return const Center(child: CircularProgressIndicator());
+            final role = tokenSnap.data!.claims?['role']?.toString() ?? 'teacher';
+            return Center(child: Text('Signed in as $role'));
+          },
+        );
+      },
+    );
   }
 }

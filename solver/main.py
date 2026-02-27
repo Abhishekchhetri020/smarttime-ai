@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 
 app = FastAPI(title='SmartTime Solver', version='0.2.0')
 
@@ -9,7 +9,7 @@ class Lesson(BaseModel):
     classId: str
     teacherId: str
     subjectId: str
-    preferredRoomId: str | None = None
+    preferredRoomId: Optional[str] = None
 
 class SolveRequest(BaseModel):
     schoolId: str

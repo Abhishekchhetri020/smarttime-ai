@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'features/auth/auth_gate.dart';
 
 void main() {
   runApp(const SmartTimeApp());
@@ -33,9 +34,20 @@ class TeacherTimetableScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Teacher Timetable')),
-      body: ListView.builder(
-        itemCount: demoRows.length,
-        itemBuilder: (context, i) => ListTile(title: Text(demoRows[i])),
+      body: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: AuthGate(),
+          ),
+          const Divider(),
+          Expanded(
+            child: ListView.builder(
+              itemCount: demoRows.length,
+              itemBuilder: (context, i) => ListTile(title: Text(demoRows[i])),
+            ),
+          ),
+        ],
       ),
     );
   }

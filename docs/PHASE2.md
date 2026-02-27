@@ -9,9 +9,15 @@
 - Android Flutter app initialized with read-only timetable screen placeholder.
 - Firestore security rules and indexes templates added.
 
-## Remaining for full Phase 2 completion
-1. Replace temporary fire-and-forget trigger with Pub/Sub worker execution (current: async immediate run).
-2. Firebase custom claims management flow (admin utility).
-3. Expand admin UI from baseline pages to full CRUD forms with validation.
-4. Wire Android auth gate to FirebaseAuth stream + role claims.
-5. CI pipeline for integration tests (solver tests added; functions tests pending).
+## Phase 2 completion status
+### Completed
+1. Pub/Sub-based solver queue + worker trigger (`solverWorker`).
+2. Firebase custom claims utility script (`setRoleClaims.ts`).
+3. Admin baseline CRUD pages for teachers/classes/subjects/constraints + solver run page.
+4. Android auth gate wired to FirebaseAuth stream and token role claims.
+5. CI workflow added for solver tests + functions TypeScript build.
+
+### Remaining (carry to Phase 3 hardening)
+1. End-to-end functions integration tests (API + Firestore emulator).
+2. Full form validation/UX polish on admin screens.
+3. Android full Firebase initialization + role-based navigation screens.

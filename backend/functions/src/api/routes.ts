@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole, AuthedRequest } from '../middleware/auth';
 import { createSolverJob, listCollection, upsertEntity } from '../services/firestoreRepo';
 import { runSolverJob } from '../services/solverClient';
+import { enqueueSolverJob } from '../services/queue';
 
 export const router = Router();
 
@@ -33,12 +34,8 @@ router.post('/schools/:schoolId/solver/jobs', requireRole(['super_admin', 'incha
   const schoolId = req.params.schoolId;
   const job = await createSolverJob(schoolId, req.body || {}, req.user?.uid || 'unknown');
 
-  // Fire-and-forget async run (Phase 2). Replace with Pub/Sub worker in Phase 3.
-  setTimeout(() => {
-    runSolverJob(schoolId, job.id).catch(() => null);
-  }, 50);
-
-  res.json({ schoolId, jobId: job.id, status: job.status });
+  await enqueueSolverJob(schoolId, job.id);
+  res.json({ schoolId, jobId: job.id, status: job.status, queued: true });
 });
 
 router.post('/schools/:schoolId/solver/jobs/:jobId/run', requireRole(['super_admin', 'incharge']), async (req, res) => {
