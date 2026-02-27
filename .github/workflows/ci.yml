@@ -48,4 +48,4 @@ jobs:
           node-version: '20'
       - run: npm install
       - run: npm install -g firebase-tools
-      - run: firebase emulators:exec --project demo-smarttime --only firestore "npm test -- --runInBand tests/emulator.smoke.test.ts"
+      - run: firebase emulators:exec --project demo-smarttime --only firestore "npm test -- --runInBand tests/emulator.smoke.test.ts tests/repositories.emulator.test.ts"
