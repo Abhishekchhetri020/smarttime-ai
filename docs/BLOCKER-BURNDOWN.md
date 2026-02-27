@@ -19,7 +19,7 @@ Date: 2026-02-27
 - Owner: Mobile
 - Action: Validate `google-services.json`, package IDs, SHA fingerprints, Google Sign-In client IDs.
 - Tracking doc: `docs/ANDROID-STAGING-VALIDATION.md`
-- Blocker detail: Flutter SDK not installed on host (`flutter: command not found`), and Android project scaffold (`android/app`) not present yet.
+- Blocker detail: Flutter SDK + Android scaffold now ready, but Android SDK is missing (`flutter doctor`: Unable to locate Android SDK), so APK build is blocked.
 
 ### B3 — Role-based UAT formal sign-off
 - Severity: High

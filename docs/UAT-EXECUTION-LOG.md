@@ -45,7 +45,8 @@ Build: RC Candidate 1
 - Backend API + route tests: PASS
 - Solver tests: PASS
 - Firestore emulator integration tests: PASS
-- Android runtime UAT: Pending (Flutter/Android env setup required)
+- Android widget tests: PASS
+- Android APK debug build: Blocked (Android SDK missing on host)
 
 ## Final UAT Verdict
 - [ ] GO

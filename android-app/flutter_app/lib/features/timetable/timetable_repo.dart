@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class TimetableRepo {
   final _db = FirebaseFirestore.instance;
 
-  Future<List<Map<String, dynamic>>> getPublishedEntries(String schoolId, String _unused) async {
+  Future<List<Map<String, dynamic>>> getPublishedEntries(String schoolId, String ignoredTtId) async {
     final tt = await _db
         .collection('schools')
         .doc(schoolId)
