@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import { apiGet, apiPut } from '../../../lib/api';
+import { scrollToId } from '../../../lib/ui';
 
 export default function TeachersPage() {
   const router = useRouter();
@@ -23,6 +24,11 @@ export default function TeachersPage() {
 
   const focusedExists = useMemo(() => items.some((x) => x.id === focus || x.code === focus), [items, focus]);
 
+  useEffect(() => {
+    if (!focus) return;
+    scrollToId(`teacher-${focus}`);
+  }, [focus, items]);
+
   async function addTeacher() {
     if (!name.trim()) {
       alert('Teacher name is required');
@@ -31,6 +37,13 @@ export default function TeachersPage() {
     const id = `t_${Date.now()}`;
     await apiPut(`/schools/demo-school/teachers/${id}`, { name: name.trim(), code: id });
     setName('');
+    await load();
+  }
+
+  async function editTeacher(x: any) {
+    const nextName = prompt('Update teacher name', x.name || x.id);
+    if (!nextName || !nextName.trim()) return;
+    await apiPut(`/schools/demo-school/teachers/${x.id}`, { ...x, name: nextName.trim() });
     await load();
   }
 
@@ -47,8 +60,9 @@ export default function TeachersPage() {
       <button onClick={addTeacher}>{create ? 'Create Teacher' : 'Add'}</button>
       <ul>
         {items.map((x) => (
-          <li key={x.id} style={{ background: (x.id === focus || x.code === focus) ? '#e3f2fd' : undefined }}>
+          <li id={`teacher-${x.id}`} key={x.id} style={{ background: (x.id === focus || x.code === focus) ? '#e3f2fd' : undefined }}>
             {x.name || x.id} ({x.code || x.id})
+            <button style={{ marginLeft: 8 }} onClick={() => editTeacher(x)}>Edit</button>
           </li>
         ))}
       </ul>

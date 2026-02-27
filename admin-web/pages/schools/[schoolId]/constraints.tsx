@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { apiGet, apiPut } from '../../../lib/api';
+import { scrollToId } from '../../../lib/ui';
 
 export default function ConstraintsPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function ConstraintsPage() {
   }
   useEffect(() => { load(); }, []);
   useEffect(() => { if (hint) setType(hint); }, [hint]);
+  useEffect(() => { if (hint) scrollToId(`constraint-${hint}`); }, [hint, items]);
 
   async function addItem() {
     if (!type.trim() || Number.isNaN(weight)) {
@@ -27,6 +29,19 @@ export default function ConstraintsPage() {
     await load();
   }
 
+  async function editConstraint(x: any) {
+    const nextType = prompt('Update constraint type', x.type || 'max_gaps_teacher');
+    if (!nextType) return;
+    const nextWeight = prompt('Update weight', String(x.weight ?? 10));
+    if (!nextWeight) return;
+    await apiPut(`/schools/demo-school/constraints/${x.id}`, {
+      ...x,
+      type: nextType.trim(),
+      weight: Number(nextWeight),
+    });
+    await load();
+  }
+
   return <main style={{fontFamily:'Arial',padding:24}}>
     <h2>Constraints</h2>
     {hint && <div style={{ marginBottom: 10, padding: 8, background: '#fff8e1', border: '1px solid #ffe082' }}>Hint received: <b>{hint}</b></div>}
@@ -34,6 +49,6 @@ export default function ConstraintsPage() {
     <input value={type} onChange={e=>setType(e.target.value)} />
     <input type='number' value={weight} onChange={e=>setWeight(Number(e.target.value))} />
     <button onClick={addItem}>{create ? 'Create Constraint' : 'Add'}</button>
-    <ul>{items.map(x=><li key={x.id} style={{ background: x.type === hint ? '#e3f2fd' : undefined }}>{x.type} (w={x.weight})</li>)}</ul>
+    <ul>{items.map(x=><li id={`constraint-${x.type}`} key={x.id} style={{ background: x.type === hint ? '#e3f2fd' : undefined }}>{x.type} (w={x.weight})<button style={{ marginLeft: 8 }} onClick={()=>editConstraint(x)}>Edit</button></li>)}</ul>
   </main>;
 }
