@@ -13,8 +13,12 @@ export default function ClassesPage() {
   useEffect(() => { load(); }, []);
 
   async function addItem() {
+    if (!grade.trim() || !section.trim()) {
+      alert('Grade and section are required');
+      return;
+    }
     const id = `c_${Date.now()}`;
-    await apiPut(`/schools/demo-school/classes/${id}`, { grade, section });
+    await apiPut(`/schools/demo-school/classes/${id}`, { grade: grade.trim(), section: section.trim() });
     await load();
   }
 

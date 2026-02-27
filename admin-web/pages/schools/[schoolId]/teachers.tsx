@@ -13,8 +13,12 @@ export default function TeachersPage() {
   useEffect(() => { load(); }, []);
 
   async function addTeacher() {
+    if (!name.trim()) {
+      alert('Teacher name is required');
+      return;
+    }
     const id = `t_${Date.now()}`;
-    await apiPut(`/schools/demo-school/teachers/${id}`, { name, code: id });
+    await apiPut(`/schools/demo-school/teachers/${id}`, { name: name.trim(), code: id });
     setName('');
     await load();
   }
