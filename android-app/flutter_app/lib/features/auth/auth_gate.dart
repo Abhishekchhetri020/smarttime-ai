@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../timetable/role_screens.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -21,15 +22,19 @@ class AuthGate extends StatelessWidget {
           builder: (context, tokenSnap) {
             if (!tokenSnap.hasData) return const Center(child: CircularProgressIndicator());
             final role = tokenSnap.data!.claims?['role']?.toString() ?? 'teacher';
-            final screen = switch (role) {
-              'super_admin' => 'Super Admin Console',
-              'incharge' => 'Timetable In-Charge Console',
-              'teacher' => 'Teacher Timetable View',
-              'student' => 'Student Timetable View',
-              'parent' => 'Parent Timetable View',
-              _ => 'Teacher Timetable View',
-            };
-            return Center(child: Text('Signed in as $role • $screen'));
+            switch (role) {
+              case 'super_admin':
+                return const SuperAdminScreen();
+              case 'incharge':
+                return const InchargeScreen();
+              case 'student':
+                return const StudentScreen();
+              case 'parent':
+                return const ParentScreen();
+              case 'teacher':
+              default:
+                return const TeacherScreen();
+            }
           },
         );
       },

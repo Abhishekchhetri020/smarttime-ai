@@ -3,6 +3,8 @@ import { requireAuth, requireRole, AuthedRequest } from '../middleware/auth';
 import { createSolverJob, listCollection, upsertEntity } from '../services/firestoreRepo';
 import { runSolverJob } from '../services/solverClient';
 import { enqueueSolverJob } from '../services/queue';
+import { publishTimetable } from '../services/timetableRepo';
+import { db } from '../lib/firebase';
 
 export const router = Router();
 
@@ -55,4 +57,19 @@ router.get('/schools/:schoolId/solver/jobs', requireRole(['super_admin', 'inchar
 router.get('/schools/:schoolId/timetables', requireRole(['super_admin', 'incharge', 'teacher', 'student', 'parent']), async (req, res) => {
   const items = await listCollection(req.params.schoolId, 'timetables');
   res.json({ items });
+});
+
+router.post('/schools/:schoolId/timetables/:versionId/publish', requireRole(['super_admin', 'incharge']), async (req: AuthedRequest, res) => {
+  const out = await publishTimetable(req.params.schoolId, req.params.versionId, req.user?.uid || 'unknown');
+  res.json(out);
+});
+
+router.get('/schools/:schoolId/timetables/published/latest', requireRole(['super_admin', 'incharge', 'teacher', 'student', 'parent']), async (req, res) => {
+  const col = db.collection('schools').doc(req.params.schoolId).collection('timetables');
+  const snap = await col.where('status', '==', 'published').orderBy('publishedAt', 'desc').limit(1).get();
+  if (snap.empty) return res.json({ timetable: null, entries: [] });
+
+  const doc = snap.docs[0];
+  const entries = await doc.ref.collection('entries').get();
+  res.json({ timetable: { id: doc.id, ...doc.data() }, entries: entries.docs.map(d => ({ id: d.id, ...d.data() })) });
 });
