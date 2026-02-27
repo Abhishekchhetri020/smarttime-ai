@@ -5,6 +5,8 @@ import { apiGet, apiPut } from '../../../lib/api';
 export default function TeachersPage() {
   const router = useRouter();
   const focus = (router.query.focus as string) || '';
+  const create = (router.query.create as string) === '1';
+  const presetName = (router.query.name as string) || '';
   const [items, setItems] = useState<any[]>([]);
   const [name, setName] = useState('');
 
@@ -14,6 +16,10 @@ export default function TeachersPage() {
   }
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (create && presetName) setName(presetName);
+    else if (create && focus) setName(focus);
+  }, [create, presetName, focus]);
 
   const focusedExists = useMemo(() => items.some((x) => x.id === focus || x.code === focus), [items, focus]);
 
@@ -36,8 +42,9 @@ export default function TeachersPage() {
           Focus: <b>{focus}</b> {focusedExists ? 'found' : 'not found'}
         </div>
       )}
+      {create && <div style={{ marginBottom: 8, color: '#1565c0' }}>Quick-create mode enabled from conflict dashboard.</div>}
       <input value={name} onChange={e => setName(e.target.value)} placeholder="Teacher name" />
-      <button onClick={addTeacher}>Add</button>
+      <button onClick={addTeacher}>{create ? 'Create Teacher' : 'Add'}</button>
       <ul>
         {items.map((x) => (
           <li key={x.id} style={{ background: (x.id === focus || x.code === focus) ? '#e3f2fd' : undefined }}>

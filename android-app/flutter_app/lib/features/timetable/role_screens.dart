@@ -69,6 +69,14 @@ class TimetableEntriesView extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
+                Container(width: 14, height: 14, color: Colors.orange.shade50),
+                const SizedBox(width: 6),
+                const Text('Empty slot', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
                 const SizedBox(width: 80),
                 for (int d = 1; d <= maxDay; d++)
                   Container(

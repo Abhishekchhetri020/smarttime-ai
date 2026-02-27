@@ -5,6 +5,7 @@ import { apiGet, apiPut } from '../../../lib/api';
 export default function ConstraintsPage() {
   const router = useRouter();
   const hint = (router.query.hint as string) || '';
+  const create = (router.query.create as string) === '1';
   const [items, setItems] = useState<any[]>([]);
   const [type, setType] = useState('max_gaps_teacher');
   const [weight, setWeight] = useState(10);
@@ -29,9 +30,10 @@ export default function ConstraintsPage() {
   return <main style={{fontFamily:'Arial',padding:24}}>
     <h2>Constraints</h2>
     {hint && <div style={{ marginBottom: 10, padding: 8, background: '#fff8e1', border: '1px solid #ffe082' }}>Hint received: <b>{hint}</b></div>}
+    {create && <div style={{ marginBottom: 8, color: '#1565c0' }}>Quick-create mode enabled from conflict dashboard.</div>}
     <input value={type} onChange={e=>setType(e.target.value)} />
     <input type='number' value={weight} onChange={e=>setWeight(Number(e.target.value))} />
-    <button onClick={addItem}>Add</button>
+    <button onClick={addItem}>{create ? 'Create Constraint' : 'Add'}</button>
     <ul>{items.map(x=><li key={x.id} style={{ background: x.type === hint ? '#e3f2fd' : undefined }}>{x.type} (w={x.weight})</li>)}</ul>
   </main>;
 }
