@@ -24,7 +24,12 @@
 - Added Google Sign-In and Sign-Out flow in Android auth gate.
 - Added Firestore emulator smoke test scaffold (`emulator.smoke.test.ts`) that activates when `FIRESTORE_EMULATOR_HOST` is set.
 
+## Additional progress
+- CI updated with `functions-emulator-tests` job to run emulator smoke suite under Firestore emulator.
+- Android timetable now renders a day × period grid for published entries.
+- Conflict dashboard now supports type filter, severity labeling, and contextual resolution suggestions.
+
 ## Next
-1. Run full emulator-backed integration suite in CI with Firestore emulator startup.
-2. Add grid-style timetable rendering in Android (day x period matrix).
-3. Add conflict severity filters and resolution suggestions in admin dashboard.
+1. Add true repository integration tests on emulator (not only smoke).
+2. Improve Android timetable UX with sticky headers and empty-slot highlighting.
+3. Add conflict resolution actions (quick links to teacher/class/constraint editors).
