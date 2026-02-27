@@ -19,7 +19,12 @@
 - Admin solver page now shows published badge and polls solver jobs/versions.
 - Android app initializes Firebase in `main.dart` and includes email/password sign-in + account creation flow.
 
+## Additional progress
+- Added admin conflict dashboard page (`/schools/demo-school/conflicts`) wired to solver job diagnostics.
+- Added Google Sign-In and Sign-Out flow in Android auth gate.
+- Added Firestore emulator smoke test scaffold (`emulator.smoke.test.ts`) that activates when `FIRESTORE_EMULATOR_HOST` is set.
+
 ## Next
-1. Replace db mocks with Firestore emulator-backed integration tests.
-2. Add Google sign-in flow and sign-out UX in Android.
-3. Add admin-level conflict dashboard UI wired to solver diagnostics.
+1. Run full emulator-backed integration suite in CI with Firestore emulator startup.
+2. Add grid-style timetable rendering in Android (day x period matrix).
+3. Add conflict severity filters and resolution suggestions in admin dashboard.

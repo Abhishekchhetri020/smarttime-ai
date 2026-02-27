@@ -35,7 +35,7 @@ class AppHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('SmartTime AI')),
-      body: const Center(child: AuthGate()),
+      body: const AuthGate(),
     );
   }
 }

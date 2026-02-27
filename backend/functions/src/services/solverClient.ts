@@ -51,6 +51,10 @@ export async function runSolverJob(schoolId: string, jobId: string) {
       assignments: (output.assignments || []).length,
       hardViolations: (output.hardViolations || []).length,
     },
+    diagnostics: {
+      hardViolations: output.hardViolations || [],
+      softPenaltyBreakdown: output.softPenaltyBreakdown || [],
+    },
     timetableVersionId: ttRef.id,
   }, { merge: true });
 

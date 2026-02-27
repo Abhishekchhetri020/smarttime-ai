@@ -10,6 +10,7 @@ export default function SchoolHome() {
         <li><Link href="/schools/demo-school/subjects">Subjects</Link></li>
         <li><Link href="/schools/demo-school/constraints">Constraints</Link></li>
         <li><Link href="/schools/demo-school/solver">Run Solver</Link></li>
+        <li><Link href="/schools/demo-school/conflicts">Conflict Dashboard</Link></li>
       </ul>
     </main>
   );
