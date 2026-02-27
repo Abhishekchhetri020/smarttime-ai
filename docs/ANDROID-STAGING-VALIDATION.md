@@ -18,6 +18,7 @@
 - [ ] `key.properties` verified (not committed to repo)
 - [ ] `flutter build apk --release` succeeds
 - [ ] `flutter build appbundle --release` succeeds
+- [x] `flutter build apk --debug` succeeds (evidence captured)
 
 ## Runtime Validation
 - [ ] Email sign-in works

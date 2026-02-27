@@ -15,11 +15,12 @@ Date: 2026-02-27
 
 ### B2 — Android staging Firebase production-like config validation
 - Severity: High
-- Status: Blocked (environment)
+- Status: In Progress
 - Owner: Mobile
 - Action: Validate `google-services.json`, package IDs, SHA fingerprints, Google Sign-In client IDs.
 - Tracking doc: `docs/ANDROID-STAGING-VALIDATION.md`
-- Blocker detail: Flutter SDK + Android scaffold now ready, but Android SDK is missing (`flutter doctor`: Unable to locate Android SDK), so APK build is blocked.
+- Progress: Flutter SDK + Android SDK configured, licenses accepted, and debug APK build succeeded.
+- Remaining: production-like Firebase auth config + release signing checks.
 
 ### B3 — Role-based UAT formal sign-off
 - Severity: High

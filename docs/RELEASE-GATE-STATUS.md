@@ -11,7 +11,7 @@ Gate: RC Pre-Freeze
 5. ✅ Android auth + role routing baseline
 6. ✅ Emulator execution evidence verified locally (CI link pending attach)
 7. ⚠️ Role-based UAT sign-offs complete
-8. ⚠️ Staging Android Firebase config validated
+8. ⚠️ Staging Android Firebase config validated (debug build path verified; auth/signing validation pending)
 9. ⚠️ Play Store metadata package complete
 
 ## Verdict

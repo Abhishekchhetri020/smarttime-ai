@@ -46,7 +46,7 @@ Build: RC Candidate 1
 - Solver tests: PASS
 - Firestore emulator integration tests: PASS
 - Android widget tests: PASS
-- Android APK debug build: Blocked (Android SDK missing on host)
+- Android APK debug build: PASS (`build/app/outputs/flutter-apk/app-debug.apk`)
 
 ## Final UAT Verdict
 - [ ] GO
