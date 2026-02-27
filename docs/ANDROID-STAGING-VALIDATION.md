@@ -1,5 +1,9 @@
 # SmartTime AI — Android Staging Validation Checklist
 
+## Preconditions (must be ready first)
+- [ ] Flutter SDK installed (`flutter --version` works)
+- [ ] Android project scaffold exists (`android/app` present)
+
 ## Firebase / Auth Setup
 - [ ] `google-services.json` from staging Firebase project added to app
 - [ ] Android package name matches Firebase app registration

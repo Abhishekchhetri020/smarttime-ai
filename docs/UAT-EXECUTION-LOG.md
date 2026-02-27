@@ -41,6 +41,12 @@ Build: RC Candidate 1
 |----|----------|------|----------|-------------|--------|-------|
 |    |          |      |          |             |        |       |
 
+## Automated Verification Snapshot
+- Backend API + route tests: PASS
+- Solver tests: PASS
+- Firestore emulator integration tests: PASS
+- Android runtime UAT: Pending (Flutter/Android env setup required)
+
 ## Final UAT Verdict
 - [ ] GO
 - [ ] NO-GO
