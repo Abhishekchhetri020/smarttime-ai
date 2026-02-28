@@ -110,7 +110,12 @@ class _SignInPanelState extends State<SignInPanel> {
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
     } catch (e) {
-      setState(() => _err = e.toString());
+      final msg = e.toString();
+      if (msg.contains('ApiException: 10') || msg.contains('sign_in_failed')) {
+        setState(() => _err = 'Google Sign-In config mismatch (ApiException 10). Add SHA-1/SHA-256 in Firebase Android app settings, then download and replace google-services.json.');
+      } else {
+        setState(() => _err = msg);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
