@@ -42,5 +42,14 @@
 ## Current Findings (2026-02-28)
 - `android/app/google-services.json`: missing
 - `android/key.properties`: missing
-- Android `applicationId` is still default (`com.example.smarttime_ai`) and must be changed for production.
+- Android `applicationId` updated to production-ready non-default: `com.smarttime.ai`.
 - Release builds are generating successfully (`app-release.apk`, `app-release.aab`), but production signing/auth configuration is still pending.
+
+## Immediate Close-Out Actions
+1. Add `android/app/google-services.json` from Firebase staging project for `com.smarttime.ai`.
+2. Add SHA-1/SHA-256 fingerprints in Firebase Android app settings and verify Google Sign-In OAuth clients.
+3. Create `android/key.properties` from `android/key.properties.example` with real keystore details.
+4. Re-run:
+   - `flutter build apk --release`
+   - `flutter build appbundle --release`
+   - perform on-device sign-in smoke checks.

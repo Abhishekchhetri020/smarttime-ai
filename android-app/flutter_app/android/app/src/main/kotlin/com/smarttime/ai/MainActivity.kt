@@ -1,4 +1,4 @@
-package com.example.smarttime_ai
+package com.smarttime.ai
 
 import io.flutter.embedding.android.FlutterActivity
 
