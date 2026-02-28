@@ -2,13 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'features/auth/auth_gate.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-  } catch (_) {
-    // In local/dev without firebase config, app still boots.
-  }
   runApp(const SmartTimeApp());
 }
 
@@ -35,7 +30,25 @@ class AppHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('SmartTime AI')),
-      body: const AuthGate(),
+      body: FutureBuilder(
+        future: Firebase.initializeApp(),
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Firebase init failed. Please verify google-services.json and Google services Gradle setup.\n\n${snap.error}',
+                ),
+              ),
+            );
+          }
+          return const AuthGate();
+        },
+      ),
     );
   }
 }
