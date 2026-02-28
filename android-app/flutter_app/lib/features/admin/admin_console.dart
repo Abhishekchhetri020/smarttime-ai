@@ -87,8 +87,10 @@ class _AdminConsoleState extends State<AdminConsole> {
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       setState(() => _status = 'Solver job queued successfully.');
+    } else if (res.statusCode == 404) {
+      setState(() => _status = 'Backend endpoint not found (404). Check AppConfig.apiBase and backend deployment.');
     } else {
-      setState(() => _status = 'Solver failed: ${res.body}');
+      setState(() => _status = 'Solver failed (${res.statusCode}): ${res.body}');
     }
   }
 

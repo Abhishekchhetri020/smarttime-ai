@@ -1,0 +1,21 @@
+{
+  "schoolId": "demo-school",
+  "days": 5,
+  "periodsPerDay": 8,
+  "seed": 13,
+  "constraints": {
+    "teacherAvailability": {
+      "T1": [{"day": 1, "period": 1}, {"day": 1, "period": 2}, {"day": 2, "period": 1}, {"day": 2, "period": 2}],
+      "T2": [{"day": 1, "period": 3}, {"day": 1, "period": 4}, {"day": 2, "period": 3}, {"day": 2, "period": 4}]
+    },
+    "teacherMaxPeriodsPerDay": {"T1": 3, "T2": 3},
+    "classMaxPeriodsPerDay": {"VII-A": 6, "VII-B": 6}
+  },
+  "lessons": [
+    {"id": "L1", "classId": "VII-A", "teacherId": "T1", "subjectId": "MATH"},
+    {"id": "L2", "classId": "VII-A", "teacherId": "T1", "subjectId": "MATH"},
+    {"id": "L3", "classId": "VII-A", "teacherId": "T2", "subjectId": "SCI"},
+    {"id": "L4", "classId": "VII-B", "teacherId": "T1", "subjectId": "MATH"},
+    {"id": "L5", "classId": "VII-B", "teacherId": "T2", "subjectId": "LAB", "isLabDouble": true}
+  ]
+}
