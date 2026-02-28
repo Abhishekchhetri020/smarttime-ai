@@ -47,6 +47,7 @@ Build: RC Candidate 1
 - Firestore emulator integration tests: PASS
 - Android widget tests: PASS
 - Android APK debug build: PASS (`build/app/outputs/flutter-apk/app-debug.apk`)
+- Android release artifacts: PASS (`app-release.apk`, `app-release.aab`)
 
 ## Final UAT Verdict
 - [ ] GO

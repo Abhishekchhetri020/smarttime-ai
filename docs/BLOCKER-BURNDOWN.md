@@ -19,8 +19,8 @@ Date: 2026-02-27
 - Owner: Mobile
 - Action: Validate `google-services.json`, package IDs, SHA fingerprints, Google Sign-In client IDs.
 - Tracking doc: `docs/ANDROID-STAGING-VALIDATION.md`
-- Progress: Flutter SDK + Android SDK configured, licenses accepted, and debug APK build succeeded.
-- Remaining: production-like Firebase auth config + release signing checks.
+- Progress: Flutter SDK + Android SDK configured, licenses accepted, debug APK + release APK/AAB builds succeeded.
+- Remaining: production-like Firebase auth config (`google-services.json`, SHA/OAuth), real release keystore setup, final runtime sign-off.
 
 ### B3 — Role-based UAT formal sign-off
 - Severity: High

@@ -16,8 +16,8 @@
 ## Build/Signing
 - [ ] Staging keystore configured
 - [ ] `key.properties` verified (not committed to repo)
-- [ ] `flutter build apk --release` succeeds
-- [ ] `flutter build appbundle --release` succeeds
+- [x] `flutter build apk --release` succeeds
+- [x] `flutter build appbundle --release` succeeds
 - [x] `flutter build apk --debug` succeeds (evidence captured)
 
 ## Runtime Validation
@@ -38,3 +38,9 @@
 - Date:
 - Result: [ ] PASS [ ] FAIL
 - Notes:
+
+## Current Findings (2026-02-28)
+- `android/app/google-services.json`: missing
+- `android/key.properties`: missing
+- Android `applicationId` is still default (`com.example.smarttime_ai`) and must be changed for production.
+- Release builds are generating successfully (`app-release.apk`, `app-release.aab`), but production signing/auth configuration is still pending.
