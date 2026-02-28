@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import '../admin/admin_console.dart';
 import 'timetable_repo.dart';
 
 class SuperAdminScreen extends StatelessWidget {
   const SuperAdminScreen({super.key});
   @override
-  Widget build(BuildContext context) => const Text('Super Admin Console');
+  Widget build(BuildContext context) => const AdminConsole(role: 'Super Admin');
 }
 
 class InchargeScreen extends StatelessWidget {
   const InchargeScreen({super.key});
   @override
-  Widget build(BuildContext context) => const Text('Timetable In-Charge Console');
+  Widget build(BuildContext context) => const AdminConsole(role: 'Timetable In-Charge');
 }
 
 class TeacherScreen extends StatelessWidget {
