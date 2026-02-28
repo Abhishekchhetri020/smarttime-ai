@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-app = FastAPI(title='SmartTime Solver', version='0.3.0')
+app = FastAPI(title='SmartTime Solver', version='0.4.0')
 
 
 class Lesson(BaseModel):
@@ -22,11 +22,20 @@ class Lesson(BaseModel):
     isLabDouble: bool = False
 
 
+class Room(BaseModel):
+    id: str
+    roomType: Optional[str] = None
+
+
 class ConstraintConfig(BaseModel):
     teacherAvailability: Dict[str, List[Dict[str, int]]] = Field(default_factory=dict)
     teacherMaxPeriodsPerDay: Dict[str, int] = Field(default_factory=dict)
     classMaxPeriodsPerDay: Dict[str, int] = Field(default_factory=dict)
     fixedPeriods: Dict[str, Dict[str, int]] = Field(default_factory=dict)
+    subjectDailyLimit: Dict[str, int] = Field(default_factory=dict)  # key: classId:subjectId
+    teacherMaxConsecutivePeriods: Dict[str, int] = Field(default_factory=dict)
+    classMaxConsecutivePeriods: Dict[str, int] = Field(default_factory=dict)
+    teacherNoLastPeriodMaxPerWeek: Dict[str, int] = Field(default_factory=dict)
 
 
 class SolveRequest(BaseModel):
@@ -34,6 +43,7 @@ class SolveRequest(BaseModel):
     days: int = 5
     periodsPerDay: int = 8
     lessons: List[Lesson]
+    rooms: List[Room] = Field(default_factory=list)
     constraints: ConstraintConfig = Field(default_factory=ConstraintConfig)
     pinned: List[Dict[str, Any]] = Field(default_factory=list)
     seed: int = 7
@@ -45,6 +55,7 @@ class SolveResponse(BaseModel):
     hardViolations: List[Dict[str, Any]]
     softPenaltyBreakdown: List[Dict[str, Any]]
     assignments: List[Dict[str, Any]]
+    diagnostics: Dict[str, Any] = Field(default_factory=dict)
     score: int
 
 
@@ -55,7 +66,7 @@ class Slot:
 
 
 def _slot_key(day: int, period: int) -> str:
-    return f"{day}:{period}"
+    return f'{day}:{period}'
 
 
 def _availability_index(av: Dict[str, List[Dict[str, int]]]) -> Dict[str, set[str]]:
@@ -67,6 +78,20 @@ def _availability_index(av: Dict[str, List[Dict[str, int]]]) -> Dict[str, set[st
 
 def _build_slots(days: int, periods_per_day: int) -> List[Slot]:
     return [Slot(d, p) for d in range(1, days + 1) for p in range(1, periods_per_day + 1)]
+
+
+def _consecutive_run_length(periods: List[int], pivot: int) -> int:
+    s = set(periods)
+    run = 1
+    left = pivot - 1
+    right = pivot + 1
+    while left in s:
+        run += 1
+        left -= 1
+    while right in s:
+        run += 1
+        right += 1
+    return run
 
 
 def _can_place(
@@ -81,6 +106,8 @@ def _can_place(
     availability: Dict[str, set[str]],
     max_teacher_day: Dict[str, int],
     max_class_day: Dict[str, int],
+    class_subject_day_count: Dict[Tuple[str, str, int], int],
+    subject_daily_limit: Dict[str, int],
 ) -> Tuple[bool, str]:
     t_key = (lesson.teacherId, slot.day, slot.period)
     c_key = (lesson.classId, slot.day, slot.period)
@@ -105,17 +132,38 @@ def _can_place(
     if cmax is not None and class_day_load[(lesson.classId, slot.day)] >= cmax:
         return False, 'class_max_periods_per_day'
 
+    subj_key = f'{lesson.classId}:{lesson.subjectId}'
+    subj_limit = subject_daily_limit.get(subj_key)
+    if subj_limit is not None:
+        if class_subject_day_count[(lesson.classId, lesson.subjectId, slot.day)] >= subj_limit:
+            return False, 'subject_daily_limit'
+
     return True, ''
 
 
-def _soft_penalties(assignments: List[Dict[str, Any]], periods_per_day: int) -> List[Dict[str, Any]]:
+def _resolve_room(lesson: Lesson, rooms: List[Room]) -> Optional[str]:
+    if lesson.preferredRoomId:
+        return lesson.preferredRoomId
+    if lesson.requiredRoomType:
+        for room in rooms:
+            if room.roomType == lesson.requiredRoomType:
+                return room.id
+        return None
+    return f'room_{lesson.classId}'
+
+
+def _soft_penalties(
+    assignments: List[Dict[str, Any]],
+    periods_per_day: int,
+    teacher_max_consecutive: Dict[str, int],
+    class_max_consecutive: Dict[str, int],
+    teacher_last_period_cap: Dict[str, int],
+) -> List[Dict[str, Any]]:
     penalties: List[Dict[str, Any]] = []
 
-    # Teacher gaps (free periods between classes in same day)
     by_teacher_day: Dict[Tuple[str, int], List[int]] = defaultdict(list)
     by_class_day: Dict[Tuple[str, int], List[int]] = defaultdict(list)
     by_class_subject_day: Dict[Tuple[str, str, int], int] = Counter()
-
     teacher_rooms: Dict[str, set[str]] = defaultdict(set)
 
     for a in assignments:
@@ -125,33 +173,145 @@ def _soft_penalties(assignments: List[Dict[str, Any]], periods_per_day: int) -> 
         teacher_rooms[a['teacherId']].add(a['roomId'])
 
     teacher_gap_pen = 0
-    for _k, ps in by_teacher_day.items():
+    for ps in by_teacher_day.values():
         s = sorted(ps)
         teacher_gap_pen += sum(max(0, s[i + 1] - s[i] - 1) for i in range(len(s) - 1))
 
     class_gap_pen = 0
-    for _k, ps in by_class_day.items():
+    for ps in by_class_day.values():
         s = sorted(ps)
         class_gap_pen += sum(max(0, s[i + 1] - s[i] - 1) for i in range(len(s) - 1))
 
-    # Subject distribution: penalize concentration >2 lessons/day for same subject-class
     subject_distribution_pen = 0
-    for _k, c in by_class_subject_day.items():
+    for c in by_class_subject_day.values():
         if c > 2:
             subject_distribution_pen += (c - 2)
 
-    # Teacher room instability: multiple rooms/day
     room_stability_pen = 0
-    for _teacher, rooms in teacher_rooms.items():
+    for rooms in teacher_rooms.values():
         if len(rooms) > 1:
             room_stability_pen += (len(rooms) - 1)
+
+    teacher_consecutive_pen = 0
+    for (teacher, _day), periods in by_teacher_day.items():
+        limit = teacher_max_consecutive.get(teacher)
+        if not limit:
+            continue
+        for p in periods:
+            run = _consecutive_run_length(periods, p)
+            if run > limit:
+                teacher_consecutive_pen += (run - limit)
+
+    class_consecutive_pen = 0
+    for (class_id, _day), periods in by_class_day.items():
+        limit = class_max_consecutive.get(class_id)
+        if not limit:
+            continue
+        for p in periods:
+            run = _consecutive_run_length(periods, p)
+            if run > limit:
+                class_consecutive_pen += (run - limit)
+
+    teacher_last_period_count = Counter()
+    for a in assignments:
+        if a['period'] == periods_per_day:
+            teacher_last_period_count[a['teacherId']] += 1
+
+    teacher_last_period_pen = 0
+    for teacher, count in teacher_last_period_count.items():
+        cap = teacher_last_period_cap.get(teacher)
+        if cap is not None and count > cap:
+            teacher_last_period_pen += (count - cap)
 
     penalties.append({'type': 'teacher_gaps', 'penalty': teacher_gap_pen, 'weight': 5})
     penalties.append({'type': 'class_gaps', 'penalty': class_gap_pen, 'weight': 5})
     penalties.append({'type': 'subject_distribution', 'penalty': subject_distribution_pen, 'weight': 3})
     penalties.append({'type': 'teacher_room_stability', 'penalty': room_stability_pen, 'weight': 1})
+    penalties.append({'type': 'teacher_consecutive_overload', 'penalty': teacher_consecutive_pen, 'weight': 4})
+    penalties.append({'type': 'class_consecutive_overload', 'penalty': class_consecutive_pen, 'weight': 3})
+    penalties.append({'type': 'teacher_last_period_overflow', 'penalty': teacher_last_period_pen, 'weight': 2})
 
     return penalties
+
+
+def _score_penalties(penalties: List[Dict[str, Any]]) -> int:
+    return sum(int(p['penalty']) * int(p['weight']) for p in penalties)
+
+
+def _optimize_assignments(assignments: List[Dict[str, Any]], req: SolveRequest, rounds: int = 1) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    best = list(assignments)
+    base = _score_penalties(
+        _soft_penalties(
+            best,
+            req.periodsPerDay,
+            req.constraints.teacherMaxConsecutivePeriods,
+            req.constraints.classMaxConsecutivePeriods,
+            req.constraints.teacherNoLastPeriodMaxPerWeek,
+        )
+    )
+    improved = 0
+
+    for _ in range(rounds):
+        changed = False
+        for i in range(len(best)):
+            a = best[i]
+            if a.get('pinned'):
+                continue
+            for j in range(i + 1, len(best)):
+                b = best[j]
+                if b.get('pinned'):
+                    continue
+                if a['isLabDouble'] or b['isLabDouble']:
+                    continue
+
+                if a['day'] == b['day'] and a['period'] == b['period']:
+                    continue
+
+                trial = [dict(x) for x in best]
+                trial[i]['day'], trial[j]['day'] = trial[j]['day'], trial[i]['day']
+                trial[i]['period'], trial[j]['period'] = trial[j]['period'], trial[i]['period']
+
+                # Quick conflict validation after swap
+                seen_teacher = set()
+                seen_class = set()
+                seen_room = set()
+                valid = True
+                for t in trial:
+                    tk = (t['teacherId'], t['day'], t['period'])
+                    ck = (t['classId'], t['day'], t['period'])
+                    rk = (t['roomId'], t['day'], t['period'])
+                    if tk in seen_teacher or ck in seen_class or rk in seen_room:
+                        valid = False
+                        break
+                    seen_teacher.add(tk)
+                    seen_class.add(ck)
+                    seen_room.add(rk)
+
+                if not valid:
+                    continue
+
+                trial_score = _score_penalties(
+                    _soft_penalties(
+                        trial,
+                        req.periodsPerDay,
+                        req.constraints.teacherMaxConsecutivePeriods,
+                        req.constraints.classMaxConsecutivePeriods,
+                        req.constraints.teacherNoLastPeriodMaxPerWeek,
+                    )
+                )
+
+                if trial_score < base:
+                    best = trial
+                    base = trial_score
+                    improved += 1
+                    changed = True
+                    break
+            if changed:
+                break
+        if not changed:
+            break
+
+    return best, {'movesAccepted': improved, 'finalSoftPenalty': base}
 
 
 @app.get('/health')
@@ -173,21 +333,32 @@ def solve(req: SolveRequest):
 
     teacher_day_load: Dict[Tuple[str, int], int] = defaultdict(int)
     class_day_load: Dict[Tuple[str, int], int] = defaultdict(int)
+    class_subject_day_count: Dict[Tuple[str, str, int], int] = defaultdict(int)
 
     assignments: List[Dict[str, Any]] = []
     hard_violations: List[Dict[str, Any]] = []
 
-    # Seed deterministic traversal
     start = req.seed % max(1, len(slots))
     ordered_slots = slots[start:] + slots[:start]
 
-    # Apply pinned placements first
+    # Fixed and more constrained lessons first (FET-inspired heuristic ordering)
+    ordered_lessons = sorted(
+        req.lessons,
+        key=lambda l: (
+            0 if (l.fixedDay and l.fixedPeriod) else 1,
+            0 if l.requiredRoomType else 1,
+            0 if l.isLabDouble else 1,
+            l.id,
+        ),
+    )
+
     for pin in req.pinned:
         day = int(pin['day'])
         period = int(pin['period'])
         room_id = pin.get('roomId') or f"room_{pin.get('classId', 'X')}"
         t = pin.get('teacherId')
         c = pin.get('classId')
+        s = pin.get('subjectId')
 
         if t:
             teacher_slot.add((t, day, period))
@@ -195,15 +366,32 @@ def solve(req: SolveRequest):
         if c:
             class_slot.add((c, day, period))
             class_day_load[(c, day)] += 1
+        if c and s:
+            class_subject_day_count[(c, s, day)] += 1
         room_slot.add((room_id, day, period))
-        assignments.append({**pin, 'roomId': room_id, 'pinned': True})
+        assignments.append({**pin, 'roomId': room_id, 'pinned': True, 'isLabDouble': pin.get('isLabDouble', False)})
 
-    for lesson in req.lessons:
+    unscheduled_reasons = Counter()
+
+    for lesson in ordered_lessons:
         forced = req.constraints.fixedPeriods.get(lesson.id) if req.constraints.fixedPeriods else None
         if forced:
             lesson = lesson.model_copy(update={'fixedDay': int(forced['day']), 'fixedPeriod': int(forced['period'])})
 
-        room_id = lesson.preferredRoomId or f"room_{lesson.classId}"
+        room_id = _resolve_room(lesson, req.rooms)
+        if room_id is None:
+            unscheduled_reasons['no_matching_room_type'] += 1
+            hard_violations.append({
+                'type': 'unscheduled_lesson',
+                'lessonId': lesson.id,
+                'classId': lesson.classId,
+                'teacherId': lesson.teacherId,
+                'subjectId': lesson.subjectId,
+                'reason': 'no_matching_room_type',
+                'attemptedSlots': 0,
+            })
+            continue
+
         candidate_slots = ordered_slots
         if lesson.fixedDay and lesson.fixedPeriod:
             candidate_slots = [Slot(lesson.fixedDay, lesson.fixedPeriod)]
@@ -212,7 +400,6 @@ def solve(req: SolveRequest):
         failure_reasons = Counter()
 
         for slot in candidate_slots:
-            # Lab double-period support: needs current + next period free
             if lesson.isLabDouble and slot.period >= req.periodsPerDay:
                 failure_reasons['lab_double_out_of_bounds'] += 1
                 continue
@@ -229,6 +416,8 @@ def solve(req: SolveRequest):
                 availability,
                 max_teacher_day,
                 max_class_day,
+                class_subject_day_count,
+                req.constraints.subjectDailyLimit,
             )
             if not ok:
                 failure_reasons[reason] += 1
@@ -248,6 +437,8 @@ def solve(req: SolveRequest):
                     availability,
                     max_teacher_day,
                     max_class_day,
+                    class_subject_day_count,
+                    req.constraints.subjectDailyLimit,
                 )
                 if not ok2:
                     failure_reasons[f'lab_double_{reason2}'] += 1
@@ -259,6 +450,7 @@ def solve(req: SolveRequest):
                     room_slot.add((room_id, s.day, s.period))
                     teacher_day_load[(lesson.teacherId, s.day)] += 1
                     class_day_load[(lesson.classId, s.day)] += 1
+                    class_subject_day_count[(lesson.classId, lesson.subjectId, s.day)] += 1
                     assignments.append({
                         'lessonId': lesson.id,
                         'classId': lesson.classId,
@@ -278,6 +470,7 @@ def solve(req: SolveRequest):
             room_slot.add((room_id, slot.day, slot.period))
             teacher_day_load[(lesson.teacherId, slot.day)] += 1
             class_day_load[(lesson.classId, slot.day)] += 1
+            class_subject_day_count[(lesson.classId, lesson.subjectId, slot.day)] += 1
             assignments.append({
                 'lessonId': lesson.id,
                 'classId': lesson.classId,
@@ -294,6 +487,7 @@ def solve(req: SolveRequest):
 
         if not placed:
             reason = failure_reasons.most_common(1)[0][0] if failure_reasons else 'no_feasible_slot'
+            unscheduled_reasons[reason] += 1
             hard_violations.append({
                 'type': 'unscheduled_lesson',
                 'lessonId': lesson.id,
@@ -304,8 +498,16 @@ def solve(req: SolveRequest):
                 'attemptedSlots': len(candidate_slots),
             })
 
-    penalties = _soft_penalties(assignments, req.periodsPerDay)
-    soft_penalty = sum(int(p['penalty']) * int(p['weight']) for p in penalties)
+    assignments, optimization = _optimize_assignments(assignments, req, rounds=2)
+
+    penalties = _soft_penalties(
+        assignments,
+        req.periodsPerDay,
+        req.constraints.teacherMaxConsecutivePeriods,
+        req.constraints.classMaxConsecutivePeriods,
+        req.constraints.teacherNoLastPeriodMaxPerWeek,
+    )
+    soft_penalty = _score_penalties(penalties)
 
     status = 'success' if not hard_violations else 'partial'
     score = -1_000_000_000 * len(hard_violations) - soft_penalty
@@ -316,5 +518,15 @@ def solve(req: SolveRequest):
         hardViolations=hard_violations,
         softPenaltyBreakdown=penalties,
         assignments=assignments,
+        diagnostics={
+            'solverVersion': app.version,
+            'unscheduledReasonCounts': dict(unscheduled_reasons),
+            'optimization': optimization,
+            'totals': {
+                'lessonsRequested': len(req.lessons),
+                'assignedEntries': len(assignments),
+                'hardViolations': len(hard_violations),
+            },
+        },
         score=score,
     )

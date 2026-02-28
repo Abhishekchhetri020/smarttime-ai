@@ -78,3 +78,57 @@ def test_lab_double_period_respected():
     assert len(data['assignments']) == 2
     periods = sorted([a['period'] for a in data['assignments']])
     assert periods == [1, 2]
+
+
+def test_required_room_type_enforced():
+    payload = {
+        'schoolId': 'demo',
+        'days': 1,
+        'periodsPerDay': 2,
+        'rooms': [{'id': 'R1', 'roomType': 'classroom'}],
+        'lessons': [
+            {'id': 'LAB1', 'classId': 'VII-A', 'teacherId': 'T2', 'subjectId': 'LAB', 'requiredRoomType': 'lab'}
+        ],
+    }
+    r = client.post('/solve', json=payload)
+    assert r.status_code == 200
+    data = r.json()
+    assert data['status'] == 'partial'
+    assert data['hardViolations'][0]['reason'] == 'no_matching_room_type'
+
+
+def test_subject_daily_limit_hard_constraint():
+    payload = {
+        'schoolId': 'demo',
+        'days': 1,
+        'periodsPerDay': 3,
+        'constraints': {'subjectDailyLimit': {'VII-A:MATH': 1}},
+        'lessons': [
+            {'id': 'L1', 'classId': 'VII-A', 'teacherId': 'T1', 'subjectId': 'MATH'},
+            {'id': 'L2', 'classId': 'VII-A', 'teacherId': 'T2', 'subjectId': 'MATH'},
+        ],
+    }
+    r = client.post('/solve', json=payload)
+    assert r.status_code == 200
+    data = r.json()
+    assert data['status'] == 'partial'
+    assert any(v['reason'] == 'subject_daily_limit' for v in data['hardViolations'])
+
+
+def test_diagnostics_present_with_optimization_summary():
+    payload = {
+        'schoolId': 'demo',
+        'days': 2,
+        'periodsPerDay': 3,
+        'constraints': {'teacherNoLastPeriodMaxPerWeek': {'T1': 0}},
+        'lessons': [
+            {'id': 'L1', 'classId': 'VII-A', 'teacherId': 'T1', 'subjectId': 'MATH'},
+            {'id': 'L2', 'classId': 'VII-B', 'teacherId': 'T1', 'subjectId': 'SCI'},
+        ],
+    }
+    r = client.post('/solve', json=payload)
+    assert r.status_code == 200
+    data = r.json()
+    assert 'diagnostics' in data
+    assert 'optimization' in data['diagnostics']
+    assert 'unscheduledReasonCounts' in data['diagnostics']

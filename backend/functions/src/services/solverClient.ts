@@ -3,29 +3,40 @@ import { db } from '../lib/firebase';
 const SOLVER_URL = process.env.SOLVER_BASE_URL || '';
 
 export async function runSolverJob(schoolId: string, jobId: string) {
+  const startedAt = Date.now();
   const jobRef = db.collection('schools').doc(schoolId).collection('solverJobs').doc(jobId);
   const jobSnap = await jobRef.get();
   if (!jobSnap.exists) throw new Error('job_not_found');
   const job = jobSnap.data() as any;
 
-  await jobRef.set({ status: 'running', updatedAt: Date.now() }, { merge: true });
+  await jobRef.set({ status: 'running', updatedAt: Date.now(), startedAt }, { merge: true });
 
   if (!SOLVER_URL) throw new Error('missing_SOLVER_BASE_URL');
 
-  const payload = job.payload || { schoolId, lessons: [], constraints: [], pinned: [], days: 5, periodsPerDay: 8 };
+  const payload = {
+    schoolId,
+    days: 5,
+    periodsPerDay: 8,
+    lessons: [],
+    constraints: {},
+    pinned: [],
+    rooms: [],
+    ...(job.payload || {}),
+  };
   const res = await fetch(`${SOLVER_URL}/solve`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ schoolId, ...payload }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
     const txt = await res.text();
-    await jobRef.set({ status: 'failed', updatedAt: Date.now(), error: txt }, { merge: true });
+    await jobRef.set({ status: 'failed', updatedAt: Date.now(), completedAt: Date.now(), error: txt }, { merge: true });
     throw new Error('solver_failed');
   }
 
   const output = await res.json();
+  const runDurationMs = Date.now() - startedAt;
 
   const ttRef = db.collection('schools').doc(schoolId).collection('timetables').doc();
   await ttRef.set({
@@ -46,6 +57,8 @@ export async function runSolverJob(schoolId: string, jobId: string) {
   await jobRef.set({
     status: 'done',
     updatedAt: Date.now(),
+    completedAt: Date.now(),
+    runDurationMs,
     outputSummary: {
       score: output.score,
       assignments: (output.assignments || []).length,
@@ -54,9 +67,10 @@ export async function runSolverJob(schoolId: string, jobId: string) {
     diagnostics: {
       hardViolations: output.hardViolations || [],
       softPenaltyBreakdown: output.softPenaltyBreakdown || [],
+      solverDiagnostics: output.diagnostics || {},
     },
     timetableVersionId: ttRef.id,
   }, { merge: true });
 
-  return { timetableVersionId: ttRef.id, output };
+  return { timetableVersionId: ttRef.id, output, runDurationMs };
 }

@@ -54,6 +54,26 @@ router.get('/schools/:schoolId/solver/jobs', requireRole(['super_admin', 'inchar
   res.json({ items });
 });
 
+router.get('/schools/:schoolId/solver/jobs/:jobId/diagnostics', requireRole(['super_admin', 'incharge']), async (req, res) => {
+  const ref = db.collection('schools').doc(req.params.schoolId).collection('solverJobs').doc(req.params.jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return res.status(404).json({ ok: false, error: { code: 'job_not_found' } });
+
+  const data = snap.data() || {};
+  res.json({
+    jobId: req.params.jobId,
+    status: data.status,
+    outputSummary: data.outputSummary || null,
+    runDurationMs: data.runDurationMs || null,
+    diagnostics: data.diagnostics || {},
+  });
+});
+
+router.post('/schools/:schoolId/solver/jobs/:jobId/requeue', requireRole(['super_admin', 'incharge']), async (req, res) => {
+  await enqueueSolverJob(req.params.schoolId, req.params.jobId);
+  res.json({ schoolId: req.params.schoolId, jobId: req.params.jobId, queued: true });
+});
+
 router.get('/schools/:schoolId/timetables', requireRole(['super_admin', 'incharge', 'teacher', 'student', 'parent']), async (req, res) => {
   const items = await listCollection(req.params.schoolId, 'timetables');
   res.json({ items });

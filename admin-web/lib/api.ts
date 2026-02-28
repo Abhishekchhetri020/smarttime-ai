@@ -39,3 +39,11 @@ export async function apiPost(path: string, body: any = {}) {
   if (!res.ok) throw new Error(`POST ${path} failed`);
   return res.json();
 }
+
+export async function getSolverDiagnostics(schoolId: string, jobId: string) {
+  return apiGet(`/schools/${schoolId}/solver/jobs/${jobId}/diagnostics`);
+}
+
+export async function requeueSolverJob(schoolId: string, jobId: string) {
+  return apiPost(`/schools/${schoolId}/solver/jobs/${jobId}/requeue`, {});
+}
