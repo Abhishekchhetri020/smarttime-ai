@@ -16,109 +16,197 @@ class AdminConsole extends StatefulWidget {
 
 class _AdminConsoleState extends State<AdminConsole> {
   final _db = FirebaseFirestore.instance;
+
   final _teacher = TextEditingController();
   final _classGrade = TextEditingController(text: 'VII');
   final _classSection = TextEditingController(text: 'A');
   final _subject = TextEditingController(text: 'Mathematics');
+  final _roomName = TextEditingController(text: 'Room-101');
+  final _roomType = TextEditingController(text: 'regular');
+  final _maxPerDay = TextEditingController(text: '7');
+
   String _status = '';
+  bool _busy = false;
 
   CollectionReference<Map<String, dynamic>> _col(String name) =>
       _db.collection('schools').doc(AppConfig.schoolId).collection(name);
 
+  Future<void> _withBusy(Future<void> Function() fn) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await fn();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _addTeacher() async {
-    if (_teacher.text.trim().isEmpty) return;
-    final id = 't_${DateTime.now().millisecondsSinceEpoch}';
-    await _col('teachers').doc(id).set({'name': _teacher.text.trim(), 'code': id});
-    _teacher.clear();
+    await _withBusy(() async {
+      if (_teacher.text.trim().isEmpty) return;
+      final id = 't_${DateTime.now().millisecondsSinceEpoch}';
+      await _col('teachers').doc(id).set({'name': _teacher.text.trim(), 'code': id});
+      _teacher.clear();
+      setState(() => _status = 'Teacher saved');
+    });
   }
 
   Future<void> _addClass() async {
-    if (_classGrade.text.trim().isEmpty || _classSection.text.trim().isEmpty) return;
-    final id = 'c_${DateTime.now().millisecondsSinceEpoch}';
-    await _col('classes').doc(id).set({
-      'grade': _classGrade.text.trim(),
-      'section': _classSection.text.trim(),
+    await _withBusy(() async {
+      if (_classGrade.text.trim().isEmpty || _classSection.text.trim().isEmpty) return;
+      final id = 'c_${DateTime.now().millisecondsSinceEpoch}';
+      await _col('classes').doc(id).set({
+        'grade': _classGrade.text.trim(),
+        'section': _classSection.text.trim(),
+      });
+      setState(() => _status = 'Class saved');
     });
   }
 
   Future<void> _addSubject() async {
-    if (_subject.text.trim().isEmpty) return;
-    final id = 's_${DateTime.now().millisecondsSinceEpoch}';
-    await _col('subjects').doc(id).set({'name': _subject.text.trim()});
-    _subject.clear();
+    await _withBusy(() async {
+      if (_subject.text.trim().isEmpty) return;
+      final id = 's_${DateTime.now().millisecondsSinceEpoch}';
+      await _col('subjects').doc(id).set({'name': _subject.text.trim()});
+      _subject.clear();
+      setState(() => _status = 'Subject saved');
+    });
   }
 
-  Future<void> _generateTimetable() async {
-    setState(() => _status = 'Generating...');
+  Future<void> _addRoom() async {
+    await _withBusy(() async {
+      if (_roomName.text.trim().isEmpty) return;
+      final id = 'r_${DateTime.now().millisecondsSinceEpoch}';
+      await _col('rooms').doc(id).set({
+        'name': _roomName.text.trim(),
+        'type': _roomType.text.trim().isEmpty ? 'regular' : _roomType.text.trim(),
+      });
+      setState(() => _status = 'Room saved');
+    });
+  }
 
-    final teachers = await _col('teachers').limit(1).get();
-    final classes = await _col('classes').limit(1).get();
-    final subjects = await _col('subjects').limit(1).get();
+  Future<void> _saveDefaultsConstraint() async {
+    await _withBusy(() async {
+      final maxPd = int.tryParse(_maxPerDay.text.trim()) ?? 7;
+      await _col('constraints').doc('defaults').set({
+        'teacherMaxPeriodsPerDay': {'DEFAULT': maxPd},
+        'classMaxPeriodsPerDay': {'DEFAULT': maxPd},
+        'subjectDailyLimit': {'DEFAULT': 2},
+        'teacherMaxConsecutivePeriods': {'DEFAULT': 3},
+        'classMaxConsecutivePeriods': {'DEFAULT': 4},
+        'teacherNoLastPeriodMaxPerWeek': {'DEFAULT': 2},
+      }, SetOptions(merge: true));
+      setState(() => _status = 'Default constraints saved');
+    });
+  }
+
+  Future<Map<String, dynamic>> _buildSolverPayload() async {
+    final teachers = await _col('teachers').limit(5).get();
+    final classes = await _col('classes').limit(5).get();
+    final subjects = await _col('subjects').limit(8).get();
+    final rooms = await _col('rooms').limit(10).get();
+    final cdoc = await _col('constraints').doc('defaults').get();
 
     if (teachers.docs.isEmpty || classes.docs.isEmpty || subjects.docs.isEmpty) {
-      setState(() => _status = 'Add at least one teacher, class, and subject first.');
-      return;
+      throw Exception('Add at least one teacher, class, and subject first.');
     }
 
     final t = teachers.docs.first;
-    final c = classes.docs.first;
-    final s = subjects.docs.first;
+    final roomList = rooms.docs
+        .map((r) => {
+              'id': r.id,
+              'roomType': (r.data()['type'] ?? 'regular').toString(),
+            })
+        .toList();
 
-    final lessons = List.generate(8, (i) {
+    final lessons = <Map<String, dynamic>>[];
+    int id = 1;
+    for (final c in classes.docs) {
       final cls = '${c.data()['grade']}-${c.data()['section']}';
-      return {
-        'id': 'L${i + 1}',
-        'classId': cls,
-        'teacherId': t.id,
-        'subjectId': s.id,
-      };
-    });
-
-    final res = await http.post(
-      Uri.parse('${AppConfig.apiBase}/schools/${AppConfig.schoolId}/solver/jobs'),
-      headers: {
-        'content-type': 'application/json',
-        'x-role': 'incharge',
-        'x-school-id': AppConfig.schoolId,
-        'x-uid': 'mobile-admin',
-      },
-      body: jsonEncode({'days': 5, 'periodsPerDay': 8, 'lessons': lessons}),
-    );
-
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      setState(() => _status = 'Solver job queued successfully.');
-    } else if (res.statusCode == 404) {
-      setState(() => _status = 'Backend endpoint not found (404). Check AppConfig.apiBase and backend deployment.');
-    } else {
-      setState(() => _status = 'Solver failed (${res.statusCode}): ${res.body}');
+      for (final s in subjects.docs.take(3)) {
+        lessons.add({
+          'id': 'L${id++}',
+          'classId': cls,
+          'teacherId': t.id,
+          'subjectId': s.id,
+          'preferredRoomId': roomList.isNotEmpty ? roomList.first['id'] : null,
+        });
+      }
     }
+
+    final constraints = cdoc.exists ? (cdoc.data() ?? {}) : <String, dynamic>{};
+
+    return {
+      'days': 5,
+      'periodsPerDay': 8,
+      'seed': 13,
+      'rooms': roomList,
+      'lessons': lessons,
+      'constraints': constraints,
+    };
+  }
+
+  Future<void> _generateTimetable() async {
+    await _withBusy(() async {
+      setState(() => _status = 'Generating...');
+
+      Map<String, dynamic> payload;
+      try {
+        payload = await _buildSolverPayload();
+      } catch (e) {
+        setState(() => _status = e.toString());
+        return;
+      }
+
+      final res = await http.post(
+        Uri.parse('${AppConfig.apiBase}/schools/${AppConfig.schoolId}/solver/jobs'),
+        headers: {
+          'content-type': 'application/json',
+          'x-role': 'incharge',
+          'x-school-id': AppConfig.schoolId,
+          'x-uid': 'mobile-admin',
+        },
+        body: jsonEncode(payload),
+      );
+
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final data = jsonDecode(res.body);
+        setState(() => _status = 'Solver job queued: ${data['jobId'] ?? 'ok'}');
+      } else if (res.statusCode == 404) {
+        setState(() => _status = 'Backend endpoint not found (404). Check AppConfig.apiBase and backend deployment.');
+      } else {
+        setState(() => _status = 'Solver failed (${res.statusCode}): ${res.body}');
+      }
+    });
   }
 
   Future<void> _publishLatestDraft() async {
-    setState(() => _status = 'Publishing latest draft...');
-    final snap = await _col('timetables').orderBy('createdAt', descending: true).limit(1).get();
-    if (snap.docs.isEmpty) {
-      setState(() => _status = 'No timetable version found to publish.');
-      return;
-    }
-    final versionId = snap.docs.first.id;
+    await _withBusy(() async {
+      setState(() => _status = 'Publishing latest draft...');
+      final snap = await _col('timetables').orderBy('createdAt', descending: true).limit(1).get();
+      if (snap.docs.isEmpty) {
+        setState(() => _status = 'No timetable version found to publish.');
+        return;
+      }
+      final versionId = snap.docs.first.id;
 
-    final res = await http.post(
-      Uri.parse('${AppConfig.apiBase}/schools/${AppConfig.schoolId}/timetables/$versionId/publish'),
-      headers: {
-        'content-type': 'application/json',
-        'x-role': 'incharge',
-        'x-school-id': AppConfig.schoolId,
-        'x-uid': 'mobile-admin',
-      },
-      body: jsonEncode({}),
-    );
+      final res = await http.post(
+        Uri.parse('${AppConfig.apiBase}/schools/${AppConfig.schoolId}/timetables/$versionId/publish'),
+        headers: {
+          'content-type': 'application/json',
+          'x-role': 'incharge',
+          'x-school-id': AppConfig.schoolId,
+          'x-uid': 'mobile-admin',
+        },
+        body: jsonEncode({}),
+      );
 
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      setState(() => _status = 'Published version: $versionId');
-    } else {
-      setState(() => _status = 'Publish failed: ${res.body}');
-    }
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        setState(() => _status = 'Published version: $versionId');
+      } else {
+        setState(() => _status = 'Publish failed (${res.statusCode}): ${res.body}');
+      }
+    });
   }
 
   @override
@@ -134,7 +222,7 @@ class _AdminConsoleState extends State<AdminConsole> {
           const Text('Add Teacher'),
           TextField(controller: _teacher, decoration: const InputDecoration(hintText: 'Teacher name')),
           const SizedBox(height: 6),
-          ElevatedButton(onPressed: _addTeacher, child: const Text('Save Teacher')),
+          ElevatedButton(onPressed: _busy ? null : _addTeacher, child: const Text('Save Teacher')),
 
           const Divider(height: 24),
           const Text('Add Class'),
@@ -144,18 +232,32 @@ class _AdminConsoleState extends State<AdminConsole> {
             Expanded(child: TextField(controller: _classSection, decoration: const InputDecoration(hintText: 'Section'))),
           ]),
           const SizedBox(height: 6),
-          ElevatedButton(onPressed: _addClass, child: const Text('Save Class')),
+          ElevatedButton(onPressed: _busy ? null : _addClass, child: const Text('Save Class')),
 
           const Divider(height: 24),
           const Text('Add Subject'),
           TextField(controller: _subject, decoration: const InputDecoration(hintText: 'Subject')),
           const SizedBox(height: 6),
-          ElevatedButton(onPressed: _addSubject, child: const Text('Save Subject')),
+          ElevatedButton(onPressed: _busy ? null : _addSubject, child: const Text('Save Subject')),
 
           const Divider(height: 24),
-          ElevatedButton(onPressed: _generateTimetable, child: const Text('Generate Timetable')),
+          const Text('Add Room'),
+          TextField(controller: _roomName, decoration: const InputDecoration(hintText: 'Room name')),
+          const SizedBox(height: 6),
+          TextField(controller: _roomType, decoration: const InputDecoration(hintText: 'Room type (regular/lab)')),
+          const SizedBox(height: 6),
+          ElevatedButton(onPressed: _busy ? null : _addRoom, child: const Text('Save Room')),
+
+          const Divider(height: 24),
+          const Text('Default Constraint: Max periods/day'),
+          TextField(controller: _maxPerDay, decoration: const InputDecoration(hintText: 'e.g. 7')),
+          const SizedBox(height: 6),
+          ElevatedButton(onPressed: _busy ? null : _saveDefaultsConstraint, child: const Text('Save Constraints')),
+
+          const Divider(height: 24),
+          ElevatedButton(onPressed: _busy ? null : _generateTimetable, child: const Text('Generate Timetable')),
           const SizedBox(height: 8),
-          OutlinedButton(onPressed: _publishLatestDraft, child: const Text('Publish Latest Timetable')),
+          OutlinedButton(onPressed: _busy ? null : _publishLatestDraft, child: const Text('Publish Latest Timetable')),
 
           const SizedBox(height: 12),
           if (_status.isNotEmpty) Text(_status, style: const TextStyle(color: Colors.blueGrey)),
