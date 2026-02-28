@@ -40,10 +40,11 @@
 - Notes: Firebase config file present and matching package, keystore config valid, and release artifacts generated successfully.
 
 ## Current Findings (2026-02-28)
-- `android/app/google-services.json`: missing
-- `android/key.properties`: missing
+- `android/app/google-services.json`: present and package-matched to `com.smarttime.ai`
+- `android/key.properties`: present
 - Android `applicationId` updated to production-ready non-default: `com.smarttime.ai`.
-- Release builds are generating successfully (`app-release.apk`, `app-release.aab`), but production signing/auth configuration is still pending.
+- Release builds are generating successfully (`app-release.apk`, `app-release.aab`).
+- Google Sign-In still fails when `google-services.json` has no `oauth_client` entries (OAuth not provisioned from Firebase SHA/OAuth config yet).
 
 ## Immediate Close-Out Actions
 1. Add `android/app/google-services.json` from Firebase staging project for `com.smarttime.ai`.
