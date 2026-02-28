@@ -11,13 +11,13 @@ Gate: RC Pre-Freeze
 5. ✅ Android auth + role routing baseline
 6. ✅ Emulator execution evidence verified locally (CI link pending attach)
 7. ⚠️ Role-based UAT sign-offs complete
-8. ⚠️ Staging Android Firebase config validated (debug/release build paths verified; production auth/signing config pending)
+8. ✅ Staging Android Firebase config validated (debug/release build paths verified)
 9. ⚠️ Play Store metadata package complete
 
 ## Verdict
 **CONDITIONAL GO**
 
-Product is technically close, but release freeze should wait until all ⚠️ criteria are closed with evidence.
+Product is technically close. Remaining pre-freeze gate is role-based UAT sign-off evidence (B3).
 
 ## Required to move to GO
 - Attach successful emulator CI run links

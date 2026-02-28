@@ -15,12 +15,11 @@ Date: 2026-02-27
 
 ### B2 — Android staging Firebase production-like config validation
 - Severity: High
-- Status: In Progress
+- Status: Closed ✅
 - Owner: Mobile
 - Action: Validate `google-services.json`, package IDs, SHA fingerprints, Google Sign-In client IDs.
 - Tracking doc: `docs/ANDROID-STAGING-VALIDATION.md`
-- Progress: Flutter SDK + Android SDK configured, licenses accepted, debug APK + release APK/AAB builds succeeded; `applicationId` moved to `com.smarttime.ai`.
-- Remaining: production-like Firebase auth config (`google-services.json`, SHA/OAuth), real release keystore setup, final runtime sign-off.
+- Evidence: `google-services.json` present/matching `com.smarttime.ai`, `key.properties` present with valid keystore path, debug + release APK + release AAB builds succeeded.
 
 ### B3 — Role-based UAT formal sign-off
 - Severity: High

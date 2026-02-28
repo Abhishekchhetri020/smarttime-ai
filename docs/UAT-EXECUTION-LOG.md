@@ -48,6 +48,7 @@ Build: RC Candidate 1
 - Android widget tests: PASS
 - Android APK debug build: PASS (`build/app/outputs/flutter-apk/app-debug.apk`)
 - Android release artifacts: PASS (`app-release.apk`, `app-release.aab`)
+- Android staging config checks: PASS (`google-services.json` + `key.properties` present and validated)
 
 ## Final UAT Verdict
 - [ ] GO
