@@ -1,377 +1,632 @@
-import 'dart:convert';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 
-import '../../core/config.dart';
-import '../timetable/offline_solver_channel.dart';
-import '../timetable/offline_solver_diagnostics_view.dart';
-import '../timetable/offline_solver_state.dart';
+import 'generate_screen.dart';
+import 'lessons_builder_screen.dart';
+import 'planner_state.dart';
+import 'time_off_matrix.dart';
 
-class AdminConsole extends StatefulWidget {
-  const AdminConsole({super.key, required this.role});
+class AdminConsole extends StatelessWidget {
+  const AdminConsole({super.key, required this.role, this.plannerState});
+  final String role;
+  final PlannerState? plannerState;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => plannerState ?? PlannerState(),
+      child: Consumer<PlannerState>(
+        builder: (context, planner, _) {
+          if (!planner.setupComplete) {
+            return SetupWizard(role: role);
+          }
+          return const MainPlannerScreen();
+        },
+      ),
+    );
+  }
+}
+
+class SetupWizard extends StatefulWidget {
+  const SetupWizard({super.key, required this.role});
   final String role;
 
   @override
-  State<AdminConsole> createState() => _AdminConsoleState();
+  State<SetupWizard> createState() => _SetupWizardState();
 }
 
-class _AdminConsoleState extends State<AdminConsole> {
-  final _db = FirebaseFirestore.instance;
+class _SetupWizardState extends State<SetupWizard> {
+  int _currentStep = 0;
+  final _schoolName = TextEditingController();
+  final _schoolYear = TextEditingController(text: '2026-2027');
 
-  final _teacher = TextEditingController();
-  final _classGrade = TextEditingController(text: 'VII');
-  final _classSection = TextEditingController(text: 'A');
-  final _subject = TextEditingController(text: 'Mathematics');
-  final _roomName = TextEditingController(text: 'Room-101');
-  final _roomType = TextEditingController(text: 'regular');
-  final _maxPerDay = TextEditingController(text: '7');
-
-  String _status = '';
-  bool _busy = false;
-  final _offlineSolver = OfflineSolverChannel();
-  OfflineSolverViewState _offlineState = const OfflineSolverViewState.idle();
-
-  CollectionReference<Map<String, dynamic>> _col(String name) =>
-      _db.collection('schools').doc(AppConfig.schoolId).collection(name);
-
-  Future<void> _withBusy(Future<void> Function() fn) async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      await fn();
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+  @override
+  void dispose() {
+    _schoolName.dispose();
+    _schoolYear.dispose();
+    super.dispose();
   }
 
-  Future<void> _addTeacher() async {
-    await _withBusy(() async {
-      if (_teacher.text.trim().isEmpty) return;
-      final id = 't_${DateTime.now().millisecondsSinceEpoch}';
-      await _col('teachers')
-          .doc(id)
-          .set({'name': _teacher.text.trim(), 'code': id});
-      _teacher.clear();
-      setState(() => _status = 'Teacher saved');
-    });
-  }
-
-  Future<void> _addClass() async {
-    await _withBusy(() async {
-      if (_classGrade.text.trim().isEmpty || _classSection.text.trim().isEmpty)
-        return;
-      final id = 'c_${DateTime.now().millisecondsSinceEpoch}';
-      await _col('classes').doc(id).set({
-        'grade': _classGrade.text.trim(),
-        'section': _classSection.text.trim(),
-      });
-      setState(() => _status = 'Class saved');
-    });
-  }
-
-  Future<void> _addSubject() async {
-    await _withBusy(() async {
-      if (_subject.text.trim().isEmpty) return;
-      final id = 's_${DateTime.now().millisecondsSinceEpoch}';
-      await _col('subjects').doc(id).set({'name': _subject.text.trim()});
-      _subject.clear();
-      setState(() => _status = 'Subject saved');
-    });
-  }
-
-  Future<void> _addRoom() async {
-    await _withBusy(() async {
-      if (_roomName.text.trim().isEmpty) return;
-      final id = 'r_${DateTime.now().millisecondsSinceEpoch}';
-      await _col('rooms').doc(id).set({
-        'name': _roomName.text.trim(),
-        'type':
-            _roomType.text.trim().isEmpty ? 'regular' : _roomType.text.trim(),
-      });
-      setState(() => _status = 'Room saved');
-    });
-  }
-
-  Future<void> _saveDefaultsConstraint() async {
-    await _withBusy(() async {
-      final maxPd = int.tryParse(_maxPerDay.text.trim()) ?? 7;
-      await _col('constraints').doc('defaults').set({
-        'teacherMaxPeriodsPerDay': {'DEFAULT': maxPd},
-        'classMaxPeriodsPerDay': {'DEFAULT': maxPd},
-        'subjectDailyLimit': {'DEFAULT': 2},
-        'teacherMaxConsecutivePeriods': {'DEFAULT': 3},
-        'classMaxConsecutivePeriods': {'DEFAULT': 4},
-        'teacherNoLastPeriodMaxPerWeek': {'DEFAULT': 2},
-      }, SetOptions(merge: true));
-      setState(() => _status = 'Default constraints saved');
-    });
-  }
-
-  Future<Map<String, dynamic>> _buildSolverPayload() async {
-    final teachers = await _col('teachers').limit(5).get();
-    final classes = await _col('classes').limit(5).get();
-    final subjects = await _col('subjects').limit(8).get();
-    final rooms = await _col('rooms').limit(10).get();
-    final cdoc = await _col('constraints').doc('defaults').get();
-
-    if (teachers.docs.isEmpty ||
-        classes.docs.isEmpty ||
-        subjects.docs.isEmpty) {
-      throw Exception('Add at least one teacher, class, and subject first.');
-    }
-
-    final t = teachers.docs.first;
-    final roomList = rooms.docs
-        .map((r) => {
-              'id': r.id,
-              'roomType': (r.data()['type'] ?? 'regular').toString(),
-            })
-        .toList();
-
-    final lessons = <Map<String, dynamic>>[];
-    int id = 1;
-    for (final c in classes.docs) {
-      final cls = '${c.data()['grade']}-${c.data()['section']}';
-      for (final s in subjects.docs.take(3)) {
-        lessons.add({
-          'id': 'L${id++}',
-          'classId': cls,
-          'teacherId': t.id,
-          'subjectId': s.id,
-          'preferredRoomId': roomList.isNotEmpty ? roomList.first['id'] : null,
-        });
-      }
-    }
-
-    final constraints = cdoc.exists ? (cdoc.data() ?? {}) : <String, dynamic>{};
-
-    return {
-      'days': 5,
-      'periodsPerDay': 8,
-      'seed': 13,
-      'rooms': roomList,
-      'lessons': lessons,
-      'constraints': constraints,
-    };
-  }
-
-  Future<void> _checkBackend() async {
-    await _withBusy(() async {
-      setState(() => _status = 'Checking backend...');
-      final res = await http.get(Uri.parse('${AppConfig.apiBase}/health'));
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        setState(() => _status = 'Backend reachable ✅ (${AppConfig.apiBase})');
-      } else {
-        setState(() =>
-            _status = 'Backend check failed (${res.statusCode}): ${res.body}');
-      }
-    });
-  }
-
-  Future<void> _generateTimetable() async {
-    await _withBusy(() async {
-      setState(() => _status = 'Generating...');
-
-      Map<String, dynamic> payload;
-      try {
-        payload = await _buildSolverPayload();
-      } catch (e) {
-        setState(() => _status = e.toString());
-        return;
-      }
-
-      final res = await http.post(
-        Uri.parse(
-            '${AppConfig.apiBase}/schools/${AppConfig.schoolId}/solver/jobs'),
-        headers: {
-          'content-type': 'application/json',
-          'x-role': 'incharge',
-          'x-school-id': AppConfig.schoolId,
-          'x-uid': 'mobile-admin',
-        },
-        body: jsonEncode(payload),
-      );
-
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        final data = jsonDecode(res.body);
-        setState(() => _status = 'Solver job queued: ${data['jobId'] ?? 'ok'}');
-      } else if (res.statusCode == 404) {
-        setState(() => _status =
-            'Backend endpoint not found (404). Check AppConfig.apiBase and backend deployment.');
-      } else {
-        setState(
-            () => _status = 'Solver failed (${res.statusCode}): ${res.body}');
-      }
-    });
-  }
-
-  Future<void> _runOfflineSolver() async {
-    await _withBusy(() async {
-      setState(() {
-        _status = 'Running offline solver...';
-        _offlineState =
-            _offlineState.copyWith(isLoading: true, clearMessage: true);
-      });
-
-      try {
-        final payload = await _buildSolverPayload();
-        final result = await _offlineSolver.solve(payload);
-        setState(() {
-          _offlineState = _offlineState.copyWith(
-              isLoading: false,
-              result: result,
-              message: 'Offline solve complete');
-          _status = 'Offline solver complete (${result.status})';
-        });
-      } catch (e) {
-        setState(() {
-          _offlineState = _offlineState.copyWith(
-              isLoading: false, clearResult: true, message: e.toString());
-          _status = 'Offline solver failed';
-        });
-      }
-    });
-  }
-
-  Future<void> _publishLatestDraft() async {
-    await _withBusy(() async {
-      setState(() => _status = 'Publishing latest draft...');
-      final snap = await _col('timetables')
-          .orderBy('createdAt', descending: true)
-          .limit(1)
-          .get();
-      if (snap.docs.isEmpty) {
-        setState(() => _status = 'No timetable version found to publish.');
-        return;
-      }
-      final versionId = snap.docs.first.id;
-
-      final res = await http.post(
-        Uri.parse(
-            '${AppConfig.apiBase}/schools/${AppConfig.schoolId}/timetables/$versionId/publish'),
-        headers: {
-          'content-type': 'application/json',
-          'x-role': 'incharge',
-          'x-school-id': AppConfig.schoolId,
-          'x-uid': 'mobile-admin',
-        },
-        body: jsonEncode({}),
-      );
-
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        setState(() => _status = 'Published version: $versionId');
-      } else {
-        setState(
-            () => _status = 'Publish failed (${res.statusCode}): ${res.body}');
-      }
-    });
+  Future<TimeOfDay?> _pickTime(BuildContext context, TimeOfDay initial) {
+    return showTimePicker(context: context, initialTime: initial);
   }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('${widget.role} Console',
-              style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          const Text('Add Teacher'),
-          TextField(
-              controller: _teacher,
-              decoration: const InputDecoration(hintText: 'Teacher name')),
-          const SizedBox(height: 6),
-          ElevatedButton(
-              onPressed: _busy ? null : _addTeacher,
-              child: const Text('Save Teacher')),
-          const Divider(height: 24),
-          const Text('Add Class'),
-          Row(children: [
-            Expanded(
-                child: TextField(
-                    controller: _classGrade,
-                    decoration: const InputDecoration(hintText: 'Grade'))),
-            const SizedBox(width: 8),
-            Expanded(
-                child: TextField(
-                    controller: _classSection,
-                    decoration: const InputDecoration(hintText: 'Section'))),
-          ]),
-          const SizedBox(height: 6),
-          ElevatedButton(
-              onPressed: _busy ? null : _addClass,
-              child: const Text('Save Class')),
-          const Divider(height: 24),
-          const Text('Add Subject'),
-          TextField(
-              controller: _subject,
-              decoration: const InputDecoration(hintText: 'Subject')),
-          const SizedBox(height: 6),
-          ElevatedButton(
-              onPressed: _busy ? null : _addSubject,
-              child: const Text('Save Subject')),
-          const Divider(height: 24),
-          const Text('Add Room'),
-          TextField(
-              controller: _roomName,
-              decoration: const InputDecoration(hintText: 'Room name')),
-          const SizedBox(height: 6),
-          TextField(
-              controller: _roomType,
-              decoration:
-                  const InputDecoration(hintText: 'Room type (regular/lab)')),
-          const SizedBox(height: 6),
-          ElevatedButton(
-              onPressed: _busy ? null : _addRoom,
-              child: const Text('Save Room')),
-          const Divider(height: 24),
-          const Text('Default Constraint: Max periods/day'),
-          TextField(
-              controller: _maxPerDay,
-              decoration: const InputDecoration(hintText: 'e.g. 7')),
-          const SizedBox(height: 6),
-          ElevatedButton(
-              onPressed: _busy ? null : _saveDefaultsConstraint,
-              child: const Text('Save Constraints')),
-          const Divider(height: 24),
-          OutlinedButton(
-              onPressed: _busy ? null : _checkBackend,
-              child: const Text('Check Backend')),
-          const SizedBox(height: 8),
-          ElevatedButton(
-              onPressed: _busy ? null : _generateTimetable,
-              child: const Text('Generate Timetable')),
-          const SizedBox(height: 8),
-          OutlinedButton(
-              onPressed: _busy ? null : _runOfflineSolver,
-              child: const Text('Run Offline Solver')),
-          const SizedBox(height: 8),
-          OutlinedButton(
-              onPressed: _busy ? null : _publishLatestDraft,
-              child: const Text('Publish Latest Timetable')),
-          const SizedBox(height: 12),
-          if (_status.isNotEmpty)
-            Text(_status, style: const TextStyle(color: Colors.blueGrey)),
-          if (_offlineState.isLoading)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: LinearProgressIndicator(),
+    final planner = context.watch<PlannerState>();
+    return Scaffold(
+      appBar: AppBar(title: Text('${widget.role} Setup Wizard')),
+      body: Stepper(
+        currentStep: _currentStep,
+        onStepContinue: () {
+          if (_currentStep < 2) {
+            setState(() => _currentStep++);
+          } else {
+            planner.saveSchoolSettings(name: _schoolName.text.trim(), year: _schoolYear.text.trim());
+            planner.completeSetup();
+          }
+        },
+        onStepCancel: () {
+          if (_currentStep > 0) setState(() => _currentStep--);
+        },
+        controlsBuilder: (context, details) {
+          return Row(
+            children: [
+              ElevatedButton(
+                key: const Key('wizard_continue_btn'),
+                onPressed: details.onStepContinue,
+                child: Text(_currentStep == 2 ? 'Finish Setup' : 'Continue'),
+              ),
+              const SizedBox(width: 8),
+              TextButton(onPressed: details.onStepCancel, child: const Text('Back')),
+            ],
+          );
+        },
+        steps: [
+          Step(
+            title: const Text('School Settings'),
+            isActive: _currentStep >= 0,
+            content: Column(
+              children: [
+                TextField(
+                  key: const Key('school_name_field'),
+                  controller: _schoolName,
+                  decoration: const InputDecoration(labelText: 'School name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('school_year_field'),
+                  controller: _schoolYear,
+                  decoration: const InputDecoration(labelText: 'School year'),
+                ),
+              ],
             ),
-          if ((_offlineState.message ?? '').isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(_offlineState.message!,
-                  style: const TextStyle(color: Colors.blueGrey)),
+          ),
+          Step(
+            title: const Text('Days Configuration'),
+            isActive: _currentStep >= 1,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DropdownButtonFormField<int>(
+                  key: const Key('days_count_dropdown'),
+                  initialValue: planner.days.length,
+                  items: [for (int i = 5; i <= 10; i++) DropdownMenuItem(value: i, child: Text('$i days'))],
+                  onChanged: (v) {
+                    if (v != null) planner.setDaysCount(v);
+                  },
+                  decoration: const InputDecoration(labelText: 'Number of days'),
+                ),
+                const SizedBox(height: 12),
+                for (int i = 0; i < planner.days.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: planner.days[i].name,
+                            decoration: InputDecoration(labelText: 'Day ${i + 1} name'),
+                            onChanged: (v) => planner.updateDay(
+                              i,
+                              name: v,
+                              abbreviation: planner.days[i].abbreviation,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 90,
+                          child: TextFormField(
+                            initialValue: planner.days[i].abbreviation,
+                            decoration: const InputDecoration(labelText: 'Abbr.'),
+                            onChanged: (v) => planner.updateDay(
+                              i,
+                              name: planner.days[i].name,
+                              abbreviation: v,
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+              ],
             ),
-          if (_offlineState.result != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child:
-                  OfflineSolverDiagnosticsView(result: _offlineState.result!),
+          ),
+          Step(
+            title: const Text('Bell Times & Breaks'),
+            isActive: _currentStep >= 2,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DropdownButtonFormField<int>(
+                  key: const Key('periods_dropdown'),
+                  initialValue: planner.periodsPerDay,
+                  items: [for (int i = 4; i <= 12; i++) DropdownMenuItem(value: i, child: Text('$i periods'))],
+                  onChanged: (v) {
+                    if (v != null) planner.setPeriodsPerDay(v);
+                  },
+                  decoration: const InputDecoration(labelText: 'Periods per day'),
+                ),
+                const SizedBox(height: 12),
+                for (int i = 0; i < planner.bellSlots.length; i++)
+                  Card(
+                    child: ListTile(
+                      title: Text('Period ${i + 1}'),
+                      subtitle: Text('${planner.bellSlots[i].start.format(context)} - ${planner.bellSlots[i].end.format(context)}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextButton(
+                            onPressed: () async {
+                              final picked = await _pickTime(context, planner.bellSlots[i].start);
+                              if (picked != null) planner.updateBellSlot(i, start: picked);
+                            },
+                            child: const Text('Start'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              final picked = await _pickTime(context, planner.bellSlots[i].end);
+                              if (picked != null) planner.updateBellSlot(i, end: picked);
+                            },
+                            child: const Text('End'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: planner.addBreak,
+                  icon: const Icon(Icons.free_breakfast),
+                  label: const Text('Add Break Between Periods'),
+                ),
+                const SizedBox(height: 8),
+                for (int i = 0; i < planner.breaks.length; i++)
+                  Card(
+                    color: Theme.of(context).colorScheme.secondaryContainer,
+                    child: ListTile(
+                      title: Text('Break ${i + 1}'),
+                      subtitle: Text(
+                        'After P${planner.breaks[i].afterPeriod} • ${planner.breaks[i].start.format(context)} - ${planner.breaks[i].end.format(context)}',
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => planner.removeBreak(i),
+                      ),
+                    ),
+                  ),
+              ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MainPlannerScreen extends StatelessWidget {
+  const MainPlannerScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 4,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('SmartTime Builder'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Subjects'),
+              Tab(text: 'Classes'),
+              Tab(text: 'Classrooms'),
+              Tab(text: 'Teachers'),
+            ],
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'Lessons Builder',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LessonsBuilderScreen()),
+                );
+              },
+              icon: const Icon(Icons.menu_book_outlined),
+            ),
+            IconButton(
+              tooltip: 'Generate',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GenerateScreen()),
+                );
+              },
+              icon: const Icon(Icons.auto_awesome),
+            ),
+          ],
+        ),
+        body: const TabBarView(
+          children: [
+            SubjectsTab(),
+            ClassesTab(),
+            ClassroomsTab(),
+            TeachersTab(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SubjectsTab extends StatelessWidget {
+  const SubjectsTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final planner = context.watch<PlannerState>();
+    return Scaffold(
+      body: ListView.builder(
+        itemCount: planner.subjects.length,
+        itemBuilder: (_, index) {
+          final s = planner.subjects[index];
+          return Card(
+            child: ListTile(
+              leading: CircleAvatar(backgroundColor: s.color),
+              title: Text(s.name),
+              subtitle: Text(s.abbreviation),
+              onTap: () => _showSubjectAvailability(context, s.id, s.unavailableSlots),
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        key: const Key('subjects_fab'),
+        onPressed: () => _showAddSubject(context),
+        label: const Text('Add Subject'),
+        icon: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Future<void> _showSubjectAvailability(BuildContext context, String subjectId, Set<String> slots) async {
+    final planner = context.read<PlannerState>();
+    Set<String> current = Set<String>.from(slots);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: StatefulBuilder(
+          builder: (context, setSheetState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Subject Time-Off Matrix', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: TimeOffMatrix(
+                    days: planner.days.map((d) => d.abbreviation).toList(),
+                    periodsPerDay: planner.periodsPerDay,
+                    unavailableSlots: current,
+                    onChanged: (next) => setSheetState(() => current = next),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () {
+                  planner.setSubjectAvailability(subjectId, current);
+                  Navigator.pop(context);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAddSubject(BuildContext context) async {
+    final name = TextEditingController();
+    final abbr = TextEditingController();
+    final colors = <Color>[
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.red,
+      Colors.teal,
+    ];
+    Color? selected;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Subject'),
+        content: StatefulBuilder(
+          builder: (ctx, setDialogState) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
+                TextField(controller: abbr, decoration: const InputDecoration(labelText: 'Abbreviation')),
+                const SizedBox(height: 12),
+                const Align(alignment: Alignment.centerLeft, child: Text('Choose color *')),
+                Wrap(
+                  spacing: 8,
+                  children: colors
+                      .map((c) => GestureDetector(
+                            onTap: () => setDialogState(() => selected = c),
+                            child: CircleAvatar(
+                              backgroundColor: c,
+                              child: selected == c ? const Icon(Icons.check, color: Colors.white) : null,
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (name.text.trim().isEmpty || abbr.text.trim().isEmpty || selected == null) return;
+              context.read<PlannerState>().addSubject(
+                    name: name.text.trim(),
+                    abbreviation: abbr.text.trim(),
+                    color: selected!,
+                  );
+              Navigator.pop(ctx);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ClassesTab extends StatelessWidget {
+  const ClassesTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final planner = context.watch<PlannerState>();
+    return Scaffold(
+      body: ListView(
+        children: planner.classes
+            .map((c) => Card(child: ListTile(title: Text(c.name), subtitle: Text(c.abbreviation))))
+            .toList(),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddClass(context),
+        label: const Text('Add Class'),
+        icon: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Future<void> _showAddClass(BuildContext context) async {
+    final name = TextEditingController();
+    final abbr = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Class'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
+            TextField(controller: abbr, decoration: const InputDecoration(labelText: 'Abbreviation')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (name.text.trim().isEmpty || abbr.text.trim().isEmpty) return;
+              context.read<PlannerState>().addClass(name: name.text.trim(), abbreviation: abbr.text.trim());
+              Navigator.pop(ctx);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ClassroomsTab extends StatelessWidget {
+  const ClassroomsTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final planner = context.watch<PlannerState>();
+    return Scaffold(
+      body: ListView(
+        children: planner.classrooms
+            .map((r) => Card(
+                  child: ListTile(
+                    title: Text(r.name),
+                    subtitle: Text('${r.abbreviation} • ${r.type}'),
+                  ),
+                ))
+            .toList(),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddRoom(context),
+        label: const Text('Add Classroom'),
+        icon: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Future<void> _showAddRoom(BuildContext context) async {
+    final name = TextEditingController();
+    final abbr = TextEditingController();
+    String type = 'Regular';
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Classroom'),
+        content: StatefulBuilder(
+          builder: (ctx, setDialogState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
+              TextField(controller: abbr, decoration: const InputDecoration(labelText: 'Abbreviation')),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: type,
+                items: const [
+                  DropdownMenuItem(value: 'Regular', child: Text('Regular')),
+                  DropdownMenuItem(value: 'Lab', child: Text('Lab')),
+                ],
+                onChanged: (v) => setDialogState(() => type = v ?? 'Regular'),
+                decoration: const InputDecoration(labelText: 'Type'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (name.text.trim().isEmpty || abbr.text.trim().isEmpty) return;
+              context.read<PlannerState>().addClassroom(
+                    name: name.text.trim(),
+                    abbreviation: abbr.text.trim(),
+                    type: type,
+                  );
+              Navigator.pop(ctx);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TeachersTab extends StatelessWidget {
+  const TeachersTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final planner = context.watch<PlannerState>();
+    return Scaffold(
+      body: ListView(
+        children: planner.teachers
+            .map((t) => Card(
+                  child: ListTile(
+                    title: Text(t.fullName),
+                    subtitle: Text(t.abbreviation),
+                    onTap: () => _showTeacherAvailability(context, t.id, t.unavailableSlots),
+                  ),
+                ))
+            .toList(),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddTeacher(context),
+        label: const Text('Add Teacher'),
+        icon: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Future<void> _showTeacherAvailability(BuildContext context, String teacherId, Set<String> slots) async {
+    final planner = context.read<PlannerState>();
+    Set<String> current = Set<String>.from(slots);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: StatefulBuilder(
+          builder: (context, setSheetState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Teacher Time-Off Matrix', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: TimeOffMatrix(
+                    days: planner.days.map((d) => d.abbreviation).toList(),
+                    periodsPerDay: planner.periodsPerDay,
+                    unavailableSlots: current,
+                    onChanged: (next) => setSheetState(() => current = next),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () {
+                  planner.setTeacherAvailability(teacherId, current);
+                  Navigator.pop(context);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAddTeacher(BuildContext context) async {
+    final firstName = TextEditingController();
+    final lastName = TextEditingController();
+    final abbr = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Teacher'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: firstName, decoration: const InputDecoration(labelText: 'First name')),
+            TextField(controller: lastName, decoration: const InputDecoration(labelText: 'Last name')),
+            TextField(controller: abbr, decoration: const InputDecoration(labelText: 'Abbreviation')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (firstName.text.trim().isEmpty || abbr.text.trim().isEmpty) return;
+              context.read<PlannerState>().addTeacher(
+                    firstName: firstName.text.trim(),
+                    lastName: lastName.text.trim(),
+                    abbreviation: abbr.text.trim(),
+                  );
+              Navigator.pop(ctx);
+            },
+            child: const Text('Save'),
+          ),
         ],
       ),
     );
