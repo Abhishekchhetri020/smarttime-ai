@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/config.dart';
+import '../timetable/offline_solver_channel.dart';
+import '../timetable/offline_solver_diagnostics_view.dart';
+import '../timetable/offline_solver_state.dart';
 
 class AdminConsole extends StatefulWidget {
   const AdminConsole({super.key, required this.role});
@@ -27,6 +30,8 @@ class _AdminConsoleState extends State<AdminConsole> {
 
   String _status = '';
   bool _busy = false;
+  final _offlineSolver = OfflineSolverChannel();
+  OfflineSolverViewState _offlineState = const OfflineSolverViewState.idle();
 
   CollectionReference<Map<String, dynamic>> _col(String name) =>
       _db.collection('schools').doc(AppConfig.schoolId).collection(name);
@@ -45,7 +50,9 @@ class _AdminConsoleState extends State<AdminConsole> {
     await _withBusy(() async {
       if (_teacher.text.trim().isEmpty) return;
       final id = 't_${DateTime.now().millisecondsSinceEpoch}';
-      await _col('teachers').doc(id).set({'name': _teacher.text.trim(), 'code': id});
+      await _col('teachers')
+          .doc(id)
+          .set({'name': _teacher.text.trim(), 'code': id});
       _teacher.clear();
       setState(() => _status = 'Teacher saved');
     });
@@ -53,7 +60,8 @@ class _AdminConsoleState extends State<AdminConsole> {
 
   Future<void> _addClass() async {
     await _withBusy(() async {
-      if (_classGrade.text.trim().isEmpty || _classSection.text.trim().isEmpty) return;
+      if (_classGrade.text.trim().isEmpty || _classSection.text.trim().isEmpty)
+        return;
       final id = 'c_${DateTime.now().millisecondsSinceEpoch}';
       await _col('classes').doc(id).set({
         'grade': _classGrade.text.trim(),
@@ -79,7 +87,8 @@ class _AdminConsoleState extends State<AdminConsole> {
       final id = 'r_${DateTime.now().millisecondsSinceEpoch}';
       await _col('rooms').doc(id).set({
         'name': _roomName.text.trim(),
-        'type': _roomType.text.trim().isEmpty ? 'regular' : _roomType.text.trim(),
+        'type':
+            _roomType.text.trim().isEmpty ? 'regular' : _roomType.text.trim(),
       });
       setState(() => _status = 'Room saved');
     });
@@ -107,7 +116,9 @@ class _AdminConsoleState extends State<AdminConsole> {
     final rooms = await _col('rooms').limit(10).get();
     final cdoc = await _col('constraints').doc('defaults').get();
 
-    if (teachers.docs.isEmpty || classes.docs.isEmpty || subjects.docs.isEmpty) {
+    if (teachers.docs.isEmpty ||
+        classes.docs.isEmpty ||
+        subjects.docs.isEmpty) {
       throw Exception('Add at least one teacher, class, and subject first.');
     }
 
@@ -146,6 +157,19 @@ class _AdminConsoleState extends State<AdminConsole> {
     };
   }
 
+  Future<void> _checkBackend() async {
+    await _withBusy(() async {
+      setState(() => _status = 'Checking backend...');
+      final res = await http.get(Uri.parse('${AppConfig.apiBase}/health'));
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        setState(() => _status = 'Backend reachable ✅ (${AppConfig.apiBase})');
+      } else {
+        setState(() =>
+            _status = 'Backend check failed (${res.statusCode}): ${res.body}');
+      }
+    });
+  }
+
   Future<void> _generateTimetable() async {
     await _withBusy(() async {
       setState(() => _status = 'Generating...');
@@ -159,7 +183,8 @@ class _AdminConsoleState extends State<AdminConsole> {
       }
 
       final res = await http.post(
-        Uri.parse('${AppConfig.apiBase}/schools/${AppConfig.schoolId}/solver/jobs'),
+        Uri.parse(
+            '${AppConfig.apiBase}/schools/${AppConfig.schoolId}/solver/jobs'),
         headers: {
           'content-type': 'application/json',
           'x-role': 'incharge',
@@ -173,9 +198,39 @@ class _AdminConsoleState extends State<AdminConsole> {
         final data = jsonDecode(res.body);
         setState(() => _status = 'Solver job queued: ${data['jobId'] ?? 'ok'}');
       } else if (res.statusCode == 404) {
-        setState(() => _status = 'Backend endpoint not found (404). Check AppConfig.apiBase and backend deployment.');
+        setState(() => _status =
+            'Backend endpoint not found (404). Check AppConfig.apiBase and backend deployment.');
       } else {
-        setState(() => _status = 'Solver failed (${res.statusCode}): ${res.body}');
+        setState(
+            () => _status = 'Solver failed (${res.statusCode}): ${res.body}');
+      }
+    });
+  }
+
+  Future<void> _runOfflineSolver() async {
+    await _withBusy(() async {
+      setState(() {
+        _status = 'Running offline solver...';
+        _offlineState =
+            _offlineState.copyWith(isLoading: true, clearMessage: true);
+      });
+
+      try {
+        final payload = await _buildSolverPayload();
+        final result = await _offlineSolver.solve(payload);
+        setState(() {
+          _offlineState = _offlineState.copyWith(
+              isLoading: false,
+              result: result,
+              message: 'Offline solve complete');
+          _status = 'Offline solver complete (${result.status})';
+        });
+      } catch (e) {
+        setState(() {
+          _offlineState = _offlineState.copyWith(
+              isLoading: false, clearResult: true, message: e.toString());
+          _status = 'Offline solver failed';
+        });
       }
     });
   }
@@ -183,7 +238,10 @@ class _AdminConsoleState extends State<AdminConsole> {
   Future<void> _publishLatestDraft() async {
     await _withBusy(() async {
       setState(() => _status = 'Publishing latest draft...');
-      final snap = await _col('timetables').orderBy('createdAt', descending: true).limit(1).get();
+      final snap = await _col('timetables')
+          .orderBy('createdAt', descending: true)
+          .limit(1)
+          .get();
       if (snap.docs.isEmpty) {
         setState(() => _status = 'No timetable version found to publish.');
         return;
@@ -191,7 +249,8 @@ class _AdminConsoleState extends State<AdminConsole> {
       final versionId = snap.docs.first.id;
 
       final res = await http.post(
-        Uri.parse('${AppConfig.apiBase}/schools/${AppConfig.schoolId}/timetables/$versionId/publish'),
+        Uri.parse(
+            '${AppConfig.apiBase}/schools/${AppConfig.schoolId}/timetables/$versionId/publish'),
         headers: {
           'content-type': 'application/json',
           'x-role': 'incharge',
@@ -204,7 +263,8 @@ class _AdminConsoleState extends State<AdminConsole> {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         setState(() => _status = 'Published version: $versionId');
       } else {
-        setState(() => _status = 'Publish failed (${res.statusCode}): ${res.body}');
+        setState(
+            () => _status = 'Publish failed (${res.statusCode}): ${res.body}');
       }
     });
   }
@@ -216,51 +276,102 @@ class _AdminConsoleState extends State<AdminConsole> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${widget.role} Console', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text('${widget.role} Console',
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-
           const Text('Add Teacher'),
-          TextField(controller: _teacher, decoration: const InputDecoration(hintText: 'Teacher name')),
+          TextField(
+              controller: _teacher,
+              decoration: const InputDecoration(hintText: 'Teacher name')),
           const SizedBox(height: 6),
-          ElevatedButton(onPressed: _busy ? null : _addTeacher, child: const Text('Save Teacher')),
-
+          ElevatedButton(
+              onPressed: _busy ? null : _addTeacher,
+              child: const Text('Save Teacher')),
           const Divider(height: 24),
           const Text('Add Class'),
           Row(children: [
-            Expanded(child: TextField(controller: _classGrade, decoration: const InputDecoration(hintText: 'Grade'))),
+            Expanded(
+                child: TextField(
+                    controller: _classGrade,
+                    decoration: const InputDecoration(hintText: 'Grade'))),
             const SizedBox(width: 8),
-            Expanded(child: TextField(controller: _classSection, decoration: const InputDecoration(hintText: 'Section'))),
+            Expanded(
+                child: TextField(
+                    controller: _classSection,
+                    decoration: const InputDecoration(hintText: 'Section'))),
           ]),
           const SizedBox(height: 6),
-          ElevatedButton(onPressed: _busy ? null : _addClass, child: const Text('Save Class')),
-
+          ElevatedButton(
+              onPressed: _busy ? null : _addClass,
+              child: const Text('Save Class')),
           const Divider(height: 24),
           const Text('Add Subject'),
-          TextField(controller: _subject, decoration: const InputDecoration(hintText: 'Subject')),
+          TextField(
+              controller: _subject,
+              decoration: const InputDecoration(hintText: 'Subject')),
           const SizedBox(height: 6),
-          ElevatedButton(onPressed: _busy ? null : _addSubject, child: const Text('Save Subject')),
-
+          ElevatedButton(
+              onPressed: _busy ? null : _addSubject,
+              child: const Text('Save Subject')),
           const Divider(height: 24),
           const Text('Add Room'),
-          TextField(controller: _roomName, decoration: const InputDecoration(hintText: 'Room name')),
+          TextField(
+              controller: _roomName,
+              decoration: const InputDecoration(hintText: 'Room name')),
           const SizedBox(height: 6),
-          TextField(controller: _roomType, decoration: const InputDecoration(hintText: 'Room type (regular/lab)')),
+          TextField(
+              controller: _roomType,
+              decoration:
+                  const InputDecoration(hintText: 'Room type (regular/lab)')),
           const SizedBox(height: 6),
-          ElevatedButton(onPressed: _busy ? null : _addRoom, child: const Text('Save Room')),
-
+          ElevatedButton(
+              onPressed: _busy ? null : _addRoom,
+              child: const Text('Save Room')),
           const Divider(height: 24),
           const Text('Default Constraint: Max periods/day'),
-          TextField(controller: _maxPerDay, decoration: const InputDecoration(hintText: 'e.g. 7')),
+          TextField(
+              controller: _maxPerDay,
+              decoration: const InputDecoration(hintText: 'e.g. 7')),
           const SizedBox(height: 6),
-          ElevatedButton(onPressed: _busy ? null : _saveDefaultsConstraint, child: const Text('Save Constraints')),
-
+          ElevatedButton(
+              onPressed: _busy ? null : _saveDefaultsConstraint,
+              child: const Text('Save Constraints')),
           const Divider(height: 24),
-          ElevatedButton(onPressed: _busy ? null : _generateTimetable, child: const Text('Generate Timetable')),
+          OutlinedButton(
+              onPressed: _busy ? null : _checkBackend,
+              child: const Text('Check Backend')),
           const SizedBox(height: 8),
-          OutlinedButton(onPressed: _busy ? null : _publishLatestDraft, child: const Text('Publish Latest Timetable')),
-
+          ElevatedButton(
+              onPressed: _busy ? null : _generateTimetable,
+              child: const Text('Generate Timetable')),
+          const SizedBox(height: 8),
+          OutlinedButton(
+              onPressed: _busy ? null : _runOfflineSolver,
+              child: const Text('Run Offline Solver')),
+          const SizedBox(height: 8),
+          OutlinedButton(
+              onPressed: _busy ? null : _publishLatestDraft,
+              child: const Text('Publish Latest Timetable')),
           const SizedBox(height: 12),
-          if (_status.isNotEmpty) Text(_status, style: const TextStyle(color: Colors.blueGrey)),
+          if (_status.isNotEmpty)
+            Text(_status, style: const TextStyle(color: Colors.blueGrey)),
+          if (_offlineState.isLoading)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: LinearProgressIndicator(),
+            ),
+          if ((_offlineState.message ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_offlineState.message!,
+                  style: const TextStyle(color: Colors.blueGrey)),
+            ),
+          if (_offlineState.result != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child:
+                  OfflineSolverDiagnosticsView(result: _offlineState.result!),
+            ),
         ],
       ),
     );
