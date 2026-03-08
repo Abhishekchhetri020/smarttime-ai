@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../timetable/offline_solver_bridge.dart';
 import '../timetable/presentation/screens/solver_debug_screen.dart';
+import '../timetable/presentation/screens/timetable_demo_screen.dart';
 import '../timetable/data/conflict_service.dart';
 import 'planner_state.dart';
 import 'setup/setup_wizard_screen.dart';
@@ -186,6 +187,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     );
                   },
                   child: const Text('Open Grid Debug'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const TimetableDemoScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.dashboard_customize),
+                  label: const Text('Test Cockpit'),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Text(_status)),

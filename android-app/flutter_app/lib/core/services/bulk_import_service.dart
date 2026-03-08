@@ -346,38 +346,47 @@ class BulkImportService {
     final classesRows = _parseCsvRows(await _bytesForPlatformFile(classesFile));
     final lessonsRows = _parseCsvRows(await _bytesForPlatformFile(lessonsFile));
 
-    final subjectDtos = subjectsRows.map((r) {
-      final name = _req(r, ['Name', 'Subject']);
-      final abbr = _req(r, ['Abbreviation', 'Abbr', 'Short']);
-      final id = _req(r, ['Id']);
-      return SubjectImportDto(
-        id: id.isEmpty ? 'SUB_${_k(abbr.isEmpty ? name : abbr)}' : id,
-        name: name,
-        abbr: abbr.isEmpty ? name : abbr,
-      );
-    }).where((e) => e.name.isNotEmpty).toList(growable: false);
+    final subjectDtos = subjectsRows
+        .map((r) {
+          final name = _req(r, ['Name', 'Subject']);
+          final abbr = _req(r, ['Abbreviation', 'Abbr', 'Short']);
+          final id = _req(r, ['Id']);
+          return SubjectImportDto(
+            id: id.isEmpty ? 'SUB_${_k(abbr.isEmpty ? name : abbr)}' : id,
+            name: name,
+            abbr: abbr.isEmpty ? name : abbr,
+          );
+        })
+        .where((e) => e.name.isNotEmpty)
+        .toList(growable: false);
 
-    final teacherDtos = teachersRows.map((r) {
-      final name = _req(r, ['Full name', 'Teacher', 'Name']);
-      final abbr = _req(r, ['Abbreviation', 'Abbr', 'Short']);
-      final id = _req(r, ['Id']);
-      return TeacherImportDto(
-        id: id.isEmpty ? 'TEA_${_k(abbr.isEmpty ? name : abbr)}' : id,
-        name: name,
-        abbreviation: abbr.isEmpty ? name : abbr,
-      );
-    }).where((e) => e.name.isNotEmpty).toList(growable: false);
+    final teacherDtos = teachersRows
+        .map((r) {
+          final name = _req(r, ['Full name', 'Teacher', 'Name']);
+          final abbr = _req(r, ['Abbreviation', 'Abbr', 'Short']);
+          final id = _req(r, ['Id']);
+          return TeacherImportDto(
+            id: id.isEmpty ? 'TEA_${_k(abbr.isEmpty ? name : abbr)}' : id,
+            name: name,
+            abbreviation: abbr.isEmpty ? name : abbr,
+          );
+        })
+        .where((e) => e.name.isNotEmpty)
+        .toList(growable: false);
 
-    final classDtos = classesRows.map((r) {
-      final name = _req(r, ['Name', 'Class']);
-      final abbr = _req(r, ['Abbreviation', 'Abbr', 'Short']);
-      final id = _req(r, ['Id']);
-      return ClassImportDto(
-        id: id.isEmpty ? 'CLS_${_k(abbr.isEmpty ? name : abbr)}' : id,
-        name: name,
-        abbr: abbr.isEmpty ? name : abbr,
-      );
-    }).where((e) => e.name.isNotEmpty).toList(growable: false);
+    final classDtos = classesRows
+        .map((r) {
+          final name = _req(r, ['Name', 'Class']);
+          final abbr = _req(r, ['Abbreviation', 'Abbr', 'Short']);
+          final id = _req(r, ['Id']);
+          return ClassImportDto(
+            id: id.isEmpty ? 'CLS_${_k(abbr.isEmpty ? name : abbr)}' : id,
+            name: name,
+            abbr: abbr.isEmpty ? name : abbr,
+          );
+        })
+        .where((e) => e.name.isNotEmpty)
+        .toList(growable: false);
 
     final rawLessons = <_AscLessonRaw>[];
     for (var i = 0; i < lessonsRows.length; i++) {
@@ -406,114 +415,114 @@ class BulkImportService {
 
     try {
       await db.transaction(() async {
-      // Step 1: Subjects + Classrooms (classrooms currently parsed for future room normalization).
-      final _ = classroomsRows; // intentional: parsed/validated in strict sequence.
-      await batchInsert(
-        db,
-        BulkImportBundle(
-          teachers: const [],
-          subjects: subjectDtos,
-          classes: const [],
-        ),
-      );
-
-      // Step 2: Teachers
-      await batchInsert(
-        db,
-        BulkImportBundle(
-          teachers: teacherDtos,
-          subjects: const [],
-          classes: const [],
-        ),
-      );
-
-      // Step 3: Classes
-      await batchInsert(
-        db,
-        BulkImportBundle(
-          teachers: const [],
-          subjects: const [],
-          classes: classDtos,
-        ),
-      );
-
-      // Step 4: Lessons/Contracts with FK-safe cross-reference mapping.
-      final subjectRows = await db.select(db.subjects).get();
-      final teacherRows = await db.select(db.teachers).get();
-      final classRows = await db.select(db.classes).get();
-
-      final subjectMap = <String, String>{
-        for (final s in subjectRows) ...{_k(s.abbr): s.id, _k(s.name): s.id},
-      };
-      final teacherMap = <String, String>{
-        for (final t in teacherRows) ...{_k(t.abbreviation): t.id, _k(t.name): t.id},
-      };
-      final classMap = <String, String>{
-        for (final c in classRows) ...{_k(c.abbr): c.id, _k(c.name): c.id},
-      };
-
-      final lessonDtos = <LessonImportDto>[];
-      for (var i = 0; i < rawLessons.length; i++) {
-        final raw = rawLessons[i];
-        final subjectId = subjectMap[_k(raw.subjectToken)];
-        if (subjectId == null) {
-          failedRows.add(raw.rowNumber);
-          unresolvedTokens.add('subject:${raw.subjectToken}');
-          continue;
-        }
-
-        final classIds = <String>[];
-        var hasClassError = false;
-        for (final token in raw.classTokens) {
-          final cid = classMap[_k(token)];
-          if (cid == null) {
-            failedRows.add(raw.rowNumber);
-            unresolvedTokens.add('class:$token');
-            hasClassError = true;
-            break;
-          }
-          classIds.add(cid);
-        }
-        if (hasClassError) continue;
-
-        final teacherIds = <String>[];
-        var hasTeacherError = false;
-        for (final token in raw.teacherTokens) {
-          final tid = teacherMap[_k(token)];
-          if (tid == null) {
-            failedRows.add(raw.rowNumber);
-            unresolvedTokens.add('teacher:$token');
-            hasTeacherError = true;
-            break;
-          }
-          teacherIds.add(tid);
-        }
-        if (hasTeacherError) continue;
-
-        lessonDtos.add(
-          LessonImportDto(
-            id: 'ASC_LESSON_${i + 1}',
-            subjectId: subjectId,
-            periodsPerWeek: raw.periodsPerWeek,
-            teacherIds: teacherIds.toSet().toList(growable: false),
-            classIds: classIds.toSet().toList(growable: false),
+        // Step 1: Subjects + Classrooms
+        final _ = classroomsRows; // parsed/validated in strict sequence.
+        await batchInsert(
+          db,
+          BulkImportBundle(
+            teachers: const [],
+            subjects: subjectDtos,
+            classes: const [],
           ),
         );
-      }
 
-      successCount = lessonDtos.length;
-      if (lessonDtos.isNotEmpty) {
+        // Step 2: Teachers
+        await batchInsert(
+          db,
+          BulkImportBundle(
+            teachers: teacherDtos,
+            subjects: const [],
+            classes: const [],
+          ),
+        );
+
+        // Step 3: Classes
         await batchInsert(
           db,
           BulkImportBundle(
             teachers: const [],
             subjects: const [],
-            classes: const [],
-            lessons: lessonDtos,
+            classes: classDtos,
           ),
         );
-      }
-    });
+
+        // Step 4: Lessons/Contracts + FK mapping
+        final subjectRows = await db.select(db.subjects).get();
+        final teacherRows = await db.select(db.teachers).get();
+        final classRows = await db.select(db.classes).get();
+
+        final subjectMap = <String, String>{
+          for (final s in subjectRows) ...{_k(s.abbr): s.id, _k(s.name): s.id},
+        };
+        final teacherMap = <String, String>{
+          for (final t in teacherRows) ...{_k(t.abbreviation): t.id, _k(t.name): t.id},
+        };
+        final classMap = <String, String>{
+          for (final c in classRows) ...{_k(c.abbr): c.id, _k(c.name): c.id},
+        };
+
+        final lessonDtos = <LessonImportDto>[];
+        for (var i = 0; i < rawLessons.length; i++) {
+          final raw = rawLessons[i];
+          final subjectId = subjectMap[_k(raw.subjectToken)];
+          if (subjectId == null) {
+            failedRows.add(raw.rowNumber);
+            unresolvedTokens.add('subject:${raw.subjectToken}');
+            continue;
+          }
+
+          final classIds = <String>[];
+          var classError = false;
+          for (final token in raw.classTokens) {
+            final cid = classMap[_k(token)];
+            if (cid == null) {
+              failedRows.add(raw.rowNumber);
+              unresolvedTokens.add('class:$token');
+              classError = true;
+              break;
+            }
+            classIds.add(cid);
+          }
+          if (classError) continue;
+
+          final teacherIds = <String>[];
+          var teacherError = false;
+          for (final token in raw.teacherTokens) {
+            final tid = teacherMap[_k(token)];
+            if (tid == null) {
+              failedRows.add(raw.rowNumber);
+              unresolvedTokens.add('teacher:$token');
+              teacherError = true;
+              break;
+            }
+            teacherIds.add(tid);
+          }
+          if (teacherError) continue;
+
+          lessonDtos.add(
+            LessonImportDto(
+              id: 'ASC_LESSON_${i + 1}',
+              subjectId: subjectId,
+              periodsPerWeek: raw.periodsPerWeek,
+              teacherIds: teacherIds.toSet().toList(growable: false),
+              classIds: classIds.toSet().toList(growable: false),
+            ),
+          );
+        }
+
+        successCount = lessonDtos.length;
+        if (lessonDtos.isNotEmpty) {
+          await batchInsert(
+            db,
+            BulkImportBundle(
+              teachers: const [],
+              subjects: const [],
+              classes: const [],
+              lessons: lessonDtos,
+            ),
+          );
+        }
+      });
     } on StateError catch (e) {
       unresolvedTokens.add(e.message);
     }
