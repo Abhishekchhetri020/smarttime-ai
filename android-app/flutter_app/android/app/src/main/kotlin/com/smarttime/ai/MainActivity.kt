@@ -25,9 +25,45 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
                 }
 
                 val args = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
-                val lessonsCount = (args["lessons"] as? List<*>)?.size ?: 0
-                val teachersCount = (args["teachers"] as? List<*>)?.size ?: 0
-                result.success("Engine received $lessonsCount lessons and $teachersCount teachers.")
+                val lessons = parseLessons(args["lessons"] as? List<*>)
+                val rooms = parseRooms(args["rooms"] as? List<*>)
+
+                solverScope.launch(Dispatchers.Default) {
+                    try {
+                        val solver = SmartCspSolver()
+                        val solveResult = solver.solve(
+                            lessons = lessons,
+                            rooms = rooms,
+                            constraints = SmartCspSolver.ConstraintConfig(),
+                            days = 6,
+                            periodsPerDay = 8,
+                            timeoutMs = 15_000L,
+                        )
+
+                        val cards = solveResult.assignments.map {
+                            mapOf(
+                                "lessonId" to it.lessonId,
+                                "dayIndex" to (it.day - 1),
+                                "periodIndex" to (it.period - 1),
+                                "roomId" to it.roomId,
+                            )
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            result.success(
+                                mapOf(
+                                    "status" to solveResult.status,
+                                    "message" to "Engine solved ${lessons.size} lessons and produced ${cards.size} cards.",
+                                    "cards" to cards,
+                                )
+                            )
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            result.error("engine_solve_error", e.message, null)
+                        }
+                    }
+                }
             }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "smarttime/offline_solver")

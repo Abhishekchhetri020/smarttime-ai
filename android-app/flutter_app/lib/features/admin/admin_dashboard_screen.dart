@@ -44,6 +44,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Future<void> _generateNow() async {
     if (_busy) return;
     final planner = context.read<PlannerState>();
+    final db = planner.db;
+    if (db == null) {
+      setState(() => _status = 'Database unavailable. Complete setup first.');
+      return;
+    }
     if (!planner.hasMinimumData) {
       setState(() => _status =
           'Add at least 1 teacher, class, and subject before generating.');
@@ -56,33 +61,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       _warnings = warnings;
       _busy = true;
       _status = warnings.isEmpty
-          ? 'Generating offline timetable...'
-          : 'Generating with ${warnings.length} warning(s)...';
+          ? 'Generating...'
+          : 'Generating... (${warnings.length} warning(s))';
     });
 
     try {
+      final teacherRows = await db.select(db.teachers).get();
+      final classRows = await db.select(db.classes).get();
+      final lessonRows = await db.select(db.lessons).get();
+      final cardRows = await db.select(db.cards).get();
+
+      final roomIds = <String>{
+        ...cardRows.map((c) => c.roomId).whereType<String>(),
+      };
+
       final payload = EnginePayload(
-        teachers: planner.teachers
-            .map((t) => {'id': t.id, 'name': t.fullName, 'abbr': t.abbreviation})
+        teachers: teacherRows
+            .map((t) => {'id': t.id, 'name': t.name, 'abbr': t.abbreviation})
             .toList(growable: false),
-        classes: planner.classes
+        classes: classRows
             .map((c) => {'id': c.id, 'name': c.name, 'abbr': c.abbr})
             .toList(growable: false),
-        lessons: planner.lessons
+        rooms: roomIds.map((r) => {'id': r}).toList(growable: false),
+        lessons: lessonRows
             .map((l) => {
                   'id': l.id,
                   'subjectId': l.subjectId,
                   'teacherIds': l.teacherIds,
                   'classIds': l.classIds,
-                  'countPerWeek': l.countPerWeek,
+                  'periodsPerWeek': l.periodsPerWeek,
+                  'fixedDay': l.fixedDay,
+                  'fixedPeriod': l.fixedPeriod,
                 })
             .toList(growable: false),
       );
 
       final nativeResponse = await EngineBridge.triggerSolver(payload);
-      // debug console visibility requested
       debugPrint('EngineBridge response: $nativeResponse');
-      setState(() => _status = nativeResponse);
+      final cards = (nativeResponse['cards'] as List?)?.length ?? 0;
+      setState(() => _status = '${nativeResponse['message'] ?? nativeResponse['status'] ?? 'ok'} • cards:$cards');
     } catch (e) {
       setState(() => _status = 'Generate failed: $e');
     } finally {
