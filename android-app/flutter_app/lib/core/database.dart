@@ -20,6 +20,7 @@ class AnalyticsSnapshot {
   });
 }
 
+@DataClassName('SubjectRow')
 class Subjects extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
@@ -32,6 +33,7 @@ class Subjects extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('ClassRow')
 class Classes extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
@@ -41,21 +43,73 @@ class Classes extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-class ClassDivisions extends Table {
+class StringListConverter extends TypeConverter<List<String>, String> {
+  const StringListConverter();
+
+  @override
+  List<String> fromSql(String fromDb) {
+    if (fromDb.trim().isEmpty) return const <String>[];
+    final decoded = jsonDecode(fromDb);
+    if (decoded is! List) return const <String>[];
+    return decoded.map((e) => e.toString()).toList(growable: false);
+  }
+
+  @override
+  String toSql(List<String> value) => jsonEncode(value);
+}
+
+@DataClassName('DivisionRow')
+class Divisions extends Table {
   TextColumn get id => text()();
-  TextColumn get classId => text().references(Classes, #id)();
   TextColumn get name => text()();
-  TextColumn get code => text()();
+  TextColumn get classId => text().references(Classes, #id)();
+
+  @override
+  String get tableName => 'divisions';
 
   @override
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('TeacherRow')
+class Teachers extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get abbreviation => text()();
+  IntColumn get maxPeriodsPerDay => integer().nullable()();
+  IntColumn get maxGapsPerDay => integer().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('TeacherUnavailabilityRow')
+class TeacherUnavailability extends Table {
+  TextColumn get id => text()();
+  TextColumn get teacherId => text().references(Teachers, #id)();
+  IntColumn get day => integer()();
+  IntColumn get period => integer()();
+  IntColumn get state => integer().withDefault(const Constant(1))(); // 1=unavailable,2=conditional
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('LessonRow')
 class Lessons extends Table {
   TextColumn get id => text()();
   TextColumn get subjectId => text().references(Subjects, #id)();
+
+  // aSc contract-style requirement fields
+  IntColumn get periodsPerWeek => integer().withDefault(const Constant(1))();
+  TextColumn get teacherIds =>
+      text().map(const StringListConverter()).withDefault(const Constant('[]'))();
+  TextColumn get classIds =>
+      text().map(const StringListConverter()).withDefault(const Constant('[]'))();
+
+  // Back-compat fields retained for existing planner/controller flow.
   TextColumn get classId => text().nullable()();
-  TextColumn get classDivisionId => text().nullable().references(ClassDivisions, #id)();
+  TextColumn get classDivisionId => text().nullable().references(Divisions, #id)();
   IntColumn get countPerWeek => integer().withDefault(const Constant(1))();
   BoolColumn get isPinned => boolean().withDefault(const Constant(false))();
   IntColumn get fixedDay => integer().nullable()();
@@ -63,6 +117,18 @@ class Lessons extends Table {
   IntColumn get roomTypeId => integer().nullable()();
   IntColumn get relationshipType => integer().withDefault(const Constant(0))();
   TextColumn get relationshipGroupKey => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('CardRow')
+class Cards extends Table {
+  TextColumn get id => text()();
+  TextColumn get lessonId => text().references(Lessons, #id)();
+  IntColumn get dayIndex => integer()();
+  IntColumn get periodIndex => integer()();
+  TextColumn get roomId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -78,7 +144,7 @@ class LessonClasses extends Table {
 
 class LessonTeachers extends Table {
   TextColumn get lessonId => text().references(Lessons, #id)();
-  TextColumn get teacherId => text()();
+  TextColumn get teacherId => text().references(Teachers, #id)();
 
   @override
   Set<Column> get primaryKey => {lessonId, teacherId};
@@ -128,8 +194,11 @@ LazyDatabase _openConnection() {
   tables: [
     Subjects,
     Classes,
-    ClassDivisions,
+    Divisions,
+    Teachers,
+    TeacherUnavailability,
     Lessons,
+    Cards,
     LessonClasses,
     LessonTeachers,
     EntityTimeOff,
@@ -141,7 +210,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -153,6 +222,31 @@ class AppDatabase extends _$AppDatabase {
               INSERT OR IGNORE INTO lesson_classes (lesson_id, class_id)
               SELECT id, class_id FROM lessons WHERE class_id IS NOT NULL
             ''');
+          }
+          if (from < 8) {
+            await m.createTable(teachers);
+            await m.createTable(teacherUnavailability);
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_teacher_unavailability_teacher_slot ON teacher_unavailability(teacher_id, day, period)'
+            );
+          }
+          if (from < 9) {
+            await m.createTable(divisions);
+            await m.createTable(cards);
+
+            await customStatement(
+              'ALTER TABLE lessons ADD COLUMN periods_per_week INTEGER NOT NULL DEFAULT 1',
+            );
+            await customStatement(
+              "ALTER TABLE lessons ADD COLUMN teacher_ids TEXT NOT NULL DEFAULT '[]'",
+            );
+            await customStatement(
+              "ALTER TABLE lessons ADD COLUMN class_ids TEXT NOT NULL DEFAULT '[]'",
+            );
+
+            await customStatement(
+              'UPDATE lessons SET periods_per_week = count_per_week WHERE periods_per_week IS NULL OR periods_per_week = 1',
+            );
           }
         },
         beforeOpen: (details) async {
