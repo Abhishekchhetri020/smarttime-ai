@@ -31,7 +31,7 @@ class _TeachersTabState extends State<TeachersTab> {
   @override
   Widget build(BuildContext context) {
     final planner = context.watch<PlannerState>();
-    return Column(
+    return ListView(
       children: [
         TextField(controller: _first, decoration: const InputDecoration(labelText: 'First name')),
         TextField(controller: _last, decoration: const InputDecoration(labelText: 'Last name')),
@@ -95,18 +95,11 @@ class _TeachersTabState extends State<TeachersTab> {
           ),
         ),
         const Divider(),
-        Expanded(
-          child: ListView.builder(
-            itemCount: planner.teachers.length,
-            itemBuilder: (_, i) {
-              final t = planner.teachers[i];
-              return ListTile(
-                title: Text('${t.firstName} ${t.lastName}'.trim()),
-                subtitle: Text('${t.abbr} • gaps:${t.maxGapsPerDay ?? '-'} • consec:${t.maxConsecutivePeriods ?? '-'} • off:${t.timeOff.length} slots'),
-              );
-            },
+        for (final t in planner.teachers)
+          ListTile(
+            title: Text('${t.firstName} ${t.lastName}'.trim()),
+            subtitle: Text('${t.abbr} • gaps:${t.maxGapsPerDay ?? '-'} • consec:${t.maxConsecutivePeriods ?? '-'} • off:${t.timeOff.length} slots'),
           ),
-        ),
       ],
     );
   }

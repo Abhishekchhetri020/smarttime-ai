@@ -1,9 +1,11 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../timetable/engine_bridge.dart';
 import '../timetable/presentation/screens/solver_debug_screen.dart';
-import '../timetable/presentation/screens/timetable_demo_screen.dart';
+import '../timetable/presentation/screens/cockpit_screen.dart';
+import '../../core/database.dart';
 import '../timetable/data/conflict_service.dart';
 import 'planner_state.dart';
 import 'setup/setup_wizard_screen.dart';
@@ -98,7 +100,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
       final nativeResponse = await EngineBridge.triggerSolver(payload);
       debugPrint('EngineBridge response: $nativeResponse');
-      final cards = (nativeResponse['cards'] as List?)?.length ?? 0;
+
+      final cardsRaw = (nativeResponse['cards'] as List?) ?? const [];
+      final cardCompanions = <CardsCompanion>[];
+      var idx = 0;
+      for (final item in cardsRaw) {
+        if (item is! Map) continue;
+        final lessonId = item['lessonId']?.toString();
+        final dayIndex = item['dayIndex'] as int?;
+        final periodIndex = item['periodIndex'] as int?;
+        if (lessonId == null || dayIndex == null || periodIndex == null) continue;
+        final roomId = item['roomId']?.toString();
+        cardCompanions.add(
+          CardsCompanion.insert(
+            id: 'card_${lessonId}_${dayIndex}_${periodIndex}_$idx',
+            lessonId: lessonId,
+            dayIndex: dayIndex,
+            periodIndex: periodIndex,
+            roomId: Value(roomId),
+          ),
+        );
+        idx++;
+      }
+
+      await db.transaction(() async {
+        await db.delete(db.cards).go();
+        if (cardCompanions.isNotEmpty) {
+          await db.batch((b) => b.insertAll(db.cards, cardCompanions));
+        }
+      });
+
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => CockpitScreen(db: db)),
+      );
+
+      final cards = cardCompanions.length;
       setState(() => _status = '${nativeResponse['message'] ?? nativeResponse['status'] ?? 'ok'} • cards:$cards');
     } catch (e) {
       setState(() => _status = 'Generate failed: $e');
@@ -231,14 +268,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () {
+                    final db = planner.db;
+                    if (db == null) return;
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => const TimetableDemoScreen(),
+                        builder: (_) => CockpitScreen(db: db),
                       ),
                     );
                   },
                   icon: const Icon(Icons.dashboard_customize),
-                  label: const Text('Test Cockpit'),
+                  label: const Text('Open Cockpit'),
                 ),
                 SizedBox(
                   width: 280,

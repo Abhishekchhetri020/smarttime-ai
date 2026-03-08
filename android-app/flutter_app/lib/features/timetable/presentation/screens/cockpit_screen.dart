@@ -1,0 +1,134 @@
+import 'package:flutter/material.dart';
+
+import '../../../../core/database.dart';
+import '../widgets/universal_timetable_grid.dart';
+
+class CockpitScreen extends StatefulWidget {
+  const CockpitScreen({super.key, required this.db});
+
+  final AppDatabase db;
+
+  @override
+  State<CockpitScreen> createState() => _CockpitScreenState();
+}
+
+class _CockpitScreenState extends State<CockpitScreen> {
+  ViewMode _mode = ViewMode.classView;
+
+  static const _days = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  static const _periods = <PeriodSlot>[
+    PeriodSlot(id: 'p1', label: 'P1'),
+    PeriodSlot(id: 'p2', label: 'P2'),
+    PeriodSlot(id: 'p3', label: 'P3'),
+    PeriodSlot(id: 'br1', label: 'Break', isBreak: true),
+    PeriodSlot(id: 'p4', label: 'P4'),
+    PeriodSlot(id: 'p5', label: 'P5'),
+    PeriodSlot(id: 'p6', label: 'P6'),
+    PeriodSlot(id: 'p7', label: 'P7'),
+  ];
+
+  Stream<_CockpitVm> _vmStream() {
+    return widget.db.select(widget.db.cards).watch().asyncMap((cards) async {
+      final lessons = await widget.db.select(widget.db.lessons).get();
+      final subjects = await widget.db.select(widget.db.subjects).get();
+      final teachers = await widget.db.select(widget.db.teachers).get();
+      final classes = await widget.db.select(widget.db.classes).get();
+
+      final subjectById = {for (final s in subjects) s.id: s};
+      final teacherById = {for (final t in teachers) t.id: t};
+      final classById = {for (final c in classes) c.id: c};
+      final lessonById = {for (final l in lessons) l.id: l};
+
+      final cells = <String, TimetableCellData>{};
+      for (final c in cards) {
+        final lesson = lessonById[c.lessonId];
+        if (lesson == null) continue;
+
+        final row = c.dayIndex.clamp(0, _days.length - 1);
+        final col = _periodColumnFromPeriodIndex(c.periodIndex);
+        if (col < 0) continue;
+
+        final subject = subjectById[lesson.subjectId]?.abbr ?? lesson.subjectId;
+        final teacherAbbr = lesson.teacherIds
+            .map((id) => teacherById[id]?.abbreviation ?? id)
+            .join(', ');
+        final classAbbr = lesson.classIds
+            .map((id) => classById[id]?.abbr ?? id)
+            .join(', ');
+
+        final secondary = switch (_mode) {
+          ViewMode.teacher => classAbbr,
+          ViewMode.classView => teacherAbbr,
+          ViewMode.room => '$classAbbr / $teacherAbbr',
+        };
+
+        cells[UniversalTimetableGrid.keyFor(row, col)] = TimetableCellData(
+          primary: subject,
+          secondary: secondary,
+          tertiary: c.roomId,
+        );
+      }
+
+      return _CockpitVm(cells);
+    });
+  }
+
+  int _periodColumnFromPeriodIndex(int periodIndex) {
+    // We render a break column after P3, so shift periods >=3 by +1.
+    if (periodIndex < 0) return -1;
+    if (periodIndex >= 3) return periodIndex + 1;
+    return periodIndex;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Cockpit')),
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Text('View: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(width: 8),
+                SegmentedButton<ViewMode>(
+                  segments: const [
+                    ButtonSegment(value: ViewMode.teacher, label: Text('Teacher')),
+                    ButtonSegment(value: ViewMode.classView, label: Text('Class')),
+                    ButtonSegment(value: ViewMode.room, label: Text('Room')),
+                  ],
+                  selected: {_mode},
+                  onSelectionChanged: (v) => setState(() => _mode = v.first),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: StreamBuilder<_CockpitVm>(
+                stream: _vmStream(),
+                builder: (context, snap) {
+                  if (!snap.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  return UniversalTimetableGrid(
+                    viewMode: _mode,
+                    rowLabels: _days,
+                    periods: _periods,
+                    cells: snap.data!.cells,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CockpitVm {
+  final Map<String, TimetableCellData> cells;
+
+  const _CockpitVm(this.cells);
+}
