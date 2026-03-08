@@ -17,6 +17,19 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.smarttime.ai/engine")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "solve_timetable") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+
+                val args = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
+                val lessonsCount = (args["lessons"] as? List<*>)?.size ?: 0
+                val teachersCount = (args["teachers"] as? List<*>)?.size ?: 0
+                result.success("Engine received $lessonsCount lessons and $teachersCount teachers.")
+            }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "smarttime/offline_solver")
             .setMethodCallHandler { call, result ->
                 if (call.method != "solveTimetable") {

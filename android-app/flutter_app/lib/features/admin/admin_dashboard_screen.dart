@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../timetable/offline_solver_bridge.dart';
+import '../timetable/engine_bridge.dart';
 import '../timetable/presentation/screens/solver_debug_screen.dart';
 import '../timetable/presentation/screens/timetable_demo_screen.dart';
 import '../timetable/data/conflict_service.dart';
@@ -61,10 +61,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     });
 
     try {
-      final result = await OfflineSolverBridge.solve(
-        payload: planner.toSolverPayload(),
+      final payload = EnginePayload(
+        teachers: planner.teachers
+            .map((t) => {'id': t.id, 'name': t.fullName, 'abbr': t.abbreviation})
+            .toList(growable: false),
+        classes: planner.classes
+            .map((c) => {'id': c.id, 'name': c.name, 'abbr': c.abbr})
+            .toList(growable: false),
+        lessons: planner.lessons
+            .map((l) => {
+                  'id': l.id,
+                  'subjectId': l.subjectId,
+                  'teacherIds': l.teacherIds,
+                  'classIds': l.classIds,
+                  'countPerWeek': l.countPerWeek,
+                })
+            .toList(growable: false),
       );
-      setState(() => _status = 'Generated: ${result['status'] ?? 'ok'}');
+
+      final nativeResponse = await EngineBridge.triggerSolver(payload);
+      // debug console visibility requested
+      debugPrint('EngineBridge response: $nativeResponse');
+      setState(() => _status = nativeResponse);
     } catch (e) {
       setState(() => _status = 'Generate failed: $e');
     } finally {
@@ -171,13 +189,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   ],
                 ),
               ),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 ElevatedButton(
                   onPressed: _busy ? null : _generateNow,
                   child: const Text('Generate Now'),
                 ),
-                const SizedBox(width: 8),
                 OutlinedButton(
                   onPressed: () {
                     Navigator.of(context).push(
@@ -188,7 +208,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   },
                   child: const Text('Open Grid Debug'),
                 ),
-                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
@@ -204,8 +223,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   icon: const Icon(Icons.dashboard_customize),
                   label: const Text('Test Cockpit'),
                 ),
-                const SizedBox(width: 12),
-                Expanded(child: Text(_status)),
+                SizedBox(
+                  width: 280,
+                  child: Text(
+                    _status,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
+                ),
               ],
             ),
           ],
