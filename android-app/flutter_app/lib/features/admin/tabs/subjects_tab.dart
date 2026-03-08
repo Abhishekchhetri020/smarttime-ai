@@ -33,7 +33,7 @@ class _SubjectsTabState extends State<SubjectsTab> {
   Widget build(BuildContext context) {
     final planner = context.watch<PlannerState>();
 
-    return Column(
+    return ListView(
       children: [
         TextField(controller: _name, decoration: const InputDecoration(labelText: 'Subject name')),
         TextField(controller: _abbr, decoration: const InputDecoration(labelText: 'Abbreviation')),
@@ -152,18 +152,11 @@ class _SubjectsTabState extends State<SubjectsTab> {
           ),
         ),
         const Divider(),
-        Expanded(
-          child: ListView.builder(
-            itemCount: planner.subjects.length,
-            itemBuilder: (_, i) {
-              final s = planner.subjects[i];
-              return ListTile(
-                title: Text(s.name),
-                subtitle: Text('${s.abbr}${s.relationshipGroupKey != null && s.relationshipGroupKey!.isNotEmpty ? ' • group:${s.relationshipGroupKey}' : ''}'),
-              );
-            },
+        for (final s in planner.subjects)
+          ListTile(
+            title: Text(s.name),
+            subtitle: Text('${s.abbr}${s.relationshipGroupKey != null && s.relationshipGroupKey!.isNotEmpty ? ' • group:${s.relationshipGroupKey}' : ''}'),
           ),
-        ),
       ],
     );
   }

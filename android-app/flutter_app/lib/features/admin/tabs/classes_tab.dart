@@ -29,7 +29,7 @@ class _ClassesTabState extends State<ClassesTab> {
   @override
   Widget build(BuildContext context) {
     final planner = context.watch<PlannerState>();
-    return Column(
+    return ListView(
       children: [
         TextField(controller: _name, decoration: const InputDecoration(labelText: 'Class name')),
         TextField(controller: _abbr, decoration: const InputDecoration(labelText: 'Abbreviation')),
@@ -97,18 +97,11 @@ class _ClassesTabState extends State<ClassesTab> {
           ),
         ),
         const Divider(),
-        Expanded(
-          child: ListView.builder(
-            itemCount: planner.classes.length,
-            itemBuilder: (_, i) {
-              final c = planner.classes[i];
-              return ListTile(
-                title: Text(c.name),
-                subtitle: Text('${c.abbr} • divisions: ${c.divisions.map((d) => d.code).join(', ')}'),
-              );
-            },
+        for (final c in planner.classes)
+          ListTile(
+            title: Text(c.name),
+            subtitle: Text('${c.abbr} • divisions: ${c.divisions.map((d) => d.code).join(', ')}'),
           ),
-        ),
       ],
     );
   }
