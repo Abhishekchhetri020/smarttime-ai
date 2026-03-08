@@ -83,16 +83,30 @@ class BulkImportBundle {
 }
 
 class _AscLessonRaw {
+  final int rowNumber;
   final String subjectToken;
   final List<String> teacherTokens;
   final List<String> classTokens;
   final int periodsPerWeek;
 
   const _AscLessonRaw({
+    required this.rowNumber,
     required this.subjectToken,
     required this.teacherTokens,
     required this.classTokens,
     required this.periodsPerWeek,
+  });
+}
+
+class ImportReport {
+  final int successCount;
+  final List<int> failedRows;
+  final List<String> unresolvedTokens;
+
+  const ImportReport({
+    required this.successCount,
+    required this.failedRows,
+    required this.unresolvedTokens,
   });
 }
 
@@ -296,7 +310,7 @@ class BulkImportService {
     return '';
   }
 
-  Future<void> parseAndImportAscFiles(AppDatabase db, List<PlatformFile> files) async {
+  Future<ImportReport> parseAndImportAscFiles(AppDatabase db, List<PlatformFile> files) async {
     final byName = <String, PlatformFile>{
       for (final f in files) f.name.toLowerCase(): f,
     };
@@ -315,7 +329,13 @@ class BulkImportService {
     final lessonsFile = findFile('lessons') ?? findFile('contracts');
 
     if (subjectsFile == null || teachersFile == null || classesFile == null || lessonsFile == null) {
-      throw StateError('Required aSc CSVs missing. Need Subjects, Teachers, Classes and Lessons/Contracts CSV.');
+      return const ImportReport(
+        successCount: 0,
+        failedRows: <int>[],
+        unresolvedTokens: <String>[
+          'Required aSc CSVs missing. Need Subjects, Teachers, Classes and Lessons/Contracts CSV.',
+        ],
+      );
     }
 
     final subjectsRows = _parseCsvRows(await _bytesForPlatformFile(subjectsFile));
@@ -359,22 +379,33 @@ class BulkImportService {
       );
     }).where((e) => e.name.isNotEmpty).toList(growable: false);
 
-    final rawLessons = lessonsRows.map((r) {
+    final rawLessons = <_AscLessonRaw>[];
+    for (var i = 0; i < lessonsRows.length; i++) {
+      final r = lessonsRows[i];
       final subjectToken = _req(r, ['Subject']);
       final classToken = _req(r, ['Class']);
       final teacherToken = _req(r, ['Teacher']);
       final moreTeachers = _req(r, ['More teachers']);
       final countRaw = _req(r, ['Count', 'PeriodsPerWeek', 'Periods per week']);
       final periods = int.tryParse(countRaw) ?? (double.tryParse(countRaw)?.toInt() ?? 1);
-      return _AscLessonRaw(
-        subjectToken: subjectToken,
-        classTokens: _splitMultiValue(classToken),
-        teacherTokens: {..._splitMultiValue(teacherToken), ..._splitMultiValue(moreTeachers)}.toList(),
-        periodsPerWeek: periods,
+      if (subjectToken.isEmpty || classToken.isEmpty) continue;
+      rawLessons.add(
+        _AscLessonRaw(
+          rowNumber: i + 2,
+          subjectToken: subjectToken,
+          classTokens: _splitMultiValue(classToken),
+          teacherTokens: {..._splitMultiValue(teacherToken), ..._splitMultiValue(moreTeachers)}.toList(),
+          periodsPerWeek: periods,
+        ),
       );
-    }).where((e) => e.subjectToken.isNotEmpty && e.classTokens.isNotEmpty).toList(growable: false);
+    }
 
-    await db.transaction(() async {
+    final failedRows = <int>[];
+    final unresolvedTokens = <String>{};
+    var successCount = 0;
+
+    try {
+      await db.transaction(() async {
       // Step 1: Subjects + Classrooms (classrooms currently parsed for future room normalization).
       final _ = classroomsRows; // intentional: parsed/validated in strict sequence.
       await batchInsert(
@@ -426,22 +457,38 @@ class BulkImportService {
         final raw = rawLessons[i];
         final subjectId = subjectMap[_k(raw.subjectToken)];
         if (subjectId == null) {
-          throw StateError('Unmapped subject in lessons/contracts: ${raw.subjectToken}');
+          failedRows.add(raw.rowNumber);
+          unresolvedTokens.add('subject:${raw.subjectToken}');
+          continue;
         }
 
         final classIds = <String>[];
+        var hasClassError = false;
         for (final token in raw.classTokens) {
           final cid = classMap[_k(token)];
-          if (cid == null) throw StateError('Unmapped class in lessons/contracts: $token');
+          if (cid == null) {
+            failedRows.add(raw.rowNumber);
+            unresolvedTokens.add('class:$token');
+            hasClassError = true;
+            break;
+          }
           classIds.add(cid);
         }
+        if (hasClassError) continue;
 
         final teacherIds = <String>[];
+        var hasTeacherError = false;
         for (final token in raw.teacherTokens) {
           final tid = teacherMap[_k(token)];
-          if (tid == null) throw StateError('Unmapped teacher in lessons/contracts: $token');
+          if (tid == null) {
+            failedRows.add(raw.rowNumber);
+            unresolvedTokens.add('teacher:$token');
+            hasTeacherError = true;
+            break;
+          }
           teacherIds.add(tid);
         }
+        if (hasTeacherError) continue;
 
         lessonDtos.add(
           LessonImportDto(
@@ -454,16 +501,28 @@ class BulkImportService {
         );
       }
 
-      await batchInsert(
-        db,
-        BulkImportBundle(
-          teachers: const [],
-          subjects: const [],
-          classes: const [],
-          lessons: lessonDtos,
-        ),
-      );
+      successCount = lessonDtos.length;
+      if (lessonDtos.isNotEmpty) {
+        await batchInsert(
+          db,
+          BulkImportBundle(
+            teachers: const [],
+            subjects: const [],
+            classes: const [],
+            lessons: lessonDtos,
+          ),
+        );
+      }
     });
+    } on StateError catch (e) {
+      unresolvedTokens.add(e.message);
+    }
+
+    return ImportReport(
+      successCount: successCount,
+      failedRows: failedRows.toSet().toList()..sort(),
+      unresolvedTokens: unresolvedTokens.toList()..sort(),
+    );
   }
 
   /// Atomic high-throughput insert path.
