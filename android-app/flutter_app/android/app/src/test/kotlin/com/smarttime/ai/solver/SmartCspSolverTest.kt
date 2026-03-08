@@ -48,7 +48,7 @@ class SmartCspSolverTest {
 
         val result = solver.solve(lessons, rooms = emptyList(), constraints = constraints, days = 1, periodsPerDay = 1)
 
-        assertEquals("partial", result.status)
+        assertEquals("SEED_NOT_FOUND", result.status)
         assertTrue(result.hardViolations.isNotEmpty())
         assertEquals("unscheduled_lesson", result.hardViolations.first().type)
         assertTrue(result.hardViolations.first().reason.isNotBlank())
@@ -62,7 +62,7 @@ class SmartCspSolverTest {
 
         val result = solver.solve(lessons, rooms = emptyList(), days = 1, periodsPerDay = 2)
 
-        assertEquals("success", result.status)
+        assertEquals("SEED_FOUND", result.status)
         assertEquals(2, result.assignments.size)
         val periods = result.assignments.map { it.period }.sorted()
         assertEquals(listOf(1, 2), periods)
@@ -79,7 +79,7 @@ class SmartCspSolverTest {
 
         val result = solver.solve(lessons, rooms = rooms, days = 1, periodsPerDay = 2)
 
-        assertEquals("partial", result.status)
+        assertEquals("SEED_NOT_FOUND", result.status)
         assertEquals("no_matching_room_type", result.hardViolations.first().reason)
     }
 
@@ -96,7 +96,7 @@ class SmartCspSolverTest {
 
         val result = solver.solve(lessons, rooms = emptyList(), constraints = constraints, days = 1, periodsPerDay = 3)
 
-        assertEquals("partial", result.status)
+        assertEquals("SEED_NOT_FOUND", result.status)
         assertTrue(result.hardViolations.any { it.reason == "subject_daily_limit" })
     }
 
@@ -136,5 +136,34 @@ class SmartCspSolverTest {
         assertTrue(result.diagnostics.search.nodesVisited > 0)
         assertTrue(result.diagnostics.search.backtracks >= 0)
         assertTrue(result.diagnostics.search.branchesPrunedByForwardCheck >= 0)
+    }
+
+    @Test
+    fun `joint classes and co teaching payload supported`() {
+        val lessons = listOf(
+            SmartCspSolver.Lesson(
+                id = "LJ1",
+                classIds = listOf("C1", "C2"),
+                teacherIds = listOf("T1", "T2"),
+                subjectId = "BIO",
+            ),
+        )
+
+        val result = solver.solve(lessons, rooms = emptyList(), days = 1, periodsPerDay = 3)
+
+        assertEquals("SEED_FOUND", result.status)
+        assertTrue(result.assignments.isNotEmpty())
+        assertEquals(listOf("C1", "C2"), result.assignments.first().classIds)
+        assertEquals(listOf("T1", "T2"), result.assignments.first().teacherIds)
+    }
+
+    @Test
+    fun `infeasible input returns specific seed error`() {
+        val lessons = (1..7).map {
+            SmartCspSolver.Lesson("L$it", "C1", "T1", "S$it")
+        }
+
+        val result = solver.solve(lessons, rooms = emptyList(), days = 1, periodsPerDay = 5)
+        assertEquals("SEED_INFEASIBLE_INPUT", result.status)
     }
 }

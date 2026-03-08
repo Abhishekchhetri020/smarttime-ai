@@ -3,8 +3,17 @@ package com.smarttime.ai
 import com.smarttime.ai.solver.SmartCspSolver
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : io.flutter.embedding.android.FlutterActivity() {
+    // Scope tied to Activity lifecycle; uses SupervisorJob so one failure
+    // does not cancel other channel calls.
+    private val solverScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -15,24 +24,34 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
                     return@setMethodCallHandler
                 }
 
-                try {
-                    val args = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
-                    val solver = SmartCspSolver()
+                // Parse arguments on the main thread (fast) so that any
+                // casting errors are caught synchronously.
+                val args = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
+                val solver = SmartCspSolver()
 
-                    val days = (args["days"] as? Number)?.toInt() ?: 5
-                    val periodsPerDay = (args["periodsPerDay"] as? Number)?.toInt() ?: 8
+                val days = (args["days"] as? Number)?.toInt() ?: 5
+                val periodsPerDay = (args["periodsPerDay"] as? Number)?.toInt() ?: 8
 
-                    val lessons = parseLessons(args["lessons"] as? List<*>)
-                    val rooms = parseRooms(args["rooms"] as? List<*>)
-                    val constraints = parseConstraints(args["constraints"] as? Map<*, *>)
+                val timeoutMs = (args["timeoutMs"] as? Number)?.toLong() ?: 15_000L
 
-                    val solveResult = solver.solve(
-                        lessons = lessons,
-                        rooms = rooms,
-                        constraints = constraints,
-                        days = days,
-                        periodsPerDay = periodsPerDay,
-                    )
+                val lessons = parseLessons(args["lessons"] as? List<*>)
+                val rooms = parseRooms(args["rooms"] as? List<*>)
+                val constraints = parseConstraints(args["constraints"] as? Map<*, *>)
+
+                // Launch coroutine so the UI thread is NOT blocked while
+                // the solver runs on Dispatchers.Default.
+                solverScope.launch {
+                    try {
+                    val solveResult = withContext(Dispatchers.Default) {
+                        solver.solve(
+                            lessons = lessons,
+                            rooms = rooms,
+                            constraints = constraints,
+                            days = days,
+                            periodsPerDay = periodsPerDay,
+                            timeoutMs = timeoutMs,
+                        )
+                    }
 
                     result.success(
                         mapOf(
@@ -40,6 +59,8 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
                             "assignments" to solveResult.assignments.map {
                                 mapOf(
                                     "lessonId" to it.lessonId,
+                                    "classIds" to it.classIds,
+                                    "teacherIds" to it.teacherIds,
                                     "classId" to it.classId,
                                     "teacherId" to it.teacherId,
                                     "subjectId" to it.subjectId,
@@ -78,8 +99,9 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
                             "score" to solveResult.score,
                         ),
                     )
-                } catch (e: Exception) {
-                    result.error("offline_solver_error", e.message, null)
+                    } catch (e: Exception) {
+                        result.error("offline_solver_error", e.message, null)
+                    }
                 }
             }
     }
@@ -88,13 +110,20 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
         return raw.orEmpty().mapNotNull { item ->
             val map = item as? Map<*, *> ?: return@mapNotNull null
             val id = map["id"]?.toString() ?: return@mapNotNull null
-            val classId = map["classId"]?.toString() ?: return@mapNotNull null
-            val teacherId = map["teacherId"]?.toString() ?: return@mapNotNull null
             val subjectId = map["subjectId"]?.toString() ?: return@mapNotNull null
+
+            val classIds = parseStringList(map["classIds"]).ifEmpty {
+                listOfNotNull(map["classId"]?.toString())
+            }
+            val teacherIds = parseStringList(map["teacherIds"]).ifEmpty {
+                listOfNotNull(map["teacherId"]?.toString())
+            }
+            if (classIds.isEmpty() || teacherIds.isEmpty()) return@mapNotNull null
+
             SmartCspSolver.Lesson(
                 id = id,
-                classId = classId,
-                teacherId = teacherId,
+                classIds = classIds,
+                teacherIds = teacherIds,
                 subjectId = subjectId,
                 preferredRoomId = map["preferredRoomId"]?.toString(),
                 requiredRoomType = map["requiredRoomType"]?.toString(),
@@ -144,6 +173,13 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
             val value = (v as? Number)?.toInt() ?: return@associateNotNull null
             key to value
         }
+    }
+
+    private fun parseStringList(raw: Any?): List<String> {
+        return (raw as? List<*>)
+            ?.mapNotNull { it?.toString() }
+            ?.filter { it.isNotBlank() }
+            ?: emptyList()
     }
 }
 

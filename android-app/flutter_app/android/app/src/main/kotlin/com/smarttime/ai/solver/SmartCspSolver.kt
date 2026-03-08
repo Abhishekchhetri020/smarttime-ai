@@ -13,15 +13,41 @@ import kotlin.math.max
 class SmartCspSolver {
     data class Lesson(
         val id: String,
-        val classId: String,
-        val teacherId: String,
+        val classIds: List<String>,
+        val teacherIds: List<String>,
         val subjectId: String,
         val preferredRoomId: String? = null,
         val requiredRoomType: String? = null,
         val fixedDay: Int? = null,
         val fixedPeriod: Int? = null,
         val isLabDouble: Boolean = false,
-    )
+    ) {
+        // Backward-compatible constructor for legacy 1:1 lesson payloads/tests.
+        constructor(
+            id: String,
+            classId: String,
+            teacherId: String,
+            subjectId: String,
+            preferredRoomId: String? = null,
+            requiredRoomType: String? = null,
+            fixedDay: Int? = null,
+            fixedPeriod: Int? = null,
+            isLabDouble: Boolean = false,
+        ) : this(
+            id = id,
+            classIds = listOf(classId),
+            teacherIds = listOf(teacherId),
+            subjectId = subjectId,
+            preferredRoomId = preferredRoomId,
+            requiredRoomType = requiredRoomType,
+            fixedDay = fixedDay,
+            fixedPeriod = fixedPeriod,
+            isLabDouble = isLabDouble,
+        )
+
+        val primaryClassId: String get() = classIds.firstOrNull() ?: ""
+        val primaryTeacherId: String get() = teacherIds.firstOrNull() ?: ""
+    }
 
     data class Room(
         val id: String,
@@ -58,15 +84,18 @@ class SmartCspSolver {
 
     data class Assignment(
         val lessonId: String,
-        val classId: String,
-        val teacherId: String,
+        val classIds: List<String>,
+        val teacherIds: List<String>,
         val subjectId: String,
         val day: Int,
         val period: Int,
         val roomId: String,
         val pinned: Boolean,
         val isLabDouble: Boolean,
-    )
+    ) {
+        val classId: String get() = classIds.firstOrNull() ?: ""
+        val teacherId: String get() = teacherIds.firstOrNull() ?: ""
+    }
 
     data class HardViolation(
         val type: String = "unscheduled_lesson",
@@ -149,6 +178,7 @@ class SmartCspSolver {
         var nodesVisited: Int = 0,
         var backtracks: Int = 0,
         var branchesPrunedByForwardCheck: Int = 0,
+        var timedOut: Boolean = false,
     )
 
     private data class Best(
@@ -166,9 +196,29 @@ class SmartCspSolver {
         periodsPerDay: Int = 8,
         pinned: List<Assignment> = emptyList(),
         progressCallback: ProgressCallback? = null,
+        timeoutMs: Long = 15_000L,
     ): SolveResult {
         require(days > 0) { "days must be > 0" }
         require(periodsPerDay > 0) { "periodsPerDay must be > 0" }
+
+        val preCheck = detectInfeasibleInput(lessons, constraints, days, periodsPerDay)
+        if (preCheck != null) {
+            return SolveResult(
+                status = "SEED_INFEASIBLE_INPUT",
+                assignments = emptyList(),
+                hardViolations = emptyList(),
+                softPenaltyBreakdown = emptyList(),
+                diagnostics = Diagnostics(
+                    solverVersion = VERSION,
+                    unscheduledReasonCounts = mapOf(preCheck to 1),
+                    totals = Totals(lessonsRequested = lessons.size, assignedEntries = 0, hardViolations = 0),
+                    search = SearchStats(nodesVisited = 0, backtracks = 0, branchesPrunedByForwardCheck = 0),
+                ),
+                score = Long.MIN_VALUE,
+            )
+        }
+
+        val deadlineNanos = System.nanoTime() + timeoutMs.coerceAtLeast(1L) * 1_000_000L
 
         val slotUniverse = buildList {
             for (d in 1..days) {
@@ -235,8 +285,8 @@ class SmartCspSolver {
                 }
                 hardViolations += HardViolation(
                     lessonId = lesson.id,
-                    classId = lesson.classId,
-                    teacherId = lesson.teacherId,
+                    classId = lesson.primaryClassId,
+                    teacherId = lesson.primaryTeacherId,
                     subjectId = lesson.subjectId,
                     reason = reason,
                     attemptedSlots = 0,
@@ -258,6 +308,7 @@ class SmartCspSolver {
             stats = stats,
             best = best,
             progressCallback = progressCallback,
+            deadlineNanos = deadlineNanos,
         )
 
         val finalPenalties = evaluateSoftPenalties(best.assignments, constraints, periodsPerDay)
@@ -276,8 +327,15 @@ class SmartCspSolver {
             ),
         )
 
+        val status = when {
+            stats.timedOut && best.assignments.isNotEmpty() -> "SEED_TIMEOUT"
+            stats.timedOut -> "SEED_TIMEOUT"
+            best.hardViolations.isEmpty() -> "SEED_FOUND"
+            else -> "SEED_NOT_FOUND"
+        }
+
         return SolveResult(
-            status = if (best.hardViolations.isEmpty()) "success" else "partial",
+            status = status,
             assignments = best.assignments.sortedWith(compareBy({ it.day }, { it.period }, { it.lessonId })),
             hardViolations = best.hardViolations,
             softPenaltyBreakdown = finalPenalties,
@@ -296,7 +354,14 @@ class SmartCspSolver {
         stats: SearchStatsMutable,
         best: Best,
         progressCallback: ProgressCallback?,
+        deadlineNanos: Long,
     ) {
+        if (stats.timedOut) return
+        if (System.nanoTime() >= deadlineNanos) {
+            stats.timedOut = true
+            return
+        }
+
         stats.nodesVisited += 1
         progressCallback?.onProgress(
             Progress(
@@ -334,14 +399,14 @@ class SmartCspSolver {
                 unassigned.remove(lessonId)
                 hardViolations += HardViolation(
                     lessonId = lesson.id,
-                    classId = lesson.classId,
-                    teacherId = lesson.teacherId,
+                    classId = lesson.primaryClassId,
+                    teacherId = lesson.primaryTeacherId,
                     subjectId = lesson.subjectId,
                     reason = reason,
                     attemptedSlots = baseDomains[lessonId].orEmpty().size,
                 )
                 unscheduledReasons[reason] = (unscheduledReasons[reason] ?: 0) + 1
-                backtrack(context, state, unassigned, baseDomains, hardViolations, unscheduledReasons, stats, best, progressCallback)
+                backtrack(context, state, unassigned, baseDomains, hardViolations, unscheduledReasons, stats, best, progressCallback, deadlineNanos)
                 unscheduledReasons[reason] = max(0, (unscheduledReasons[reason] ?: 1) - 1)
                 if ((unscheduledReasons[reason] ?: 0) == 0) {
                     unscheduledReasons.remove(reason)
@@ -369,8 +434,9 @@ class SmartCspSolver {
                 continue
             }
 
-            backtrack(context, state, unassigned, baseDomains, hardViolations, unscheduledReasons, stats, best, progressCallback)
+            backtrack(context, state, unassigned, baseDomains, hardViolations, unscheduledReasons, stats, best, progressCallback, deadlineNanos)
             removePlacements(placements, state, context.periodsPerDay)
+            if (stats.timedOut) break
         }
         unassigned.add(selectedLessonId)
         stats.backtracks += 1
@@ -411,7 +477,7 @@ class SmartCspSolver {
         }
 
         return if (rooms.isEmpty()) {
-            listOf(Room("room_${lesson.classId}"))
+            listOf(Room("room_${lesson.primaryClassId}"))
         } else {
             rooms
         }
@@ -444,34 +510,39 @@ class SmartCspSolver {
         state: MutableState,
         context: SearchContext,
     ): String? {
-        val tk = Triple(lesson.teacherId, slot.day, slot.period)
-        val ck = Triple(lesson.classId, slot.day, slot.period)
+        for (teacherId in lesson.teacherIds) {
+            val tk = Triple(teacherId, slot.day, slot.period)
+            if (state.teacherSlot.contains(tk)) return "teacher_conflict"
+
+            val availability = context.constraints.teacherAvailability[teacherId]
+            if (availability != null && !availability.contains(SlotKey(slot.day, slot.period))) {
+                return "teacher_unavailable"
+            }
+
+            val tMax = context.constraints.teacherMaxPeriodsPerDay[teacherId]
+            if (tMax != null && (state.teacherDayLoad[teacherId to slot.day] ?: 0) >= tMax) {
+                return "teacher_max_periods_per_day"
+            }
+        }
+
+        for (classId in lesson.classIds) {
+            val ck = Triple(classId, slot.day, slot.period)
+            if (state.classSlot.contains(ck)) return "class_conflict"
+
+            val cMax = context.constraints.classMaxPeriodsPerDay[classId]
+            if (cMax != null && (state.classDayLoad[classId to slot.day] ?: 0) >= cMax) {
+                return "class_max_periods_per_day"
+            }
+
+            val subjKey = "${classId}:${lesson.subjectId}"
+            val subjLimit = context.constraints.subjectDailyLimit[subjKey]
+            if (subjLimit != null && (state.classSubjectDayCount[Triple(classId, lesson.subjectId, slot.day)] ?: 0) >= subjLimit) {
+                return "subject_daily_limit"
+            }
+        }
+
         val rk = Triple(roomId, slot.day, slot.period)
-
-        if (state.teacherSlot.contains(tk)) return "teacher_conflict"
-        if (state.classSlot.contains(ck)) return "class_conflict"
         if (state.roomSlot.contains(rk)) return "room_conflict"
-
-        val availability = context.constraints.teacherAvailability[lesson.teacherId]
-        if (availability != null && !availability.contains(SlotKey(slot.day, slot.period))) {
-            return "teacher_unavailable"
-        }
-
-        val tMax = context.constraints.teacherMaxPeriodsPerDay[lesson.teacherId]
-        if (tMax != null && (state.teacherDayLoad[lesson.teacherId to slot.day] ?: 0) >= tMax) {
-            return "teacher_max_periods_per_day"
-        }
-
-        val cMax = context.constraints.classMaxPeriodsPerDay[lesson.classId]
-        if (cMax != null && (state.classDayLoad[lesson.classId to slot.day] ?: 0) >= cMax) {
-            return "class_max_periods_per_day"
-        }
-
-        val subjKey = "${lesson.classId}:${lesson.subjectId}"
-        val subjLimit = context.constraints.subjectDailyLimit[subjKey]
-        if (subjLimit != null && (state.classSubjectDayCount[Triple(lesson.classId, lesson.subjectId, slot.day)] ?: 0) >= subjLimit) {
-            return "subject_daily_limit"
-        }
 
         return null
     }
@@ -508,8 +579,8 @@ class SmartCspSolver {
     ): Assignment {
         val a = Assignment(
             lessonId = lesson.id,
-            classId = lesson.classId,
-            teacherId = lesson.teacherId,
+            classIds = lesson.classIds,
+            teacherIds = lesson.teacherIds,
             subjectId = lesson.subjectId,
             day = slot.day,
             period = slot.period,
@@ -519,53 +590,63 @@ class SmartCspSolver {
         )
 
         state.assignments += a
-        state.teacherSlot += Triple(a.teacherId, a.day, a.period)
-        state.classSlot += Triple(a.classId, a.day, a.period)
-        state.roomSlot += Triple(a.roomId, a.day, a.period)
-        state.teacherDayLoad[a.teacherId to a.day] = (state.teacherDayLoad[a.teacherId to a.day] ?: 0) + 1
-        state.classDayLoad[a.classId to a.day] = (state.classDayLoad[a.classId to a.day] ?: 0) + 1
-        state.classSubjectDayCount[Triple(a.classId, a.subjectId, a.day)] =
-            (state.classSubjectDayCount[Triple(a.classId, a.subjectId, a.day)] ?: 0) + 1
-
-        state.teacherDayPeriods.getOrPut(a.teacherId to a.day) { mutableSetOf() }.add(a.period)
-        state.classDayPeriods.getOrPut(a.classId to a.day) { mutableSetOf() }.add(a.period)
-        state.teacherRooms.getOrPut(a.teacherId) { mutableSetOf() }.add(a.roomId)
-        if (a.period == periodsPerDay) {
-            state.teacherLastPeriodCount[a.teacherId] = (state.teacherLastPeriodCount[a.teacherId] ?: 0) + 1
+        for (teacherId in a.teacherIds) {
+            state.teacherSlot += Triple(teacherId, a.day, a.period)
+            state.teacherDayLoad[teacherId to a.day] = (state.teacherDayLoad[teacherId to a.day] ?: 0) + 1
+            state.teacherDayPeriods.getOrPut(teacherId to a.day) { mutableSetOf() }.add(a.period)
+            state.teacherRooms.getOrPut(teacherId) { mutableSetOf() }.add(a.roomId)
+            if (a.period == periodsPerDay) {
+                state.teacherLastPeriodCount[teacherId] = (state.teacherLastPeriodCount[teacherId] ?: 0) + 1
+            }
         }
 
+        for (classId in a.classIds) {
+            state.classSlot += Triple(classId, a.day, a.period)
+            state.classDayLoad[classId to a.day] = (state.classDayLoad[classId to a.day] ?: 0) + 1
+            state.classSubjectDayCount[Triple(classId, a.subjectId, a.day)] =
+                (state.classSubjectDayCount[Triple(classId, a.subjectId, a.day)] ?: 0) + 1
+            state.classDayPeriods.getOrPut(classId to a.day) { mutableSetOf() }.add(a.period)
+        }
+
+        state.roomSlot += Triple(a.roomId, a.day, a.period)
         return a
     }
 
     private fun removePlacements(placements: List<Assignment>, state: MutableState, periodsPerDay: Int) {
         for (a in placements.asReversed()) {
             state.assignments.removeLast()
-            state.teacherSlot.remove(Triple(a.teacherId, a.day, a.period))
-            state.classSlot.remove(Triple(a.classId, a.day, a.period))
             state.roomSlot.remove(Triple(a.roomId, a.day, a.period))
 
-            decMap(state.teacherDayLoad, a.teacherId to a.day)
-            decMap(state.classDayLoad, a.classId to a.day)
-            decMap(state.classSubjectDayCount, Triple(a.classId, a.subjectId, a.day))
+            for (teacherId in a.teacherIds) {
+                state.teacherSlot.remove(Triple(teacherId, a.day, a.period))
+                decMap(state.teacherDayLoad, teacherId to a.day)
+                state.teacherDayPeriods[teacherId to a.day]?.let {
+                    it.remove(a.period)
+                    if (it.isEmpty()) state.teacherDayPeriods.remove(teacherId to a.day)
+                }
+                if (a.period == periodsPerDay) {
+                    decMap(state.teacherLastPeriodCount, teacherId)
+                }
 
-            state.teacherDayPeriods[a.teacherId to a.day]?.let {
-                it.remove(a.period)
-                if (it.isEmpty()) state.teacherDayPeriods.remove(a.teacherId to a.day)
-            }
-            state.classDayPeriods[a.classId to a.day]?.let {
-                it.remove(a.period)
-                if (it.isEmpty()) state.classDayPeriods.remove(a.classId to a.day)
-            }
-
-            if (a.period == periodsPerDay) {
-                decMap(state.teacherLastPeriodCount, a.teacherId)
+                val teacherRemainingRooms = state.assignments
+                    .filter { it.teacherIds.contains(teacherId) }
+                    .map { it.roomId }
+                    .toSet()
+                if (teacherRemainingRooms.isEmpty()) {
+                    state.teacherRooms.remove(teacherId)
+                } else {
+                    state.teacherRooms[teacherId] = teacherRemainingRooms.toMutableSet()
+                }
             }
 
-            val teacherRemainingRooms = state.assignments.filter { it.teacherId == a.teacherId }.map { it.roomId }.toSet()
-            if (teacherRemainingRooms.isEmpty()) {
-                state.teacherRooms.remove(a.teacherId)
-            } else {
-                state.teacherRooms[a.teacherId] = teacherRemainingRooms.toMutableSet()
+            for (classId in a.classIds) {
+                state.classSlot.remove(Triple(classId, a.day, a.period))
+                decMap(state.classDayLoad, classId to a.day)
+                decMap(state.classSubjectDayCount, Triple(classId, a.subjectId, a.day))
+                state.classDayPeriods[classId to a.day]?.let {
+                    it.remove(a.period)
+                    if (it.isEmpty()) state.classDayPeriods.remove(classId to a.day)
+                }
             }
         }
     }
@@ -602,7 +683,8 @@ class SmartCspSolver {
         for (lesson in lessons) {
             val d = lessons.count {
                 it.id != lesson.id &&
-                    (it.teacherId == lesson.teacherId || it.classId == lesson.classId)
+                    (it.teacherIds.any { t -> lesson.teacherIds.contains(t) } ||
+                        it.classIds.any { c -> lesson.classIds.contains(c) })
             }
             result[lesson.id] = d
         }
@@ -621,13 +703,17 @@ class SmartCspSolver {
         val teacherLastPeriodCounts = mutableMapOf<String, Int>()
 
         for (a in assignments) {
-            byTeacherDay.getOrPut(a.teacherId to a.day) { mutableListOf() }.add(a.period)
-            byClassDay.getOrPut(a.classId to a.day) { mutableListOf() }.add(a.period)
-            byClassSubjectDay[Triple(a.classId, a.subjectId, a.day)] =
-                (byClassSubjectDay[Triple(a.classId, a.subjectId, a.day)] ?: 0) + 1
-            teacherRooms.getOrPut(a.teacherId) { mutableSetOf() }.add(a.roomId)
-            if (a.period == periodsPerDay) {
-                teacherLastPeriodCounts[a.teacherId] = (teacherLastPeriodCounts[a.teacherId] ?: 0) + 1
+            for (teacherId in a.teacherIds) {
+                byTeacherDay.getOrPut(teacherId to a.day) { mutableListOf() }.add(a.period)
+                teacherRooms.getOrPut(teacherId) { mutableSetOf() }.add(a.roomId)
+                if (a.period == periodsPerDay) {
+                    teacherLastPeriodCounts[teacherId] = (teacherLastPeriodCounts[teacherId] ?: 0) + 1
+                }
+            }
+            for (classId in a.classIds) {
+                byClassDay.getOrPut(classId to a.day) { mutableListOf() }.add(a.period)
+                byClassSubjectDay[Triple(classId, a.subjectId, a.day)] =
+                    (byClassSubjectDay[Triple(classId, a.subjectId, a.day)] ?: 0) + 1
             }
         }
 
@@ -712,7 +798,33 @@ class SmartCspSolver {
         if (v <= 0) map.remove(key) else map[key] = v
     }
 
+    private fun detectInfeasibleInput(
+        lessons: List<Lesson>,
+        constraints: ConstraintConfig,
+        days: Int,
+        periodsPerDay: Int,
+    ): String? {
+        val capacityPerClass = days * periodsPerDay
+        val classDemand = mutableMapOf<String, Int>()
+        for (lesson in lessons) {
+            val demand = if (lesson.isLabDouble) 2 else 1
+            for (classId in lesson.classIds) {
+                classDemand[classId] = (classDemand[classId] ?: 0) + demand
+            }
+        }
+        if (classDemand.any { it.value > capacityPerClass }) return "capacity_exceeded"
+
+        for ((teacherId, slots) in constraints.teacherAvailability) {
+            val teacherDemand = lessons
+                .filter { it.teacherIds.contains(teacherId) }
+                .sumOf { if (it.isLabDouble) 2 else 1 }
+            if (teacherDemand > slots.size) return "teacher_availability_insufficient"
+        }
+
+        return null
+    }
+
     companion object {
-        const val VERSION = "kotlin-csp-1.0.0"
+        const val VERSION = "kotlin-csp-1.1.0"
     }
 }

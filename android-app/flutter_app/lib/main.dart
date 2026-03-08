@@ -1,6 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import 'core/database.dart';
+import 'features/admin/planner_state.dart';
 import 'features/auth/auth_gate.dart';
+
+final AppDatabase _db = AppDatabase();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,13 +18,16 @@ class SmartTimeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SmartTime AI',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0B3D91)),
-        useMaterial3: true,
+    return ChangeNotifierProvider<PlannerState>(
+      create: (_) => PlannerState(_db),
+      child: MaterialApp(
+        title: 'SmartTime AI',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0B3D91)),
+          useMaterial3: true,
+        ),
+        home: const AppHomeScreen(),
       ),
-      home: const AppHomeScreen(),
     );
   }
 }
@@ -40,9 +49,7 @@ class AppHomeScreen extends StatelessWidget {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Firebase init failed. Please verify google-services.json and Google services Gradle setup.\n\n${snap.error}',
-                ),
+                child: Text('Firebase init failed:\n${snap.error}'),
               ),
             );
           }

@@ -12,15 +12,32 @@ class LessonsBuilderScreen extends StatefulWidget {
 
 class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
   String? _subjectId;
-  String? _teacherId;
-  String? _classId;
+  final Set<String> _teacherIds = {};
+  final Set<String> _classIds = {};
+  String? _classDivisionId;
   String? _classroomId;
   int _countPerWeek = 1;
   String _length = 'single';
+  bool _isPinned = false;
+  int? _fixedDay;
+  int? _fixedPeriod;
+  int _relationshipType = 0;
+  final _relationshipKey = TextEditingController();
+
+  @override
+  void dispose() {
+    _relationshipKey.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final planner = context.watch<PlannerState>();
+    final selectedClass = planner.classes.firstWhere(
+      (c) => c.id == (_classIds.isNotEmpty ? _classIds.first : null),
+      orElse: () => planner.classes.isNotEmpty ? planner.classes.first : ClassItem(name: '-', abbr: '-'),
+    );
+
     return Scaffold(
       appBar: AppBar(title: const Text('Lessons Builder')),
       body: Padding(
@@ -37,24 +54,38 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
               decoration: const InputDecoration(labelText: 'Subject'),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _teacherId,
-              hint: const Text('Select teacher'),
-              items: planner.teachers
-                  .map((t) => DropdownMenuItem(value: t.id, child: Text('${t.fullName} (${t.abbreviation})')))
+            const Text('Teachers (co-teaching supported)'),
+            Wrap(
+              spacing: 6,
+              children: planner.teachers
+                  .map((t) => FilterChip(
+                        label: Text(t.abbreviation),
+                        selected: _teacherIds.contains(t.id),
+                        onSelected: (v) => setState(() => v ? _teacherIds.add(t.id) : _teacherIds.remove(t.id)),
+                      ))
                   .toList(),
-              onChanged: (v) => setState(() => _teacherId = v),
-              decoration: const InputDecoration(labelText: 'Teacher'),
+            ),
+            const SizedBox(height: 12),
+            const Text('Classes (joint lessons supported)'),
+            Wrap(
+              spacing: 6,
+              children: planner.classes
+                  .map((c) => FilterChip(
+                        label: Text(c.abbreviation),
+                        selected: _classIds.contains(c.id),
+                        onSelected: (v) => setState(() => v ? _classIds.add(c.id) : _classIds.remove(c.id)),
+                      ))
+                  .toList(),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: _classId,
-              hint: const Text('Select class'),
-              items: planner.classes
-                  .map((c) => DropdownMenuItem(value: c.id, child: Text('${c.name} (${c.abbreviation})')))
+              initialValue: _classDivisionId,
+              hint: const Text('Optional division'),
+              items: selectedClass.divisions
+                  .map((d) => DropdownMenuItem(value: d.id, child: Text('${d.name} (${d.code})')))
                   .toList(),
-              onChanged: (v) => setState(() => _classId = v),
-              decoration: const InputDecoration(labelText: 'Class'),
+              onChanged: (v) => setState(() => _classDivisionId = v),
+              decoration: const InputDecoration(labelText: 'Class division target (optional)'),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
@@ -84,17 +115,65 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
               onChanged: (v) => setState(() => _classroomId = v),
               decoration: const InputDecoration(labelText: 'Required classroom (optional)'),
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              initialValue: _relationshipType,
+              decoration: const InputDecoration(labelText: 'Relationship type'),
+              items: const [
+                DropdownMenuItem(value: 0, child: Text('SIMULTANEOUS')),
+                DropdownMenuItem(value: 1, child: Text('FOLLOWING')),
+                DropdownMenuItem(value: 2, child: Text('SAME_DAY')),
+              ],
+              onChanged: (v) => setState(() => _relationshipType = v ?? 0),
+            ),
+            TextField(
+              controller: _relationshipKey,
+              decoration: const InputDecoration(labelText: 'relationshipGroupKey (optional)'),
+            ),
+            SwitchListTile(
+              title: const Text('Pin to fixed slot'),
+              value: _isPinned,
+              onChanged: (v) => setState(() => _isPinned = v),
+            ),
+            if (_isPinned)
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: _fixedDay,
+                      items: [for (int d = 1; d <= planner.workingDays; d++) DropdownMenuItem(value: d, child: Text('Day $d'))],
+                      onChanged: (v) => setState(() => _fixedDay = v),
+                      decoration: const InputDecoration(labelText: 'Day'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: _fixedPeriod,
+                      items: [for (int p = 1; p <= planner.bellTimes.length; p++) DropdownMenuItem(value: p, child: Text('Period $p'))],
+                      onChanged: (v) => setState(() => _fixedPeriod = v),
+                      decoration: const InputDecoration(labelText: 'Period'),
+                    ),
+                  ),
+                ],
+              ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                if (_subjectId == null || _teacherId == null || _classId == null) return;
+                if (_subjectId == null || _teacherIds.isEmpty || _classIds.isEmpty) return;
                 planner.addLesson(
                   subjectId: _subjectId!,
-                  teacherId: _teacherId!,
-                  classId: _classId!,
+                  teacherIds: _teacherIds.toList(),
+                  classIds: _classIds.toList(),
+                  classDivisionId: _classDivisionId,
                   countPerWeek: _countPerWeek,
                   length: _length,
                   requiredClassroomId: _classroomId,
+                  isPinned: _isPinned,
+                  fixedDay: _fixedDay,
+                  fixedPeriod: _fixedPeriod,
+                  relationshipType: _relationshipType,
+                  relationshipGroupKey: _relationshipKey.text.trim().isEmpty ? null : _relationshipKey.text.trim(),
                 );
                 Navigator.of(context).pop();
               },

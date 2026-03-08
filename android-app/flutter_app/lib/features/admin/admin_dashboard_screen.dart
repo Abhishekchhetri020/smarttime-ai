@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../timetable/offline_solver_bridge.dart';
+import '../timetable/presentation/screens/solver_debug_screen.dart';
+import '../timetable/data/conflict_service.dart';
 import 'planner_state.dart';
 import 'setup/setup_wizard_screen.dart';
+import 'widgets/dashboard_analytics_widget.dart';
 import 'tabs/classes_tab.dart';
 import 'tabs/classrooms_tab.dart';
 import 'tabs/subjects_tab.dart';
@@ -23,6 +26,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   late final TabController _tabController;
   String _status = '';
   bool _busy = false;
+  List<PreflightWarning> _warnings = const [];
 
   @override
   void initState() {
@@ -45,9 +49,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       return;
     }
 
+    final warnings = ConflictService().preflight(planner);
+
     setState(() {
+      _warnings = warnings;
       _busy = true;
-      _status = 'Generating offline timetable...';
+      _status = warnings.isEmpty
+          ? 'Generating offline timetable...'
+          : 'Generating with ${warnings.length} warning(s)...';
     });
 
     try {
@@ -64,6 +73,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    final planner = context.watch<PlannerState>();
+
     return Scaffold(
       appBar: AppBar(
         title: Text('${widget.role} Dashboard'),
@@ -72,7 +83,52 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const SetupWizardScreen(),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blueGrey.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Setup Wizard', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text(
+                          planner.schoolName.isEmpty
+                              ? 'Complete setup before generation.'
+                              : 'School: ${planner.schoolName}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => Scaffold(
+                          appBar: AppBar(title: const Text('Setup Wizard')),
+                          body: const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SingleChildScrollView(child: SetupWizardScreen()),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.tune),
+                  label: const Text('Open Setup'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (planner.db != null) DashboardAnalyticsWidget(db: planner.db!),
             const SizedBox(height: 8),
             TabBar(
               controller: _tabController,
@@ -95,11 +151,41 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 ],
               ),
             ),
+            if (_warnings.isNotEmpty)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Pre-Flight Warnings', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    for (final w in _warnings)
+                      Text('• ${w.message}', style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ),
             Row(
               children: [
                 ElevatedButton(
                   onPressed: _busy ? null : _generateNow,
                   child: const Text('Generate Now'),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SolverDebugScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('Open Grid Debug'),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Text(_status)),

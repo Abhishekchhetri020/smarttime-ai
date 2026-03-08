@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'setup_step_bell_times.dart';
-import 'setup_step_days.dart';
+import 'setup_step_class_divisions.dart';
 import 'setup_step_school.dart';
+import 'setup_step_subject_rooms.dart';
+import 'setup_step_teacher_availability.dart';
 
 class SetupWizardScreen extends StatefulWidget {
   const SetupWizardScreen({super.key});
@@ -14,43 +15,56 @@ class SetupWizardScreen extends StatefulWidget {
 class _SetupWizardScreenState extends State<SetupWizardScreen> {
   int _index = 0;
 
-  static const _steps = [
-    SetupStepSchool(),
-    SetupStepDays(),
-    SetupStepBellTimes(),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Stepper(
-          currentStep: _index,
-          onStepTapped: (i) => setState(() => _index = i),
-          onStepContinue: () {
-            if (_index < _steps.length - 1) setState(() => _index++);
-          },
-          onStepCancel: () {
-            if (_index > 0) setState(() => _index--);
-          },
-          controlsBuilder: (context, details) {
-            return Row(
-              children: [
-                ElevatedButton(
-                    onPressed: details.onStepContinue,
-                    child: Text(_index == _steps.length - 1 ? 'Done' : 'Next')),
-                const SizedBox(width: 8),
-                if (_index > 0)
-                  TextButton(onPressed: details.onStepCancel, child: const Text('Back')),
-              ],
-            );
-          },
-          steps: const [
-            Step(title: Text('School'), content: SetupStepSchool(), isActive: true),
-            Step(title: Text('Days'), content: SetupStepDays(), isActive: true),
-            Step(title: Text('Bell Times'), content: SetupStepBellTimes(), isActive: true),
+    return Stepper(
+      currentStep: _index,
+      onStepTapped: (i) => setState(() => _index = i),
+      onStepContinue: () {
+        if (_index < 3) {
+          setState(() => _index++);
+        } else {
+          // Last step — close wizard and return to the dashboard.
+          Navigator.of(context).pop();
+        }
+      },
+      onStepCancel: () {
+        if (_index > 0) setState(() => _index--);
+      },
+      controlsBuilder: (context, details) {
+        return Row(
+          children: [
+            ElevatedButton(
+              key: const Key('wizard_continue_btn'),
+              onPressed: details.onStepContinue,
+              child: Text(_index == 3 ? 'Done' : 'Next'),
+            ),
+            const SizedBox(width: 8),
+            if (_index > 0)
+              TextButton(onPressed: details.onStepCancel, child: const Text('Back')),
           ],
+        );
+      },
+      steps: const [
+        Step(
+          title: Text('School Details'),
+          content: SetupStepSchool(),
+          isActive: true,
+        ),
+        Step(
+          title: Text('Class Divisions'),
+          content: SetupStepClassDivisions(),
+          isActive: true,
+        ),
+        Step(
+          title: Text('Subject & Room Requirements'),
+          content: SetupStepSubjectRooms(),
+          isActive: true,
+        ),
+        Step(
+          title: Text('Teacher Availability'),
+          content: SetupStepTeacherAvailability(),
+          isActive: true,
         ),
       ],
     );
