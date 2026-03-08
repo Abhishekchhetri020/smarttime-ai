@@ -110,7 +110,6 @@ class Lessons extends Table {
   // Back-compat fields retained for existing planner/controller flow.
   TextColumn get classId => text().nullable()();
   TextColumn get classDivisionId => text().nullable().references(Divisions, #id)();
-  IntColumn get countPerWeek => integer().withDefault(const Constant(1))();
   BoolColumn get isPinned => boolean().withDefault(const Constant(false))();
   IntColumn get fixedDay => integer().nullable()();
   IntColumn get fixedPeriod => integer().nullable()();
@@ -210,7 +209,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -247,6 +246,51 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
               'UPDATE lessons SET periods_per_week = count_per_week WHERE periods_per_week IS NULL OR periods_per_week = 1',
             );
+          }
+          if (from < 10) {
+            await customStatement('''
+              CREATE TABLE lessons_new (
+                id TEXT NOT NULL PRIMARY KEY,
+                subject_id TEXT NOT NULL REFERENCES subjects(id),
+                periods_per_week INTEGER NOT NULL DEFAULT 1,
+                teacher_ids TEXT NOT NULL DEFAULT '[]',
+                class_ids TEXT NOT NULL DEFAULT '[]',
+                class_id TEXT NULL,
+                class_division_id TEXT NULL REFERENCES divisions(id),
+                is_pinned INTEGER NOT NULL DEFAULT 0,
+                fixed_day INTEGER NULL,
+                fixed_period INTEGER NULL,
+                room_type_id INTEGER NULL,
+                relationship_type INTEGER NOT NULL DEFAULT 0,
+                relationship_group_key TEXT NULL
+              )
+            ''');
+
+            await customStatement('''
+              INSERT INTO lessons_new (
+                id, subject_id, periods_per_week, teacher_ids, class_ids,
+                class_id, class_division_id, is_pinned, fixed_day, fixed_period,
+                room_type_id, relationship_type, relationship_group_key
+              )
+              SELECT
+                id,
+                subject_id,
+                COALESCE(periods_per_week, count_per_week, 1),
+                COALESCE(teacher_ids, '[]'),
+                COALESCE(class_ids, '[]'),
+                class_id,
+                class_division_id,
+                is_pinned,
+                fixed_day,
+                fixed_period,
+                room_type_id,
+                relationship_type,
+                relationship_group_key
+              FROM lessons
+            ''');
+
+            await customStatement('DROP TABLE lessons');
+            await customStatement('ALTER TABLE lessons_new RENAME TO lessons');
           }
         },
         beforeOpen: (details) async {
@@ -292,7 +336,7 @@ class AppDatabase extends _$AppDatabase {
     // Joint classes should still count as one lesson row.
     final totalAssignedLessons = lessons.fold<int>(0, (sum, e) {
       final m = Map<String, dynamic>.from(e as Map);
-      return sum + ((m['countPerWeek'] as num?)?.toInt() ?? 1);
+      return sum + ((m['periodsPerWeek'] as num?)?.toInt() ?? (m['countPerWeek'] as num?)?.toInt() ?? 1);
     });
 
     int hardConflicts = 0;

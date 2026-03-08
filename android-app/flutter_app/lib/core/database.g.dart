@@ -1495,14 +1495,6 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, LessonRow> {
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES divisions (id)'));
-  static const VerificationMeta _countPerWeekMeta =
-      const VerificationMeta('countPerWeek');
-  @override
-  late final GeneratedColumn<int> countPerWeek = GeneratedColumn<int>(
-      'count_per_week', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(1));
   static const VerificationMeta _isPinnedMeta =
       const VerificationMeta('isPinned');
   @override
@@ -1554,7 +1546,6 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, LessonRow> {
         classIds,
         classId,
         classDivisionId,
-        countPerWeek,
         isPinned,
         fixedDay,
         fixedPeriod,
@@ -1598,12 +1589,6 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, LessonRow> {
           _classDivisionIdMeta,
           classDivisionId.isAcceptableOrUnknown(
               data['class_division_id']!, _classDivisionIdMeta));
-    }
-    if (data.containsKey('count_per_week')) {
-      context.handle(
-          _countPerWeekMeta,
-          countPerWeek.isAcceptableOrUnknown(
-              data['count_per_week']!, _countPerWeekMeta));
     }
     if (data.containsKey('is_pinned')) {
       context.handle(_isPinnedMeta,
@@ -1662,8 +1647,6 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, LessonRow> {
           .read(DriftSqlType.string, data['${effectivePrefix}class_id']),
       classDivisionId: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}class_division_id']),
-      countPerWeek: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}count_per_week'])!,
       isPinned: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_pinned'])!,
       fixedDay: attachedDatabase.typeMapping
@@ -1699,7 +1682,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
   final List<String> classIds;
   final String? classId;
   final String? classDivisionId;
-  final int countPerWeek;
   final bool isPinned;
   final int? fixedDay;
   final int? fixedPeriod;
@@ -1714,7 +1696,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
       required this.classIds,
       this.classId,
       this.classDivisionId,
-      required this.countPerWeek,
       required this.isPinned,
       this.fixedDay,
       this.fixedPeriod,
@@ -1741,7 +1722,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
     if (!nullToAbsent || classDivisionId != null) {
       map['class_division_id'] = Variable<String>(classDivisionId);
     }
-    map['count_per_week'] = Variable<int>(countPerWeek);
     map['is_pinned'] = Variable<bool>(isPinned);
     if (!nullToAbsent || fixedDay != null) {
       map['fixed_day'] = Variable<int>(fixedDay);
@@ -1772,7 +1752,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
       classDivisionId: classDivisionId == null && nullToAbsent
           ? const Value.absent()
           : Value(classDivisionId),
-      countPerWeek: Value(countPerWeek),
       isPinned: Value(isPinned),
       fixedDay: fixedDay == null && nullToAbsent
           ? const Value.absent()
@@ -1801,7 +1780,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
       classIds: serializer.fromJson<List<String>>(json['classIds']),
       classId: serializer.fromJson<String?>(json['classId']),
       classDivisionId: serializer.fromJson<String?>(json['classDivisionId']),
-      countPerWeek: serializer.fromJson<int>(json['countPerWeek']),
       isPinned: serializer.fromJson<bool>(json['isPinned']),
       fixedDay: serializer.fromJson<int?>(json['fixedDay']),
       fixedPeriod: serializer.fromJson<int?>(json['fixedPeriod']),
@@ -1822,7 +1800,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
       'classIds': serializer.toJson<List<String>>(classIds),
       'classId': serializer.toJson<String?>(classId),
       'classDivisionId': serializer.toJson<String?>(classDivisionId),
-      'countPerWeek': serializer.toJson<int>(countPerWeek),
       'isPinned': serializer.toJson<bool>(isPinned),
       'fixedDay': serializer.toJson<int?>(fixedDay),
       'fixedPeriod': serializer.toJson<int?>(fixedPeriod),
@@ -1840,7 +1817,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
           List<String>? classIds,
           Value<String?> classId = const Value.absent(),
           Value<String?> classDivisionId = const Value.absent(),
-          int? countPerWeek,
           bool? isPinned,
           Value<int?> fixedDay = const Value.absent(),
           Value<int?> fixedPeriod = const Value.absent(),
@@ -1857,7 +1833,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
         classDivisionId: classDivisionId.present
             ? classDivisionId.value
             : this.classDivisionId,
-        countPerWeek: countPerWeek ?? this.countPerWeek,
         isPinned: isPinned ?? this.isPinned,
         fixedDay: fixedDay.present ? fixedDay.value : this.fixedDay,
         fixedPeriod: fixedPeriod.present ? fixedPeriod.value : this.fixedPeriod,
@@ -1881,9 +1856,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
       classDivisionId: data.classDivisionId.present
           ? data.classDivisionId.value
           : this.classDivisionId,
-      countPerWeek: data.countPerWeek.present
-          ? data.countPerWeek.value
-          : this.countPerWeek,
       isPinned: data.isPinned.present ? data.isPinned.value : this.isPinned,
       fixedDay: data.fixedDay.present ? data.fixedDay.value : this.fixedDay,
       fixedPeriod:
@@ -1909,7 +1881,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
           ..write('classIds: $classIds, ')
           ..write('classId: $classId, ')
           ..write('classDivisionId: $classDivisionId, ')
-          ..write('countPerWeek: $countPerWeek, ')
           ..write('isPinned: $isPinned, ')
           ..write('fixedDay: $fixedDay, ')
           ..write('fixedPeriod: $fixedPeriod, ')
@@ -1929,7 +1900,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
       classIds,
       classId,
       classDivisionId,
-      countPerWeek,
       isPinned,
       fixedDay,
       fixedPeriod,
@@ -1947,7 +1917,6 @@ class LessonRow extends DataClass implements Insertable<LessonRow> {
           other.classIds == this.classIds &&
           other.classId == this.classId &&
           other.classDivisionId == this.classDivisionId &&
-          other.countPerWeek == this.countPerWeek &&
           other.isPinned == this.isPinned &&
           other.fixedDay == this.fixedDay &&
           other.fixedPeriod == this.fixedPeriod &&
@@ -1964,7 +1933,6 @@ class LessonsCompanion extends UpdateCompanion<LessonRow> {
   final Value<List<String>> classIds;
   final Value<String?> classId;
   final Value<String?> classDivisionId;
-  final Value<int> countPerWeek;
   final Value<bool> isPinned;
   final Value<int?> fixedDay;
   final Value<int?> fixedPeriod;
@@ -1980,7 +1948,6 @@ class LessonsCompanion extends UpdateCompanion<LessonRow> {
     this.classIds = const Value.absent(),
     this.classId = const Value.absent(),
     this.classDivisionId = const Value.absent(),
-    this.countPerWeek = const Value.absent(),
     this.isPinned = const Value.absent(),
     this.fixedDay = const Value.absent(),
     this.fixedPeriod = const Value.absent(),
@@ -1997,7 +1964,6 @@ class LessonsCompanion extends UpdateCompanion<LessonRow> {
     this.classIds = const Value.absent(),
     this.classId = const Value.absent(),
     this.classDivisionId = const Value.absent(),
-    this.countPerWeek = const Value.absent(),
     this.isPinned = const Value.absent(),
     this.fixedDay = const Value.absent(),
     this.fixedPeriod = const Value.absent(),
@@ -2015,7 +1981,6 @@ class LessonsCompanion extends UpdateCompanion<LessonRow> {
     Expression<String>? classIds,
     Expression<String>? classId,
     Expression<String>? classDivisionId,
-    Expression<int>? countPerWeek,
     Expression<bool>? isPinned,
     Expression<int>? fixedDay,
     Expression<int>? fixedPeriod,
@@ -2032,7 +1997,6 @@ class LessonsCompanion extends UpdateCompanion<LessonRow> {
       if (classIds != null) 'class_ids': classIds,
       if (classId != null) 'class_id': classId,
       if (classDivisionId != null) 'class_division_id': classDivisionId,
-      if (countPerWeek != null) 'count_per_week': countPerWeek,
       if (isPinned != null) 'is_pinned': isPinned,
       if (fixedDay != null) 'fixed_day': fixedDay,
       if (fixedPeriod != null) 'fixed_period': fixedPeriod,
@@ -2052,7 +2016,6 @@ class LessonsCompanion extends UpdateCompanion<LessonRow> {
       Value<List<String>>? classIds,
       Value<String?>? classId,
       Value<String?>? classDivisionId,
-      Value<int>? countPerWeek,
       Value<bool>? isPinned,
       Value<int?>? fixedDay,
       Value<int?>? fixedPeriod,
@@ -2068,7 +2031,6 @@ class LessonsCompanion extends UpdateCompanion<LessonRow> {
       classIds: classIds ?? this.classIds,
       classId: classId ?? this.classId,
       classDivisionId: classDivisionId ?? this.classDivisionId,
-      countPerWeek: countPerWeek ?? this.countPerWeek,
       isPinned: isPinned ?? this.isPinned,
       fixedDay: fixedDay ?? this.fixedDay,
       fixedPeriod: fixedPeriod ?? this.fixedPeriod,
@@ -2105,9 +2067,6 @@ class LessonsCompanion extends UpdateCompanion<LessonRow> {
     if (classDivisionId.present) {
       map['class_division_id'] = Variable<String>(classDivisionId.value);
     }
-    if (countPerWeek.present) {
-      map['count_per_week'] = Variable<int>(countPerWeek.value);
-    }
     if (isPinned.present) {
       map['is_pinned'] = Variable<bool>(isPinned.value);
     }
@@ -2143,7 +2102,6 @@ class LessonsCompanion extends UpdateCompanion<LessonRow> {
           ..write('classIds: $classIds, ')
           ..write('classId: $classId, ')
           ..write('classDivisionId: $classDivisionId, ')
-          ..write('countPerWeek: $countPerWeek, ')
           ..write('isPinned: $isPinned, ')
           ..write('fixedDay: $fixedDay, ')
           ..write('fixedPeriod: $fixedPeriod, ')
@@ -5306,7 +5264,6 @@ typedef $$LessonsTableCreateCompanionBuilder = LessonsCompanion Function({
   Value<List<String>> classIds,
   Value<String?> classId,
   Value<String?> classDivisionId,
-  Value<int> countPerWeek,
   Value<bool> isPinned,
   Value<int?> fixedDay,
   Value<int?> fixedPeriod,
@@ -5323,7 +5280,6 @@ typedef $$LessonsTableUpdateCompanionBuilder = LessonsCompanion Function({
   Value<List<String>> classIds,
   Value<String?> classId,
   Value<String?> classDivisionId,
-  Value<int> countPerWeek,
   Value<bool> isPinned,
   Value<int?> fixedDay,
   Value<int?> fixedPeriod,
@@ -5439,9 +5395,6 @@ class $$LessonsTableFilterComposer
 
   ColumnFilters<String> get classId => $composableBuilder(
       column: $table.classId, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<int> get countPerWeek => $composableBuilder(
-      column: $table.countPerWeek, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isPinned => $composableBuilder(
       column: $table.isPinned, builder: (column) => ColumnFilters(column));
@@ -5592,10 +5545,6 @@ class $$LessonsTableOrderingComposer
   ColumnOrderings<String> get classId => $composableBuilder(
       column: $table.classId, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get countPerWeek => $composableBuilder(
-      column: $table.countPerWeek,
-      builder: (column) => ColumnOrderings(column));
-
   ColumnOrderings<bool> get isPinned => $composableBuilder(
       column: $table.isPinned, builder: (column) => ColumnOrderings(column));
 
@@ -5681,9 +5630,6 @@ class $$LessonsTableAnnotationComposer
 
   GeneratedColumn<String> get classId =>
       $composableBuilder(column: $table.classId, builder: (column) => column);
-
-  GeneratedColumn<int> get countPerWeek => $composableBuilder(
-      column: $table.countPerWeek, builder: (column) => column);
 
   GeneratedColumn<bool> get isPinned =>
       $composableBuilder(column: $table.isPinned, builder: (column) => column);
@@ -5842,7 +5788,6 @@ class $$LessonsTableTableManager extends RootTableManager<
             Value<List<String>> classIds = const Value.absent(),
             Value<String?> classId = const Value.absent(),
             Value<String?> classDivisionId = const Value.absent(),
-            Value<int> countPerWeek = const Value.absent(),
             Value<bool> isPinned = const Value.absent(),
             Value<int?> fixedDay = const Value.absent(),
             Value<int?> fixedPeriod = const Value.absent(),
@@ -5859,7 +5804,6 @@ class $$LessonsTableTableManager extends RootTableManager<
             classIds: classIds,
             classId: classId,
             classDivisionId: classDivisionId,
-            countPerWeek: countPerWeek,
             isPinned: isPinned,
             fixedDay: fixedDay,
             fixedPeriod: fixedPeriod,
@@ -5876,7 +5820,6 @@ class $$LessonsTableTableManager extends RootTableManager<
             Value<List<String>> classIds = const Value.absent(),
             Value<String?> classId = const Value.absent(),
             Value<String?> classDivisionId = const Value.absent(),
-            Value<int> countPerWeek = const Value.absent(),
             Value<bool> isPinned = const Value.absent(),
             Value<int?> fixedDay = const Value.absent(),
             Value<int?> fixedPeriod = const Value.absent(),
@@ -5893,7 +5836,6 @@ class $$LessonsTableTableManager extends RootTableManager<
             classIds: classIds,
             classId: classId,
             classDivisionId: classDivisionId,
-            countPerWeek: countPerWeek,
             isPinned: isPinned,
             fixedDay: fixedDay,
             fixedPeriod: fixedPeriod,
