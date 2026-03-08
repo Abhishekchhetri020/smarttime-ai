@@ -102,6 +102,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       debugPrint('EngineBridge response: $nativeResponse');
 
       final cardsRaw = (nativeResponse['cards'] as List?) ?? const [];
+      if (cardsRaw.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Engine returned empty cards list')),
+          );
+        }
+      }
       final cardCompanions = <CardsCompanion>[];
       var idx = 0;
       for (final item in cardsRaw) {
@@ -123,6 +130,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         idx++;
       }
 
+      debugPrint('SAVING ${cardCompanions.length} CARDS...');
       await db.transaction(() async {
         await db.delete(db.cards).go();
         if (cardCompanions.isNotEmpty) {
@@ -131,6 +139,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       });
 
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Schedule Saved Successfully')),
+      );
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => CockpitScreen(db: db)),
       );
@@ -138,6 +149,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       final cards = cardCompanions.length;
       setState(() => _status = '${nativeResponse['message'] ?? nativeResponse['status'] ?? 'ok'} • cards:$cards');
     } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Engine/SQLite error: $e')),
+        );
+      }
       setState(() => _status = 'Generate failed: $e');
     } finally {
       if (mounted) setState(() => _busy = false);

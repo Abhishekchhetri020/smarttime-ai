@@ -104,49 +104,61 @@ class _SubjectsTabState extends State<SubjectsTab> {
         Align(
           alignment: Alignment.centerLeft,
           child: ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               if (_name.text.trim().isEmpty || _abbr.text.trim().isEmpty) return;
               final sid = _abbr.text.trim();
-              context.read<PlannerState>().addSubject(
-                    SubjectItem(
-                      id: sid,
-                      name: _name.text.trim(),
-                      abbr: _abbr.text.trim(),
-                      color: 0xFF0B3D91,
+              try {
+                await context.read<PlannerState>().addSubject(
+                      SubjectItem(
+                        id: sid,
+                        name: _name.text.trim(),
+                        abbr: _abbr.text.trim(),
+                        color: 0xFF0B3D91,
+                        relationshipGroupKey: _isElectiveGroup ? _groupKey.text.trim() : null,
+                      ),
+                    );
+
+                // create an optional pinned/joint seed lesson template if user selected classes
+                if (_jointClassIds.isNotEmpty) {
+                  final plannerRead = context.read<PlannerState>();
+                  final defaultTeacher = plannerRead.teachers.isNotEmpty ? plannerRead.teachers.first.id : null;
+                  if (defaultTeacher != null) {
+                    plannerRead.addLesson(
+                      subjectId: sid,
+                      teacherIds: [defaultTeacher],
+                      classIds: _jointClassIds.toList(),
+                      countPerWeek: 1,
+                      length: 'single',
+                      isPinned: _isPinned,
+                      fixedDay: _fixedDay,
+                      fixedPeriod: _fixedPeriod,
+                      relationshipType: 0,
                       relationshipGroupKey: _isElectiveGroup ? _groupKey.text.trim() : null,
-                    ),
-                  );
-
-              // create an optional pinned/joint seed lesson template if user selected classes
-              if (_jointClassIds.isNotEmpty) {
-                final plannerRead = context.read<PlannerState>();
-                final defaultTeacher = plannerRead.teachers.isNotEmpty ? plannerRead.teachers.first.id : null;
-                if (defaultTeacher != null) {
-                  plannerRead.addLesson(
-                    subjectId: sid,
-                    teacherIds: [defaultTeacher],
-                    classIds: _jointClassIds.toList(),
-                    countPerWeek: 1,
-                    length: 'single',
-                    isPinned: _isPinned,
-                    fixedDay: _fixedDay,
-                    fixedPeriod: _fixedPeriod,
-                    relationshipType: 0,
-                    relationshipGroupKey: _isElectiveGroup ? _groupKey.text.trim() : null,
-                  );
+                    );
+                  }
                 }
-              }
 
-              _name.clear();
-              _abbr.clear();
-              _groupKey.clear();
-              setState(() {
-                _isElectiveGroup = false;
-                _isPinned = false;
-                _fixedDay = null;
-                _fixedPeriod = null;
-                _jointClassIds.clear();
-              });
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Subject saved successfully')),
+                );
+
+                _name.clear();
+                _abbr.clear();
+                _groupKey.clear();
+                setState(() {
+                  _isElectiveGroup = false;
+                  _isPinned = false;
+                  _fixedDay = null;
+                  _fixedPeriod = null;
+                  _jointClassIds.clear();
+                });
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('SQLite error: $e')),
+                );
+              }
             },
             child: const Text('Add Subject'),
           ),

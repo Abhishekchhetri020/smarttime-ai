@@ -73,23 +73,34 @@ class _TeachersTabState extends State<TeachersTab> {
         Align(
           alignment: Alignment.centerLeft,
           child: ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               if (_first.text.trim().isEmpty || _abbr.text.trim().isEmpty) return;
-              context.read<PlannerState>().addTeacher(
-                    TeacherItem(
-                      firstName: _first.text.trim(),
-                      lastName: _last.text.trim(),
-                      abbr: _abbr.text.trim(),
-                      maxGapsPerDay: _maxGaps,
-                      maxConsecutivePeriods: _maxConsecutive,
-                      timeOff: Map<String, TimeOffState>.from(_timeOffDraft),
-                    ),
-                  );
-              _first.clear();
-              _last.clear();
-              _abbr.clear();
-              _timeOffDraft.clear();
-              setState(() {});
+              try {
+                await context.read<PlannerState>().addTeacher(
+                      TeacherItem(
+                        firstName: _first.text.trim(),
+                        lastName: _last.text.trim(),
+                        abbr: _abbr.text.trim(),
+                        maxGapsPerDay: _maxGaps,
+                        maxConsecutivePeriods: _maxConsecutive,
+                        timeOff: Map<String, TimeOffState>.from(_timeOffDraft),
+                      ),
+                    );
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Teacher saved successfully')),
+                );
+                _first.clear();
+                _last.clear();
+                _abbr.clear();
+                _timeOffDraft.clear();
+                setState(() {});
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('SQLite error: $e')),
+                );
+              }
             },
             child: const Text('Add Teacher'),
           ),

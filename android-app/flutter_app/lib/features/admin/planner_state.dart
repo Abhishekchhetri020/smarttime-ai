@@ -183,14 +183,14 @@ class PlannerState extends ChangeNotifier {
     _touch();
   }
 
-  void addSubject(SubjectItem item) {
+  Future<void> addSubject(SubjectItem item) async {
     subjects.add(item);
-    _touch();
+    await _touch();
   }
 
-  void addClass(ClassItem item) {
+  Future<void> addClass(ClassItem item) async {
     classes.add(item);
-    _touch();
+    await _touch();
   }
 
   void addDivision({required String classId, required String name, required String code}) {
@@ -203,9 +203,9 @@ class PlannerState extends ChangeNotifier {
     _touch();
   }
 
-  void addTeacher(TeacherItem item) {
+  Future<void> addTeacher(TeacherItem item) async {
     teachers.add(item);
-    _touch();
+    await _touch();
   }
 
   void updateTeacherConstraints(
@@ -428,9 +428,9 @@ class PlannerState extends ChangeNotifier {
     }
   }
 
-  void _touch() {
+  Future<void> _touch() async {
     notifyListeners();
-    _persist();
+    await _persist();
   }
 
 
