@@ -1169,6 +1169,11 @@ class SmartCspSolver {
         val teacherStart = model.lessonTeacherStart[lessonIdx]
         val teacherCount = model.lessonTeacherCount[lessonIdx]
         var i = 0
+
+        for (k in 0 until teacherCount) {
+            val teacher = model.lessonTeacherFlat[teacherStart + k]
+            if (hasSparseTeacherConflict(state, dayIdx, periodIdx, teacher)) return "teacher_conflict"
+        }
         while (i + 3 < teacherCount) {
             var teacher = model.lessonTeacherFlat[teacherStart + i]
             var td = occIndex(teacher, dayIdx, occStride)
@@ -1219,6 +1224,11 @@ class SmartCspSolver {
         val classCount = model.lessonClassCount[lessonIdx]
         val subject = model.lessonSubject[lessonIdx]
         i = 0
+
+        for (k in 0 until classCount) {
+            val classId = model.lessonClassFlat[classStart + k]
+            if (hasSparseClassConflict(state, dayIdx, periodIdx, classId)) return "class_conflict"
+        }
         while (i + 3 < classCount) {
             var classId = model.lessonClassFlat[classStart + i]
             var cd = occIndex(classId, dayIdx, occStride)
@@ -1276,6 +1286,7 @@ class SmartCspSolver {
         }
 
         val rd = occIndex(roomIdx, dayIdx, model.occStride)
+        if (hasSparseRoomConflict(state, dayIdx, periodIdx, roomIdx)) return "room_conflict"
         if ((state.roomOcc[rd] and bit) != 0L) return "room_conflict"
 
         if (model.lessonLabDouble[lessonIdx] == 1) {
@@ -1349,6 +1360,16 @@ class SmartCspSolver {
         val classCount = model.lessonClassCount[lessonIdx]
         val subject = model.lessonSubject[lessonIdx]
         i = 0
+
+        for (k in 0 until classCount) {
+            val classId = model.lessonClassFlat[classStart + k]
+            if (hasSparseClassConflict(state, dayIdx, periodIdx, classId)) return "class_conflict"
+        }
+
+        for (k in 0 until classCount) {
+            val classId = model.lessonClassFlat[classStart + k]
+            if (hasSparseClassConflict(state, dayIdx, periodIdx, classId)) return "class_conflict"
+        }
         while (i + 3 < classCount) {
             var classId = model.lessonClassFlat[classStart + i]
             var cd = occIndex(classId, dayIdx, occStride)
@@ -1406,6 +1427,7 @@ class SmartCspSolver {
         }
 
         val rd = occIndex(roomIdx, dayIdx, model.occStride)
+        if (hasSparseRoomConflict(state, dayIdx, periodIdx, roomIdx)) return "room_conflict"
         if ((state.roomOcc[rd] and bit) != 0L) return "room_conflict"
 
         return null
@@ -1846,6 +1868,21 @@ class SmartCspSolver {
     private fun addToUnassigned(unassigned: IntArray, count: Int, lesson: Int): Int {
         unassigned[count] = lesson
         return count + 1
+    }
+
+    private fun hasSparseTeacherConflict(state: MutableState, dayIdx: Int, periodIdx: Int, teacherIdx: Int): Boolean {
+        val rec = state.sparseSlotState[sparseKey(dayIdx, periodIdx, encodeResourceId(RESOURCE_TEACHER, teacherIdx), teacherIdx)]
+        return rec != null && rec.lessonIdx != Int.MAX_VALUE
+    }
+
+    private fun hasSparseClassConflict(state: MutableState, dayIdx: Int, periodIdx: Int, classIdx: Int): Boolean {
+        val rec = state.sparseSlotState[sparseKey(dayIdx, periodIdx, encodeResourceId(RESOURCE_CLASS, classIdx), Int.MAX_VALUE)]
+        return rec != null && rec.lessonIdx != Int.MAX_VALUE
+    }
+
+    private fun hasSparseRoomConflict(state: MutableState, dayIdx: Int, periodIdx: Int, roomIdx: Int): Boolean {
+        val rec = state.sparseSlotState[sparseKey(dayIdx, periodIdx, encodeResourceId(RESOURCE_ROOM, roomIdx), Int.MAX_VALUE)]
+        return rec != null && rec.lessonIdx != Int.MAX_VALUE
     }
 
     private fun buildModel(
