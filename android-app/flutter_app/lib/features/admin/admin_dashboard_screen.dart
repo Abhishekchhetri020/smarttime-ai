@@ -209,161 +209,165 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     final planner = context.watch<PlannerState>();
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text('${widget.role} Dashboard'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.blueGrey.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Setup Wizard',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        Text(
-                          planner.schoolName.isEmpty
-                              ? 'Complete setup before generation.'
-                              : 'School: ${planner.schoolName}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ],
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.blueGrey.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Setup Wizard',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Text(
+                            planner.schoolName.isEmpty
+                                ? 'Complete setup before generation.'
+                                : 'School: ${planner.schoolName}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => Scaffold(
-                          appBar: AppBar(title: const Text('Setup Wizard')),
-                          body: const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: SingleChildScrollView(
-                                child: SetupWizardScreen()),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => Scaffold(
+                            appBar: AppBar(title: const Text('Setup Wizard')),
+                            body: const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SingleChildScrollView(
+                                  child: SetupWizardScreen()),
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.tune),
-                  label: const Text('Open Setup'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (planner.db != null) DashboardAnalyticsWidget(db: planner.db!),
-            const SizedBox(height: 8),
-            TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(text: 'Subjects'),
-                Tab(text: 'Classes'),
-                Tab(text: 'Teachers'),
-                Tab(text: 'Classrooms'),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: const [
-                  SubjectsTab(),
-                  ClassesTab(),
-                  TeachersTab(),
-                  ClassroomsTab(),
+                      );
+                    },
+                    icon: const Icon(Icons.tune),
+                    label: const Text('Open Setup'),
+                  ),
                 ],
               ),
-            ),
-            if (_warnings.isNotEmpty)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Pre-Flight Warnings',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    for (final w in _warnings)
-                      Text('• ${w.message}',
-                          style: const TextStyle(fontSize: 12)),
+              const SizedBox(height: 8),
+              if (planner.db != null) DashboardAnalyticsWidget(db: planner.db!),
+              const SizedBox(height: 8),
+              TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: 'Subjects'),
+                  Tab(text: 'Classes'),
+                  Tab(text: 'Teachers'),
+                  Tab(text: 'Classrooms'),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 420,
+                child: TabBarView(
+                  controller: _tabController,
+                  children: const [
+                    SubjectsTab(),
+                    ClassesTab(),
+                    TeachersTab(),
+                    ClassroomsTab(),
                   ],
                 ),
               ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: _busy ? null : _generateNow,
-                  child: const Text('Generate Now'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _busy ? null : _exportSchedule,
-                  icon: const Icon(Icons.ios_share),
-                  label: const Text('Export Schedule'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _busy ? null : _importSchedule,
-                  icon: const Icon(Icons.file_upload),
-                  label: const Text('Import .smarttime'),
-                ),
-                OutlinedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const SolverDebugScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text('Open Grid Debug'),
-                ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    foregroundColor: Colors.white,
+              if (_warnings.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade100,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  onPressed: () {
-                    final db = planner.db;
-                    if (db == null) return;
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CockpitScreen(db: db),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.dashboard_customize),
-                  label: const Text('Open Cockpit'),
-                ),
-                SizedBox(
-                  width: 280,
-                  child: Text(
-                    _status,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Pre-Flight Warnings',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      for (final w in _warnings)
+                        Text('• ${w.message}',
+                            style: const TextStyle(fontSize: 12)),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ],
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: _busy ? null : _generateNow,
+                    child: const Text('Generate Now'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _exportSchedule,
+                    icon: const Icon(Icons.ios_share),
+                    label: const Text('Export Schedule'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _importSchedule,
+                    icon: const Icon(Icons.file_upload),
+                    label: const Text('Import .smarttime'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SolverDebugScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text('Open Grid Debug'),
+                  ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () {
+                      final db = planner.db;
+                      if (db == null) return;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CockpitScreen(db: db),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.dashboard_customize),
+                    label: const Text('Open Cockpit'),
+                  ),
+                  SizedBox(
+                    width: 280,
+                    child: Text(
+                      _status,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

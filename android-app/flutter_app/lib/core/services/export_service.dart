@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -94,16 +95,34 @@ class ExportService {
   }
 
   Future<void> importSmarttimeFromPicker(AppDatabase db) async {
-    final picked = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['smarttime'],
-      withData: true,
-    );
+    FilePickerResult? picked;
+    try {
+      picked = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        withData: true,
+      );
+    } on PlatformException catch (e) {
+      throw StateError(
+          'File picker unavailable on this device: ${e.message ?? e.code}');
+    }
+
     if (picked == null || picked.files.isEmpty) return;
 
     final f = picked.files.first;
-    final bytes =
-        f.bytes ?? (f.path != null ? await File(f.path!).readAsBytes() : null);
+    if (!f.name.toLowerCase().endsWith('.smarttime')) {
+      throw StateError('Please select a .smarttime file');
+    }
+
+    List<int>? bytes;
+    try {
+      if (f.bytes != null) {
+        bytes = f.bytes!;
+      } else if (f.path != null && f.path!.isNotEmpty) {
+        bytes = await File(f.path!).readAsBytes();
+      }
+    } catch (_) {
+      bytes = null;
+    }
     if (bytes == null) throw StateError('Selected file is not readable');
 
     final raw = GZipCodec().decode(bytes);
