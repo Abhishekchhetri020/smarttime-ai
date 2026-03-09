@@ -67,12 +67,13 @@ class SolverController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final payload = mapper.fromPlanner(planner);
+      final payload = await mapper.fromCanonicalState(planner);
       final res = await client.solve(payload);
       status = res.rawStatus;
       if (!res.isOk) {
         error = res.errorMessage ?? 'Solver error: ${res.rawStatus}';
-        if (res.rawStatus == 'SEED_NOT_FOUND' || res.rawStatus == 'SEED_INFEASIBLE_INPUT') {
+        if (res.rawStatus == 'SEED_NOT_FOUND' ||
+            res.rawStatus == 'SEED_INFEASIBLE_INPUT') {
           final warnings = conflictService.preflight(planner);
           failureHints = [
             if (warnings.isEmpty)
@@ -130,7 +131,8 @@ class SolverController extends ChangeNotifier {
 
     final i = assignments.indexWhere((a) => a.lessonId == lessonId);
     if (i >= 0) {
-      assignments[i] = assignments[i].copyWith(day: targetDay, period: targetPeriod);
+      assignments[i] =
+          assignments[i].copyWith(day: targetDay, period: targetPeriod);
     }
 
     await planner.pinLessonToSlot(
@@ -153,10 +155,12 @@ class SolverController extends ChangeNotifier {
           day: (row['day'] as num?)?.toInt() ?? 1,
           period: (row['period'] as num?)?.toInt() ?? 1,
           subjectId: row['subjectId']?.toString() ?? 'SUB',
-          classIds: (row['classIds'] as List?)?.map((e) => e.toString()).toList() ??
-              [if (row['classId'] != null) row['classId'].toString()],
-          teacherIds: (row['teacherIds'] as List?)?.map((e) => e.toString()).toList() ??
-              [if (row['teacherId'] != null) row['teacherId'].toString()],
+          classIds:
+              (row['classIds'] as List?)?.map((e) => e.toString()).toList() ??
+                  [if (row['classId'] != null) row['classId'].toString()],
+          teacherIds:
+              (row['teacherIds'] as List?)?.map((e) => e.toString()).toList() ??
+                  [if (row['teacherId'] != null) row['teacherId'].toString()],
           roomId: row['roomId']?.toString() ?? '',
         ),
       );

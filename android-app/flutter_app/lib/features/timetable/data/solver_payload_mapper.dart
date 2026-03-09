@@ -2,6 +2,90 @@ import '../../admin/planner_state.dart';
 import '../../admin/time_off_picker.dart';
 
 class SolverPayloadMapper {
+  Future<Map<String, dynamic>> fromCanonicalState(
+    PlannerState planner, {
+    int timeoutMs = 30000,
+  }) async {
+    final db = planner.db;
+    if (db == null) {
+      return fromPlanner(planner, timeoutMs: timeoutMs);
+    }
+
+    final teacherRows = await db.select(db.teachers).get();
+    final classRows = await db.select(db.classes).get();
+    final subjectRows = await db.select(db.subjects).get();
+    final lessonRows = await db.select(db.lessons).get();
+
+    final roomIds = <String>{
+      for (final item in planner.classrooms) item.id,
+      if (planner.classrooms.isEmpty) ...{
+        for (var i = 101; i <= 108; i++) 'ROOM_$i'
+      },
+      for (final lesson in planner.lessons)
+        if (lesson.requiredClassroomId != null &&
+            lesson.requiredClassroomId!.isNotEmpty)
+          lesson.requiredClassroomId!,
+    };
+
+    final roomRows = roomIds
+        .map((r) => {'id': r, 'roomType': 'standard'})
+        .toList(growable: false);
+    final plannerLessonById = {for (final l in planner.lessons) l.id: l};
+
+    return {
+      'payloadVersion': 1,
+      'timeoutMs': timeoutMs,
+      'days': planner.workingDays,
+      'periodsPerDay': planner.bellTimes.length,
+      'dict': {
+        'teacherIds': teacherRows.map((e) => e.id).toList(),
+        'classIds': classRows.map((e) => e.id).toList(),
+        'subjectIds': subjectRows.map((e) => e.id).toList(),
+        'roomIds': roomIds.toList(),
+      },
+      'rooms': roomRows,
+      'lessons': lessonRows
+          .map((l) => {
+                'id': l.id,
+                'classIds': l.classIds,
+                'teacherIds': l.teacherIds,
+                'subjectId': l.subjectId,
+                'preferredRoomId': plannerLessonById[l.id]?.requiredClassroomId,
+                'isLabDouble': plannerLessonById[l.id]?.length == 'double',
+                'isPinned': l.isPinned,
+                'fixedDay': l.fixedDay,
+                'fixedPeriod': l.fixedPeriod,
+                'relationshipType': l.relationshipType,
+                'relationshipGroupKey': l.relationshipGroupKey,
+                'classDivisionId': l.classDivisionId,
+                'syncGroupId': l.relationshipGroupKey,
+              })
+          .toList(growable: false),
+      'constraints': {
+        'teacherAvailability': {
+          for (final t in planner.teachers)
+            if (t.timeOff.isNotEmpty)
+              t.id: [
+                for (int d = 1; d <= planner.workingDays; d++)
+                  for (int p = 1; p <= planner.bellTimes.length; p++)
+                    if (t.timeOff['$d-$p'] != TimeOffState.unavailable)
+                      {'day': d, 'period': p}
+              ]
+        },
+        'teacherMaxConsecutivePeriods': {
+          for (final t in planner.teachers)
+            if (t.maxConsecutivePeriods != null) t.id: t.maxConsecutivePeriods!,
+        },
+        'softWeights': {
+          'teacher_gaps': 5,
+          'class_gaps': 5,
+          'subject_distribution': 3,
+          'teacher_room_stability': 1,
+        },
+      },
+    };
+  }
+
   Map<String, dynamic> fromPlanner(
     PlannerState planner, {
     int timeoutMs = 30000,

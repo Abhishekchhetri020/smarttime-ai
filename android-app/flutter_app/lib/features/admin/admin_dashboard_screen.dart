@@ -8,6 +8,7 @@ import '../timetable/presentation/screens/cockpit_screen.dart';
 import '../../core/database.dart';
 import '../../core/services/export_service.dart';
 import '../timetable/data/conflict_service.dart';
+import '../timetable/data/preflight_service.dart';
 import 'planner_state.dart';
 import 'setup/setup_wizard_screen.dart';
 import 'widgets/dashboard_analytics_widget.dart';
@@ -31,6 +32,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   String _status = '';
   bool _busy = false;
   List<PreflightWarning> _warnings = const [];
+  PreflightReport? _preflightReport;
 
   @override
   void initState() {
@@ -83,6 +85,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     } catch (e) {
       setState(() => _status = 'Import failed: $e');
     }
+  }
+
+  void _runPreflight() {
+    final planner = context.read<PlannerState>();
+    final warnings = ConflictService().preflight(planner);
+    final report = PreflightService().audit(planner);
+    setState(() {
+      _warnings = warnings;
+      _preflightReport = report;
+      _status = report.isReadyToSolve
+          ? 'Pre-flight passed. Ready to solve.'
+          : 'Pre-flight failed with ${report.issues.where((e) => e.isHardError).length} hard error(s).';
+    });
   }
 
   Future<void> _generateNow() async {
@@ -289,7 +304,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   ],
                 ),
               ),
-              if (_warnings.isNotEmpty)
+              if (_preflightReport != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _preflightReport!.hasHardErrors
+                        ? Colors.red.shade100
+                        : Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _preflightReport!.hasHardErrors
+                            ? 'Pre-Flight Hard Errors'
+                            : 'Ready to Solve',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      for (final issue in _preflightReport!.issues)
+                        Text('• ${issue.message}',
+                            style: const TextStyle(fontSize: 12)),
+                      if (_preflightReport!.issues.isEmpty)
+                        const Text('• No hard errors detected.',
+                            style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                )
+              else if (_warnings.isNotEmpty)
                 Container(
                   width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 8),
@@ -316,9 +361,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   ElevatedButton(
-                    onPressed: _busy ? null : _generateNow,
-                    child: const Text('Generate Now'),
+                    onPressed: _busy ? null : _runPreflight,
+                    child: const Text('Run Pre-Flight'),
                   ),
+                  if ((_preflightReport?.isReadyToSolve ?? false))
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: _busy ? null : _generateNow,
+                      icon: const Icon(Icons.check_circle),
+                      label: const Text('Ready to Solve'),
+                    ),
                   OutlinedButton.icon(
                     onPressed: _busy ? null : _exportSchedule,
                     icon: const Icon(Icons.ios_share),
