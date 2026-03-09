@@ -587,7 +587,7 @@ class PlannerState extends ChangeNotifier {
     return {
       'days': workingDays,
       'periodsPerDay': bellTimes.isEmpty ? 8 : bellTimes.length,
-      'timeoutMs': 15000,
+      'timeoutMs': 30000,
       'lessons': solverLessons,
       'rooms': classrooms
           .map((r) => {
