@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:csv/csv.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../database.dart';
 
@@ -114,6 +115,18 @@ class ImportReport {
     required this.successCount,
     required this.failedRows,
     required this.unresolvedTokens,
+  });
+}
+
+class MasterImportSummary {
+  final int lessons;
+  final int teachers;
+  final int rooms;
+
+  const MasterImportSummary({
+    required this.lessons,
+    required this.teachers,
+    required this.rooms,
   });
 }
 
@@ -605,6 +618,228 @@ class BulkImportService {
       successCount: successCount,
       failedRows: failedRows.toSet().toList()..sort(),
       unresolvedTokens: unresolvedTokens.toList()..sort(),
+    );
+  }
+
+  Future<List<File>> writeMasterCsvTemplates() async {
+    final downloads = await getDownloadsDirectory();
+    final docs = await getApplicationDocumentsDirectory();
+    final targetDir = downloads ?? docs;
+
+    final lessons = File('${targetDir.path}/Lessons_Master_Template.csv');
+    final teachers =
+        File('${targetDir.path}/Teachers_Constraints_Template.csv');
+
+    await lessons.writeAsString(
+      'lesson_id,class_name,subject_name,teacher_name,weekly_lessons,lesson_length,preferred_room\n'
+      'L001,Grade 10,Mathematics,Aarav Sharma,6,single,Room 101\n'
+      'L002,Grade 10,Science,Priya Verma,2,double,Lab 1\n',
+      flush: true,
+    );
+
+    await teachers.writeAsString(
+      'teacher_name,teacher_abbr,off_days,off_slots,max_periods_per_day,max_gaps_per_day\n'
+      'Aarav Sharma,AS,Monday,Mon-7,6,2\n',
+      flush: true,
+    );
+
+    return [lessons, teachers];
+  }
+
+  Future<MasterImportSummary> importMasterCsvFiles(AppDatabase db) async {
+    final picked = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+      withData: true,
+    );
+    if (picked == null || picked.files.isEmpty) {
+      return const MasterImportSummary(lessons: 0, teachers: 0, rooms: 0);
+    }
+
+    PlatformFile? lessonsFile;
+    PlatformFile? teachersFile;
+    for (final f in picked.files) {
+      final n = f.name.toLowerCase();
+      if (n.contains('lessons_master')) lessonsFile = f;
+      if (n.contains('teachers_constraints')) teachersFile = f;
+    }
+    if (lessonsFile == null || teachersFile == null) {
+      throw StateError(
+          'Select both Lessons_Master CSV and Teachers_Constraints CSV');
+    }
+
+    final lessonsRows = _parseCsvRows(await _bytesForPlatformFile(lessonsFile));
+    final teachersRows =
+        _parseCsvRows(await _bytesForPlatformFile(teachersFile));
+
+    final teacherByName = <String, TeacherImportDto>{};
+    for (final row in teachersRows) {
+      final name = _req(row, ['teacher_name']).trim();
+      if (name.isEmpty) continue;
+      final abbr = _req(row, ['teacher_abbr', 'abbr']);
+      final id = 'TEA_${_k(name).replaceAll(' ', '_')}';
+      teacherByName[_k(name)] = TeacherImportDto(
+        id: id,
+        guid: _deterministicGuid('teacher', id),
+        name: name,
+        abbreviation: abbr.isEmpty ? name : abbr,
+        maxPeriodsPerDay: int.tryParse(_req(row, ['max_periods_per_day'])),
+        maxGapsPerDay: int.tryParse(_req(row, ['max_gaps_per_day'])),
+      );
+    }
+
+    final subjectByName = <String, SubjectImportDto>{};
+    final classByName = <String, ClassImportDto>{};
+    final roomNames = <String>{};
+    final lessonDtos = <LessonImportDto>[];
+    final plannerLessons = <Map<String, dynamic>>[];
+
+    var autoLesson = 1;
+    for (final row in lessonsRows) {
+      final className = _req(row, ['class_name']);
+      final subjectName = _req(row, ['subject_name']);
+      final teacherName = _req(row, ['teacher_name']);
+      final weekly = int.tryParse(_req(row, ['weekly_lessons'])) ?? 1;
+      final length = _req(row, ['lesson_length']).toLowerCase();
+      final preferredRoom = _req(row, ['preferred_room']);
+      final lessonId = _req(row, ['lesson_id']).isEmpty
+          ? 'LM_${autoLesson++}'
+          : _req(row, ['lesson_id']);
+      if (className.isEmpty || subjectName.isEmpty || teacherName.isEmpty)
+        continue;
+
+      final classId = 'CLS_${_k(className).replaceAll(' ', '_')}';
+      classByName.putIfAbsent(
+        _k(className),
+        () => ClassImportDto(
+          id: classId,
+          guid: _deterministicGuid('class', classId),
+          name: className,
+          abbr: className,
+        ),
+      );
+
+      final subjectId = 'SUB_${_k(subjectName).replaceAll(' ', '_')}';
+      subjectByName.putIfAbsent(
+        _k(subjectName),
+        () => SubjectImportDto(
+          id: subjectId,
+          guid: _deterministicGuid('subject', subjectId),
+          name: subjectName,
+          abbr: subjectName,
+        ),
+      );
+
+      final teacher = teacherByName[_k(teacherName)] ??
+          TeacherImportDto(
+            id: 'TEA_${_k(teacherName).replaceAll(' ', '_')}',
+            guid: _deterministicGuid('teacher', teacherName),
+            name: teacherName,
+            abbreviation: teacherName,
+          );
+      teacherByName[_k(teacherName)] = teacher;
+
+      if (preferredRoom.isNotEmpty) roomNames.add(preferredRoom);
+
+      lessonDtos.add(
+        LessonImportDto(
+          id: lessonId,
+          subjectId: subjectId,
+          periodsPerWeek: weekly,
+          teacherIds: [teacher.id],
+          classIds: [classId],
+        ),
+      );
+
+      plannerLessons.add({
+        'id': lessonId,
+        'subjectId': subjectId,
+        'teacherIds': [teacher.id],
+        'classIds': [classId],
+        'classDivisionId': null,
+        'countPerWeek': weekly,
+        'length': length == 'double' ? 'double' : 'single',
+        'requiredClassroomId': preferredRoom.isEmpty ? null : preferredRoom,
+        'isPinned': false,
+        'fixedDay': null,
+        'fixedPeriod': null,
+        'roomTypeId': null,
+        'relationshipType': 0,
+        'relationshipGroupKey': null,
+      });
+    }
+
+    await db.transaction(() async {
+      await db.delete(db.cards).go();
+      await db.delete(db.lessonTeachers).go();
+      await db.delete(db.lessonClasses).go();
+      await db.delete(db.lessons).go();
+      await db.delete(db.teacherUnavailability).go();
+      await db.delete(db.divisions).go();
+      await db.delete(db.teachers).go();
+      await db.delete(db.classes).go();
+      await db.delete(db.subjects).go();
+
+      await batchInsert(
+        db,
+        BulkImportBundle(
+          teachers: teacherByName.values.toList(growable: false),
+          subjects: subjectByName.values.toList(growable: false),
+          classes: classByName.values.toList(growable: false),
+          lessons: lessonDtos,
+        ),
+      );
+
+      final plannerSnap = {
+        'schoolName': 'Imported School',
+        'workingDays': 5,
+        'bellTimes': [
+          '08:00-08:45',
+          '08:45-09:30',
+          '09:45-10:30',
+          '10:30-11:15',
+          '11:30-12:15',
+          '12:15-13:00',
+          '13:30-14:15',
+          '14:15-15:00'
+        ],
+        'subjects': subjectByName.values
+            .map((s) => {
+                  'id': s.id,
+                  'name': s.name,
+                  'abbr': s.abbr,
+                  'color': 0xFF0B3D91,
+                  'relationshipGroupKey': null
+                })
+            .toList(),
+        'classes': classByName.values
+            .map((c) => {'id': c.id, 'name': c.name, 'abbr': c.abbr})
+            .toList(),
+        'divisions': const [],
+        'teachers': teacherByName.values
+            .map((t) => {
+                  'id': t.id,
+                  'firstName': t.name.split(' ').first,
+                  'lastName': t.name.split(' ').skip(1).join(' '),
+                  'abbr': t.abbreviation,
+                  'maxGapsPerDay': t.maxGapsPerDay,
+                  'maxConsecutivePeriods': 3,
+                  'timeOff': <String, int>{},
+                })
+            .toList(),
+        'classrooms': roomNames
+            .map((r) => {'id': r, 'name': r, 'roomType': 'standard'})
+            .toList(),
+        'lessons': plannerLessons,
+      };
+      await db.savePlannerSnapshot(plannerSnap);
+    });
+
+    return MasterImportSummary(
+      lessons: lessonDtos.length,
+      teachers: teacherByName.length,
+      rooms: roomNames.length,
     );
   }
 
