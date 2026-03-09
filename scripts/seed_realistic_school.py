@@ -20,25 +20,38 @@ subjects = [
     ("SUB_SCI", "Science", "SCI"),
     ("SUB_ENG", "English", "ENG"),
     ("SUB_HIN", "Hindi", "HIN"),
+    ("SUB_SPT", "Sports", "SPT"),
 ]
+rooms = [(f"ROOM_{i}", f"Room {i}") for i in range(101, 109)]
 
-# 100 lessons: 10 classes x 4 subjects = 40 templates, each expands to periodsPerWeek in analytics.
-# We'll explicitly store 100 lesson rows for stress test.
+# 100 lessons: 10 classes x 5 subjects x 2 lessons = 100
 random.seed(42)
 lessons = []
-for i in range(1, 101):
-    cls = classes[(i - 1) % len(classes)][0]
-    sub = subjects[(i - 1) % len(subjects)][0]
-    t1 = teachers[(i - 1) % len(teachers)][0]
-    t2 = teachers[(i + 3) % len(teachers)][0] if i % 7 == 0 else None
-    tids = [t1] + ([t2] if t2 else [])
-    lessons.append({
-        "id": f"L{i:03d}",
-        "subject_id": sub,
-        "teacher_ids": tids,
-        "class_ids": [cls],
-        "periods_per_week": 1,
-    })
+pool = {
+    "SUB_MATH": ["T01", "T02", "T03"],
+    "SUB_SCI": ["T04", "T05", "T06"],
+    "SUB_ENG": ["T07", "T08", "T09"],
+    "SUB_HIN": ["T10", "T11", "T12"],
+    "SUB_SPT": ["T13", "T14", "T15"],
+}
+lid = 1
+for cls in classes:
+    for sub in subjects:
+        for _ in range(2):
+            sid = sub[0]
+            t1 = random.choice(pool[sid])
+            if lid % 9 == 0:
+                t1 = "T01"
+            room_id = rooms[(lid - 1) % len(rooms)][0]
+            lessons.append({
+                "id": f"L{lid:03d}",
+                "subject_id": sid,
+                "teacher_ids": [t1],
+                "class_ids": [cls[0]],
+                "periods_per_week": 1,
+                "required_room_id": room_id,
+            })
+            lid += 1
 
 planner_snapshot = {
     "schoolName": "SmartTime Realistic School",
@@ -60,12 +73,15 @@ planner_snapshot = {
         }
         for t in teachers
     ],
-    "classrooms": [],
+    "classrooms": [
+        {"id": r[0], "name": r[1], "roomType": "standard"}
+        for r in rooms
+    ],
     "lessons": [
         {
             "id": l["id"], "subjectId": l["subject_id"], "teacherIds": l["teacher_ids"],
             "classIds": l["class_ids"], "classDivisionId": None, "countPerWeek": 1,
-            "length": "single", "requiredClassroomId": None, "isPinned": False,
+            "length": "single", "requiredClassroomId": l["required_room_id"], "isPinned": False,
             "fixedDay": None, "fixedPeriod": None, "roomTypeId": None,
             "relationshipType": 0, "relationshipGroupKey": None
         }
@@ -116,4 +132,4 @@ cur.execute(
 
 cur.execute("COMMIT")
 con.close()
-print("Seeded: teachers=15 classes=10 subjects=4 lessons=100")
+print("Seeded: teachers=15 classes=10 subjects=5 rooms=8 lessons=100")

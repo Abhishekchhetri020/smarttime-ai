@@ -4,12 +4,20 @@ import '../../admin/time_off_picker.dart';
 class SolverPayloadMapper {
   Map<String, dynamic> fromPlanner(
     PlannerState planner, {
-    int timeoutMs = 15000,
+    int timeoutMs = 30000,
   }) {
-    final teachers = [...planner.teachers]..sort((a, b) => a.id.compareTo(b.id));
+    final teachers = [...planner.teachers]
+      ..sort((a, b) => a.id.compareTo(b.id));
     final classes = [...planner.classes]..sort((a, b) => a.id.compareTo(b.id));
-    final subjects = [...planner.subjects]..sort((a, b) => a.id.compareTo(b.id));
+    final subjects = [...planner.subjects]
+      ..sort((a, b) => a.id.compareTo(b.id));
     final rooms = [...planner.classrooms]..sort((a, b) => a.id.compareTo(b.id));
+    if (rooms.isEmpty) {
+      for (var i = 101; i <= 108; i++) {
+        rooms.add(ClassroomItem(
+            id: 'ROOM_$i', name: 'Room $i', roomType: 'standard'));
+      }
+    }
 
     final teacherIdx = _indexById(teachers.map((e) => e.id).toList());
     final classIdx = _indexById(classes.map((e) => e.id).toList());

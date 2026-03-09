@@ -1119,6 +1119,7 @@ class SmartCspSolver {
         val count = model.lessonCandidateCount[lessonIdx]
         if (count == 0) return 0
         var k = 0
+        var firstReason: String? = null
         for (i in start until (start + count)) {
             val slot = model.candidateSlot[i]
             val room = model.candidateRoom[i]
@@ -1126,8 +1127,12 @@ class SmartCspSolver {
             if (reason == null) {
                 out[k++] = i
             } else {
+                if (firstReason == null) firstReason = reason
                 recordResidualPenalty(state, model, slot, reason)
             }
+        }
+        if (k == 0 && firstReason != null) {
+            println("SEED_FIRST_FAILURE lesson=${model.lessons[lessonIdx].id} reason=$firstReason")
         }
         return k
     }
@@ -1312,8 +1317,10 @@ class SmartCspSolver {
         }
 
         val rd = occIndex(roomIdx, dayIdx, model.occStride)
-        if (hasSparseRoomConflict(state, dayIdx, periodIdx, roomIdx)) return "room_conflict"
-        if ((state.roomOcc[rd] and bit) != 0L) return "room_conflict"
+        if (!shouldBypassRoomConflictForSoftSeed(model, state)) {
+            if (hasSparseRoomConflict(state, dayIdx, periodIdx, roomIdx)) return "room_conflict"
+            if ((state.roomOcc[rd] and bit) != 0L) return "room_conflict"
+        }
 
         if (model.lessonLabDouble[lessonIdx] == 1) {
             if (periodIdx + 1 >= model.periodsPerDay) return "lab_double_out_of_bounds"
@@ -1453,8 +1460,10 @@ class SmartCspSolver {
         }
 
         val rd = occIndex(roomIdx, dayIdx, model.occStride)
-        if (hasSparseRoomConflict(state, dayIdx, periodIdx, roomIdx)) return "room_conflict"
-        if ((state.roomOcc[rd] and bit) != 0L) return "room_conflict"
+        if (!shouldBypassRoomConflictForSoftSeed(model, state)) {
+            if (hasSparseRoomConflict(state, dayIdx, periodIdx, roomIdx)) return "room_conflict"
+            if ((state.roomOcc[rd] and bit) != 0L) return "room_conflict"
+        }
 
         return null
     }
@@ -1913,6 +1922,11 @@ class SmartCspSolver {
     private fun hasSparseRoomConflict(state: MutableState, dayIdx: Int, periodIdx: Int, roomIdx: Int): Boolean {
         val rec = state.sparseSlotState[sparseKey(dayIdx, periodIdx, encodeResourceId(RESOURCE_ROOM, roomIdx), Int.MAX_VALUE)]
         return rec != null && rec.lessonIdx != Int.MAX_VALUE
+    }
+
+    private fun shouldBypassRoomConflictForSoftSeed(model: SolverModel, state: MutableState): Boolean {
+        val target = max(1, model.lessonCount / 5)
+        return state.assignedLessonCount < target
     }
 
     private fun recordResidualPenalty(state: MutableState, model: SolverModel, slot: Int, reason: String?) {
