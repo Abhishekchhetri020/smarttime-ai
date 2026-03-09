@@ -23,6 +23,7 @@ class AnalyticsSnapshot {
 @DataClassName('SubjectRow')
 class Subjects extends Table {
   TextColumn get id => text()();
+  TextColumn get guid => text().nullable()();
   TextColumn get name => text()();
   TextColumn get abbr => text()();
   TextColumn get groupId => text().nullable()();
@@ -36,6 +37,7 @@ class Subjects extends Table {
 @DataClassName('ClassRow')
 class Classes extends Table {
   TextColumn get id => text()();
+  TextColumn get guid => text().nullable()();
   TextColumn get name => text()();
   TextColumn get abbr => text()();
 
@@ -74,6 +76,7 @@ class Divisions extends Table {
 @DataClassName('TeacherRow')
 class Teachers extends Table {
   TextColumn get id => text()();
+  TextColumn get guid => text().nullable()();
   TextColumn get name => text()();
   TextColumn get abbreviation => text()();
   IntColumn get maxPeriodsPerDay => integer().nullable()();
@@ -89,7 +92,8 @@ class TeacherUnavailability extends Table {
   TextColumn get teacherId => text().references(Teachers, #id)();
   IntColumn get day => integer()();
   IntColumn get period => integer()();
-  IntColumn get state => integer().withDefault(const Constant(1))(); // 1=unavailable,2=conditional
+  IntColumn get state =>
+      integer().withDefault(const Constant(1))(); // 1=unavailable,2=conditional
 
   @override
   Set<Column> get primaryKey => {id};
@@ -102,14 +106,17 @@ class Lessons extends Table {
 
   // aSc contract-style requirement fields
   IntColumn get periodsPerWeek => integer().withDefault(const Constant(1))();
-  TextColumn get teacherIds =>
-      text().map(const StringListConverter()).withDefault(const Constant('[]'))();
-  TextColumn get classIds =>
-      text().map(const StringListConverter()).withDefault(const Constant('[]'))();
+  TextColumn get teacherIds => text()
+      .map(const StringListConverter())
+      .withDefault(const Constant('[]'))();
+  TextColumn get classIds => text()
+      .map(const StringListConverter())
+      .withDefault(const Constant('[]'))();
 
   // Back-compat fields retained for existing planner/controller flow.
   TextColumn get classId => text().nullable()();
-  TextColumn get classDivisionId => text().nullable().references(Divisions, #id)();
+  TextColumn get classDivisionId =>
+      text().nullable().references(Divisions, #id)();
   BoolColumn get isPinned => boolean().withDefault(const Constant(false))();
   IntColumn get fixedDay => integer().nullable()();
   IntColumn get fixedPeriod => integer().nullable()();
@@ -209,7 +216,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -226,8 +233,7 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(teachers);
             await m.createTable(teacherUnavailability);
             await customStatement(
-              'CREATE INDEX IF NOT EXISTS idx_teacher_unavailability_teacher_slot ON teacher_unavailability(teacher_id, day, period)'
-            );
+                'CREATE INDEX IF NOT EXISTS idx_teacher_unavailability_teacher_slot ON teacher_unavailability(teacher_id, day, period)');
           }
           if (from < 9) {
             await m.createTable(divisions);
@@ -292,6 +298,14 @@ class AppDatabase extends _$AppDatabase {
             await customStatement('DROP TABLE lessons');
             await customStatement('ALTER TABLE lessons_new RENAME TO lessons');
           }
+          if (from < 11) {
+            await customStatement(
+                'ALTER TABLE subjects ADD COLUMN guid TEXT NULL');
+            await customStatement(
+                'ALTER TABLE classes ADD COLUMN guid TEXT NULL');
+            await customStatement(
+                'ALTER TABLE teachers ADD COLUMN guid TEXT NULL');
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -299,7 +313,8 @@ class AppDatabase extends _$AppDatabase {
       );
 
   Future<Map<String, dynamic>?> loadPlannerSnapshot() async {
-    final row = await (select(appState)..where((t) => t.id.equals(1))).getSingleOrNull();
+    final row = await (select(appState)..where((t) => t.id.equals(1)))
+        .getSingleOrNull();
     if (row == null) return null;
     return jsonDecode(row.plannerJson) as Map<String, dynamic>;
   }
@@ -316,7 +331,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<AnalyticsSnapshot> watchAnalytics() {
-    return (select(appState)..where((t) => t.id.equals(1))).watchSingleOrNull().map((row) {
+    return (select(appState)..where((t) => t.id.equals(1)))
+        .watchSingleOrNull()
+        .map((row) {
       if (row == null) {
         return const AnalyticsSnapshot(
           totalAssignedLessons: 0,
@@ -336,7 +353,10 @@ class AppDatabase extends _$AppDatabase {
     // Joint classes should still count as one lesson row.
     final totalAssignedLessons = lessons.fold<int>(0, (sum, e) {
       final m = Map<String, dynamic>.from(e as Map);
-      return sum + ((m['periodsPerWeek'] as num?)?.toInt() ?? (m['countPerWeek'] as num?)?.toInt() ?? 1);
+      return sum +
+          ((m['periodsPerWeek'] as num?)?.toInt() ??
+              (m['countPerWeek'] as num?)?.toInt() ??
+              1);
     });
 
     int hardConflicts = 0;
@@ -347,13 +367,15 @@ class AppDatabase extends _$AppDatabase {
       final period = (m['fixedPeriod'] as num?)?.toInt();
       if (day == null || period == null) continue;
       final key = '$day-$period';
-      final tIds = ((m['teacherIds'] as List?) ?? const []).map((x) => x.toString());
+      final tIds =
+          ((m['teacherIds'] as List?) ?? const []).map((x) => x.toString());
 
       for (final t in teachers) {
         final tm = Map<String, dynamic>.from(t as Map);
         final tid = tm['id']?.toString();
         if (tid == null || !tIds.contains(tid)) continue;
-        final off = Map<String, dynamic>.from((tm['timeOff'] as Map?) ?? const {});
+        final off =
+            Map<String, dynamic>.from((tm['timeOff'] as Map?) ?? const {});
         if ((off[key] as num?)?.toInt() == 1) {
           // 1 => unavailable in persisted map
           hardConflicts++;
@@ -367,7 +389,8 @@ class AppDatabase extends _$AppDatabase {
       final v = (tm['maxGapsPerDay'] as num?)?.toInt();
       if (v != null) gaps.add(v);
     }
-    final avgGaps = gaps.isEmpty ? 0.0 : gaps.reduce((a, b) => a + b) / gaps.length;
+    final avgGaps =
+        gaps.isEmpty ? 0.0 : gaps.reduce((a, b) => a + b) / gaps.length;
 
     return AnalyticsSnapshot(
       totalAssignedLessons: totalAssignedLessons,

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:csv/csv.dart';
@@ -10,6 +11,7 @@ import '../database.dart';
 
 class TeacherImportDto {
   final String id;
+  final String guid;
   final String name;
   final String abbreviation;
   final int? maxPeriodsPerDay;
@@ -17,6 +19,7 @@ class TeacherImportDto {
 
   const TeacherImportDto({
     required this.id,
+    required this.guid,
     required this.name,
     required this.abbreviation,
     this.maxPeriodsPerDay,
@@ -26,6 +29,7 @@ class TeacherImportDto {
 
 class SubjectImportDto {
   final String id;
+  final String guid;
   final String name;
   final String abbr;
   final String? groupId;
@@ -33,6 +37,7 @@ class SubjectImportDto {
 
   const SubjectImportDto({
     required this.id,
+    required this.guid,
     required this.name,
     required this.abbr,
     this.groupId,
@@ -42,11 +47,13 @@ class SubjectImportDto {
 
 class ClassImportDto {
   final String id;
+  final String guid;
   final String name;
   final String abbr;
 
   const ClassImportDto({
     required this.id,
+    required this.guid,
     required this.name,
     required this.abbr,
   });
@@ -120,10 +127,12 @@ class BulkImportService {
     final text = utf8.decode(bytes, allowMalformed: true);
     final rows = const CsvToListConverter(eol: '\n').convert(text);
     if (rows.isEmpty) {
-      return const BulkImportBundle(teachers: [], subjects: [], classes: [], lessons: []);
+      return const BulkImportBundle(
+          teachers: [], subjects: [], classes: [], lessons: []);
     }
 
-    final header = rows.first.map((e) => e.toString().trim().toLowerCase()).toList();
+    final header =
+        rows.first.map((e) => e.toString().trim().toLowerCase()).toList();
     final idx = <String, int>{
       for (int i = 0; i < header.length; i++) header[i]: i,
     };
@@ -153,6 +162,7 @@ class BulkImportService {
 
         teachers.add(TeacherImportDto(
           id: id,
+          guid: _randomGuidV4(),
           name: name,
           abbreviation: abbr,
           maxPeriodsPerDay: int.tryParse(value(row, 'max_periods_per_day')),
@@ -170,6 +180,7 @@ class BulkImportService {
 
         subjects.add(SubjectImportDto(
           id: id,
+          guid: _randomGuidV4(),
           name: name,
           abbr: abbr,
           groupId: groupId.isEmpty ? null : groupId,
@@ -181,7 +192,8 @@ class BulkImportService {
         final abbr = value(row, 'abbr');
         if (id.isEmpty || name.isEmpty || abbr.isEmpty) continue;
 
-        classes.add(ClassImportDto(id: id, name: name, abbr: abbr));
+        classes.add(ClassImportDto(
+            id: id, guid: _randomGuidV4(), name: name, abbr: abbr));
       }
     }
 
@@ -199,11 +211,15 @@ class BulkImportService {
     final text = utf8.decode(bytes, allowMalformed: true);
     final rows = const CsvToListConverter(eol: '\n').convert(text);
     if (rows.isEmpty) {
-      return const BulkImportBundle(teachers: [], subjects: [], classes: [], lessons: []);
+      return const BulkImportBundle(
+          teachers: [], subjects: [], classes: [], lessons: []);
     }
 
-    final header = rows.first.map((e) => e.toString().trim().toLowerCase()).toList();
-    final idx = <String, int>{for (int i = 0; i < header.length; i++) header[i]: i};
+    final header =
+        rows.first.map((e) => e.toString().trim().toLowerCase()).toList();
+    final idx = <String, int>{
+      for (int i = 0; i < header.length; i++) header[i]: i
+    };
 
     String value(List<dynamic> row, String key) {
       final i = idx[key];
@@ -236,8 +252,8 @@ class BulkImportService {
         ...splitNames(moreTeachers),
       }.toList(growable: false);
 
-      final periodsPerWeek = int.tryParse(countRaw) ??
-          (double.tryParse(countRaw)?.toInt() ?? 1);
+      final periodsPerWeek =
+          int.tryParse(countRaw) ?? (double.tryParse(countRaw)?.toInt() ?? 1);
 
       lessons.add(
         LessonImportDto(
@@ -271,7 +287,8 @@ class BulkImportService {
     final rows = const CsvToListConverter(eol: '\n').convert(text);
     if (rows.isEmpty) return const [];
 
-    final headers = rows.first.map((e) => e.toString().trim()).toList(growable: false);
+    final headers =
+        rows.first.map((e) => e.toString().trim()).toList(growable: false);
     final out = <Map<String, String>>[];
     for (var i = 1; i < rows.length; i++) {
       final row = rows[i];
@@ -295,6 +312,41 @@ class BulkImportService {
 
   String _k(String s) => s.trim().toLowerCase();
 
+  String _randomGuidV4() {
+    final r = Random.secure();
+    final b = List<int>.generate(16, (_) => r.nextInt(256));
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    String hx(int x) => x.toRadixString(16).padLeft(2, '0');
+    final h = b.map(hx).join();
+    return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20, 32)}';
+  }
+
+  String _deterministicGuid(String entityType, String key) {
+    final normalized = '$entityType:${_k(key)}';
+    final bytes = utf8.encode(normalized);
+    var hash = 0xcbf29ce484222325;
+    const prime = 0x100000001b3;
+    for (final b in bytes) {
+      hash ^= b;
+      hash = (hash * prime) & 0xFFFFFFFFFFFFFFFF;
+    }
+    final seed = hash.toUnsigned(64);
+    final parts = <int>[];
+    var x = seed;
+    for (var i = 0; i < 16; i++) {
+      x ^= (x << 13) & 0xFFFFFFFFFFFFFFFF;
+      x ^= (x >> 7);
+      x ^= (x << 17) & 0xFFFFFFFFFFFFFFFF;
+      parts.add((x & 0xff).toInt());
+    }
+    parts[6] = (parts[6] & 0x0f) | 0x50;
+    parts[8] = (parts[8] & 0x3f) | 0x80;
+    String hx(int n) => n.toRadixString(16).padLeft(2, '0');
+    final h = parts.map(hx).join();
+    return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20, 32)}';
+  }
+
   String _req(Map<String, String> row, List<String> keys) {
     for (final key in keys) {
       final direct = row[key];
@@ -310,7 +362,8 @@ class BulkImportService {
     return '';
   }
 
-  Future<ImportReport> parseAndImportAscFiles(AppDatabase db, List<PlatformFile> files) async {
+  Future<ImportReport> parseAndImportAscFiles(
+      AppDatabase db, List<PlatformFile> files) async {
     final byName = <String, PlatformFile>{
       for (final f in files) f.name.toLowerCase(): f,
     };
@@ -328,7 +381,10 @@ class BulkImportService {
     final classesFile = findFile('classes');
     final lessonsFile = findFile('lessons') ?? findFile('contracts');
 
-    if (subjectsFile == null || teachersFile == null || classesFile == null || lessonsFile == null) {
+    if (subjectsFile == null ||
+        teachersFile == null ||
+        classesFile == null ||
+        lessonsFile == null) {
       return const ImportReport(
         successCount: 0,
         failedRows: <int>[],
@@ -338,11 +394,13 @@ class BulkImportService {
       );
     }
 
-    final subjectsRows = _parseCsvRows(await _bytesForPlatformFile(subjectsFile));
+    final subjectsRows =
+        _parseCsvRows(await _bytesForPlatformFile(subjectsFile));
     final classroomsRows = classroomsFile == null
         ? const <Map<String, String>>[]
         : _parseCsvRows(await _bytesForPlatformFile(classroomsFile));
-    final teachersRows = _parseCsvRows(await _bytesForPlatformFile(teachersFile));
+    final teachersRows =
+        _parseCsvRows(await _bytesForPlatformFile(teachersFile));
     final classesRows = _parseCsvRows(await _bytesForPlatformFile(classesFile));
     final lessonsRows = _parseCsvRows(await _bytesForPlatformFile(lessonsFile));
 
@@ -351,8 +409,11 @@ class BulkImportService {
           final name = _req(r, ['Name', 'Subject']);
           final abbr = _req(r, ['Abbreviation', 'Abbr', 'Short']);
           final id = _req(r, ['Id']);
+          final resolvedId =
+              id.isEmpty ? 'SUB_${_k(abbr.isEmpty ? name : abbr)}' : id;
           return SubjectImportDto(
-            id: id.isEmpty ? 'SUB_${_k(abbr.isEmpty ? name : abbr)}' : id,
+            id: resolvedId,
+            guid: _deterministicGuid('subject', resolvedId),
             name: name,
             abbr: abbr.isEmpty ? name : abbr,
           );
@@ -365,8 +426,11 @@ class BulkImportService {
           final name = _req(r, ['Full name', 'Teacher', 'Name']);
           final abbr = _req(r, ['Abbreviation', 'Abbr', 'Short']);
           final id = _req(r, ['Id']);
+          final resolvedId =
+              id.isEmpty ? 'TEA_${_k(abbr.isEmpty ? name : abbr)}' : id;
           return TeacherImportDto(
-            id: id.isEmpty ? 'TEA_${_k(abbr.isEmpty ? name : abbr)}' : id,
+            id: resolvedId,
+            guid: _deterministicGuid('teacher', resolvedId),
             name: name,
             abbreviation: abbr.isEmpty ? name : abbr,
           );
@@ -379,8 +443,11 @@ class BulkImportService {
           final name = _req(r, ['Name', 'Class']);
           final abbr = _req(r, ['Abbreviation', 'Abbr', 'Short']);
           final id = _req(r, ['Id']);
+          final resolvedId =
+              id.isEmpty ? 'CLS_${_k(abbr.isEmpty ? name : abbr)}' : id;
           return ClassImportDto(
-            id: id.isEmpty ? 'CLS_${_k(abbr.isEmpty ? name : abbr)}' : id,
+            id: resolvedId,
+            guid: _deterministicGuid('class', resolvedId),
             name: name,
             abbr: abbr.isEmpty ? name : abbr,
           );
@@ -396,14 +463,18 @@ class BulkImportService {
       final teacherToken = _req(r, ['Teacher']);
       final moreTeachers = _req(r, ['More teachers']);
       final countRaw = _req(r, ['Count', 'PeriodsPerWeek', 'Periods per week']);
-      final periods = int.tryParse(countRaw) ?? (double.tryParse(countRaw)?.toInt() ?? 1);
+      final periods =
+          int.tryParse(countRaw) ?? (double.tryParse(countRaw)?.toInt() ?? 1);
       if (subjectToken.isEmpty || classToken.isEmpty) continue;
       rawLessons.add(
         _AscLessonRaw(
           rowNumber: i + 2,
           subjectToken: subjectToken,
           classTokens: _splitMultiValue(classToken),
-          teacherTokens: {..._splitMultiValue(teacherToken), ..._splitMultiValue(moreTeachers)}.toList(),
+          teacherTokens: {
+            ..._splitMultiValue(teacherToken),
+            ..._splitMultiValue(moreTeachers)
+          }.toList(),
           periodsPerWeek: periods,
         ),
       );
@@ -455,7 +526,10 @@ class BulkImportService {
           for (final s in subjectRows) ...{_k(s.abbr): s.id, _k(s.name): s.id},
         };
         final teacherMap = <String, String>{
-          for (final t in teacherRows) ...{_k(t.abbreviation): t.id, _k(t.name): t.id},
+          for (final t in teacherRows) ...{
+            _k(t.abbreviation): t.id,
+            _k(t.name): t.id
+          },
         };
         final classMap = <String, String>{
           for (final c in classRows) ...{_k(c.abbr): c.id, _k(c.name): c.id},
@@ -546,6 +620,7 @@ class BulkImportService {
                 .map(
                   (s) => SubjectsCompanion.insert(
                     id: s.id,
+                    guid: Value(s.guid),
                     name: s.name,
                     abbr: s.abbr,
                     groupId: Value(s.groupId),
@@ -565,6 +640,7 @@ class BulkImportService {
                 .map(
                   (c) => ClassesCompanion.insert(
                     id: c.id,
+                    guid: Value(c.guid),
                     name: c.name,
                     abbr: c.abbr,
                   ),
@@ -582,6 +658,7 @@ class BulkImportService {
                 .map(
                   (t) => TeachersCompanion.insert(
                     id: t.id,
+                    guid: Value(t.guid),
                     name: t.name,
                     abbreviation: t.abbreviation,
                     maxPeriodsPerDay: Value(t.maxPeriodsPerDay),

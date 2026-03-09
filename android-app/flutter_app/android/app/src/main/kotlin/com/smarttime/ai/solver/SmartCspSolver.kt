@@ -41,6 +41,7 @@ class SmartCspSolver {
         val classIdx: Int = Int.MAX_VALUE,
         val teacherIdx: Int = Int.MAX_VALUE,
         val lockFlags: Byte = 0,
+        var residualPenalty: Int = 0,
     ) {
         companion object {
             const val LOCK_TIME: Byte = 0x01
@@ -112,6 +113,7 @@ class SmartCspSolver {
                 "teacher_consecutive_overload" to ConstraintWeight.NEAR_HARD.penalty,
                 "class_consecutive_overload" to ConstraintWeight.NEAR_HARD.penalty,
                 "teacher_last_period_overflow" to ConstraintWeight.HIGH_SOFT.penalty,
+                "period_load_balance" to ConstraintWeight.MED_SOFT.penalty,
             )
         }
     }
@@ -243,6 +245,7 @@ class SmartCspSolver {
         val lessonAdjacencyDegree: IntArray,
         val slotDay: IntArray,
         val slotPeriod: IntArray,
+        val periodPreferenceScores: IntArray,
         val weights: IntArray,
         val lessonIdToIndex: Map<String, Int>,
         val occStride: Int,
@@ -292,6 +295,7 @@ class SmartCspSolver {
         val lessonAssigned: BooleanArray,
         val candidateScratch: IntArray,
         val sparseSlotState: HashMap<Long, SlotRecord>,
+        val slotLoad: IntArray,
         val bestLessonAssignedSlot: IntArray,
         val bestLessonAssignedRoom: IntArray,
         val bestLessonAssignedPinned: BooleanArray,
@@ -327,6 +331,7 @@ class SmartCspSolver {
                 lessonAssigned = lessonAssigned.copyOf(),
                 candidateScratch = candidateScratch.copyOf(),
                 sparseSlotState = HashMap(sparseSlotState),
+                slotLoad = slotLoad.copyOf(),
                 bestLessonAssignedSlot = bestLessonAssignedSlot.copyOf(),
                 bestLessonAssignedRoom = bestLessonAssignedRoom.copyOf(),
                 bestLessonAssignedPinned = bestLessonAssignedPinned.copyOf(),
@@ -358,6 +363,7 @@ class SmartCspSolver {
         var totalTeacherConsecutiveOverload: Int,
         var totalClassConsecutiveOverload: Int,
         var totalTeacherLastPeriodOverflow: Int,
+        var totalPeriodLoadBalance: Int,
     ) {
         companion object {
             fun initial(model: SolverModel): IncrementalScorer {
@@ -377,6 +383,7 @@ class SmartCspSolver {
                     totalTeacherConsecutiveOverload = 0,
                     totalClassConsecutiveOverload = 0,
                     totalTeacherLastPeriodOverflow = 0,
+                    totalPeriodLoadBalance = 0,
                 )
             }
         }
@@ -398,6 +405,7 @@ class SmartCspSolver {
                 totalTeacherConsecutiveOverload = totalTeacherConsecutiveOverload,
                 totalClassConsecutiveOverload = totalClassConsecutiveOverload,
                 totalTeacherLastPeriodOverflow = totalTeacherLastPeriodOverflow,
+                totalPeriodLoadBalance = totalPeriodLoadBalance,
             )
         }
 
@@ -444,6 +452,15 @@ class SmartCspSolver {
             totalTeacherLastPeriodOverflow += teacherLastOverflow[teacher]
         }
 
+        fun refreshPeriodLoad(state: MutableState) {
+            var total = 0
+            for (slot in state.slotLoad.indices) {
+                val pref = model.periodPreferenceScores[slot % model.periodPreferenceScores.size]
+                total += state.slotLoad[slot] * pref
+            }
+            totalPeriodLoadBalance = total
+        }
+
         fun scoreWithHard(hardViolations: Int): Long {
             var softWeighted = 0L
             softWeighted += totalTeacherGap.toLong() * model.weights[W_TEACHER_GAPS]
@@ -453,6 +470,7 @@ class SmartCspSolver {
             softWeighted += totalTeacherConsecutiveOverload.toLong() * model.weights[W_TEACHER_CONSEC]
             softWeighted += totalClassConsecutiveOverload.toLong() * model.weights[W_CLASS_CONSEC]
             softWeighted += totalTeacherLastPeriodOverflow.toLong() * model.weights[W_TEACHER_LAST]
+            softWeighted += totalPeriodLoadBalance.toLong() * model.weights[W_PERIOD_LOAD]
             return -1_000_000_000L * hardViolations - softWeighted
         }
 
@@ -465,6 +483,7 @@ class SmartCspSolver {
                 SoftPenalty("teacher_consecutive_overload", totalTeacherConsecutiveOverload, model.weights[W_TEACHER_CONSEC]),
                 SoftPenalty("class_consecutive_overload", totalClassConsecutiveOverload, model.weights[W_CLASS_CONSEC]),
                 SoftPenalty("teacher_last_period_overflow", totalTeacherLastPeriodOverflow, model.weights[W_TEACHER_LAST]),
+                SoftPenalty("period_load_balance", totalPeriodLoadBalance, model.weights[W_PERIOD_LOAD]),
             )
         }
 
@@ -559,6 +578,7 @@ class SmartCspSolver {
             lessonAssigned = BooleanArray(model.lessonCount),
             candidateScratch = IntArray(model.maxCandidatesPerLesson),
             sparseSlotState = HashMap(),
+            slotLoad = IntArray(totalSlots),
             bestLessonAssignedSlot = IntArray(model.lessonCount) { -1 },
             bestLessonAssignedRoom = IntArray(model.lessonCount) { -1 },
             bestLessonAssignedPinned = BooleanArray(model.lessonCount),
@@ -1081,6 +1101,7 @@ class SmartCspSolver {
         into.scorer.totalTeacherConsecutiveOverload = from.scorer.totalTeacherConsecutiveOverload
         into.scorer.totalClassConsecutiveOverload = from.scorer.totalClassConsecutiveOverload
         into.scorer.totalTeacherLastPeriodOverflow = from.scorer.totalTeacherLastPeriodOverflow
+        into.scorer.totalPeriodLoadBalance = from.scorer.totalPeriodLoadBalance
         into.bestScore = from.bestScore
         into.bestHardCount = from.bestHardCount
         into.bestAssignedEntries = from.bestAssignedEntries
@@ -1101,8 +1122,11 @@ class SmartCspSolver {
         for (i in start until (start + count)) {
             val slot = model.candidateSlot[i]
             val room = model.candidateRoom[i]
-            if (canPlace(model, state, lessonIdx, slot, room) == null) {
+            val reason = canPlace(model, state, lessonIdx, slot, room)
+            if (reason == null) {
                 out[k++] = i
+            } else {
+                recordResidualPenalty(state, model, slot, reason)
             }
         }
         return k
@@ -1165,6 +1189,8 @@ class SmartCspSolver {
         val occStride = model.occStride
         val subjectCount = model.subjectCount
         val sparse = state.sparseSlotState
+
+        if (isStabilityLocked(state, dayIdx, periodIdx)) return "stability_lock"
 
         val teacherStart = model.lessonTeacherStart[lessonIdx]
         val teacherCount = model.lessonTeacherCount[lessonIdx]
@@ -1504,6 +1530,8 @@ class SmartCspSolver {
         val rd = occIndex(roomIdx, dayIdx, model.occStride)
         state.roomOcc[rd] = state.roomOcc[rd] or bit
         state.roomSlotLesson[roomIdx * (model.days * model.periodsPerDay) + slot] = lessonIdx
+        state.slotLoad[slot] += 1
+        state.scorer.refreshPeriodLoad(state)
         val lockFlags = if (state.lessonAssignedPinned[lessonIdx]) {
             (SlotRecord.LOCK_TIME.toInt() or SlotRecord.LOCK_CLASS.toInt() or SlotRecord.LOCK_ROOM.toInt()).toByte()
         } else 0
@@ -1569,6 +1597,8 @@ class SmartCspSolver {
         val rd = occIndex(roomIdx, dayIdx, model.occStride)
         state.roomOcc[rd] = state.roomOcc[rd] and bitInv
         state.roomSlotLesson[roomIdx * (model.days * model.periodsPerDay) + slot] = -1
+        if (state.slotLoad[slot] > 0) state.slotLoad[slot] -= 1
+        state.scorer.refreshPeriodLoad(state)
         state.sparseSlotState.remove(sparseKey(dayIdx, periodIdx, encodeResourceId(RESOURCE_ROOM, roomIdx), Int.MAX_VALUE))
     }
 
@@ -1885,6 +1915,22 @@ class SmartCspSolver {
         return rec != null && rec.lessonIdx != Int.MAX_VALUE
     }
 
+    private fun recordResidualPenalty(state: MutableState, model: SolverModel, slot: Int, reason: String?) {
+        if (reason == null) return
+        val dayIdx = model.slotDay[slot]
+        val periodIdx = model.slotPeriod[slot]
+        val k = sparseKey(dayIdx, periodIdx, encodeResourceId(RESOURCE_ROOM, 0), Int.MAX_VALUE)
+        val prev = state.sparseSlotState[k] ?: SlotRecord()
+        val nextPenalty = (prev.residualPenalty + 1).coerceAtMost(10_000)
+        state.sparseSlotState[k] = prev.copy(residualPenalty = nextPenalty)
+    }
+
+    private fun isStabilityLocked(state: MutableState, dayIdx: Int, periodIdx: Int): Boolean {
+        val k = sparseKey(dayIdx, periodIdx, encodeResourceId(RESOURCE_ROOM, 0), Int.MAX_VALUE)
+        val rec = state.sparseSlotState[k] ?: return false
+        return rec.residualPenalty >= STABILITY_LOCK_THRESHOLD
+    }
+
     private fun buildModel(
         lessonsInput: List<Lesson>,
         roomsInput: List<Room>,
@@ -2114,6 +2160,7 @@ class SmartCspSolver {
             constraints.softWeights["teacher_consecutive_overload"] ?: 1,
             constraints.softWeights["class_consecutive_overload"] ?: 1,
             constraints.softWeights["teacher_last_period_overflow"] ?: 1,
+            constraints.softWeights["period_load_balance"] ?: ConstraintWeight.MED_SOFT.penalty,
         )
 
         return SolverModel(
@@ -2158,6 +2205,7 @@ class SmartCspSolver {
             lessonAdjacencyDegree = lessonAdjacencyDegree,
             slotDay = slotDay,
             slotPeriod = slotPeriod,
+            periodPreferenceScores = PERIOD_PREFERENCE_SCORES,
             weights = weights,
             lessonIdToIndex = lessons.withIndex().associate { it.value.id to it.index },
             occStride = occStride,
@@ -2360,5 +2408,13 @@ class SmartCspSolver {
         private const val W_TEACHER_CONSEC = 4
         private const val W_CLASS_CONSEC = 5
         private const val W_TEACHER_LAST = 6
+        private const val W_PERIOD_LOAD = 7
+
+        private const val STABILITY_LOCK_THRESHOLD = 40
+
+        private val PERIOD_PREFERENCE_SCORES = intArrayOf(
+            10, 15, 20, 25, 15, 49, 47, 7, 25, 5, 15, 38, 2, 9, 13, 10, 8, 11, 12, 59,
+            10, 15, 20, 25, 15, 49, 47, 7, 25, 5, 15, 38, 2, 9, 13, 10, 8
+        )
     }
 }

@@ -1,3 +1,6 @@
+import 'dart:math';
+
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 
 import '../../core/database.dart';
@@ -43,7 +46,11 @@ class ClassItem {
 
   String get abbreviation => abbr;
 
-  ClassItem({String? id, required this.name, required this.abbr, List<ClassDivisionItem>? divisions})
+  ClassItem(
+      {String? id,
+      required this.name,
+      required this.abbr,
+      List<ClassDivisionItem>? divisions})
       : id = id ?? abbr,
         divisions = divisions ?? [];
 }
@@ -82,7 +89,8 @@ class TeacherItem {
       lastName: lastName,
       abbr: abbr,
       maxGapsPerDay: maxGapsPerDay ?? this.maxGapsPerDay,
-      maxConsecutivePeriods: maxConsecutivePeriods ?? this.maxConsecutivePeriods,
+      maxConsecutivePeriods:
+          maxConsecutivePeriods ?? this.maxConsecutivePeriods,
       timeOff: timeOff ?? this.timeOff,
     );
   }
@@ -185,6 +193,19 @@ class PlannerState extends ChangeNotifier {
 
   Future<void> addSubject(SubjectItem item) async {
     subjects.add(item);
+    final db = _db;
+    if (db != null) {
+      await db.into(db.subjects).insertOnConflictUpdate(
+            SubjectsCompanion.insert(
+              id: item.id,
+              guid: Value(_randomGuidV4()),
+              name: item.name,
+              abbr: item.abbr,
+              color: Value(item.color),
+              groupId: Value(item.relationshipGroupKey),
+            ),
+          );
+    }
     await _touch();
   }
 
@@ -193,7 +214,8 @@ class PlannerState extends ChangeNotifier {
     await _touch();
   }
 
-  void addDivision({required String classId, required String name, required String code}) {
+  void addDivision(
+      {required String classId, required String name, required String code}) {
     final d = ClassDivisionItem(classId: classId, name: name, code: code);
     divisions.add(d);
     final idx = classes.indexWhere((c) => c.id == classId);
@@ -205,6 +227,18 @@ class PlannerState extends ChangeNotifier {
 
   Future<void> addTeacher(TeacherItem item) async {
     teachers.add(item);
+    final db = _db;
+    if (db != null) {
+      await db.into(db.teachers).insertOnConflictUpdate(
+            TeachersCompanion.insert(
+              id: item.id,
+              guid: Value(_randomGuidV4()),
+              name: item.fullName,
+              abbreviation: item.abbr,
+              maxGapsPerDay: Value(item.maxGapsPerDay),
+            ),
+          );
+    }
     await _touch();
   }
 
@@ -249,7 +283,8 @@ class PlannerState extends ChangeNotifier {
     final tIds = teacherIds ?? [if (teacherId != null) teacherId];
     final cIds = classIds ?? [if (classId != null) classId];
 
-    final lessonId = "LS${lessons.length + 1}_${DateTime.now().millisecondsSinceEpoch}";
+    final lessonId =
+        "LS${lessons.length + 1}_${DateTime.now().millisecondsSinceEpoch}";
 
     lessons.add(
       LessonSpec(
@@ -285,7 +320,8 @@ class PlannerState extends ChangeNotifier {
 
     bellTimes
       ..clear()
-      ..addAll(((snap['bellTimes'] as List?) ?? const []).map((e) => e.toString()));
+      ..addAll(
+          ((snap['bellTimes'] as List?) ?? const []).map((e) => e.toString()));
 
     subjects
       ..clear()
@@ -304,7 +340,10 @@ class PlannerState extends ChangeNotifier {
       ..clear()
       ..addAll((((snap['classes'] as List?) ?? const [])).map((e) {
         final m = Map<String, dynamic>.from(e as Map);
-        return ClassItem(id: m['id']?.toString(), name: m['name']?.toString() ?? '', abbr: m['abbr']?.toString() ?? '');
+        return ClassItem(
+            id: m['id']?.toString(),
+            name: m['name']?.toString() ?? '',
+            abbr: m['abbr']?.toString() ?? '');
       }));
 
     divisions
@@ -327,7 +366,8 @@ class PlannerState extends ChangeNotifier {
       ..clear()
       ..addAll((((snap['teachers'] as List?) ?? const [])).map((e) {
         final m = Map<String, dynamic>.from(e as Map);
-        final rawOff = Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
+        final rawOff =
+            Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
         return TeacherItem(
           id: m['id']?.toString(),
           firstName: m['firstName']?.toString() ?? '',
@@ -335,7 +375,8 @@ class PlannerState extends ChangeNotifier {
           abbr: m['abbr']?.toString() ?? '',
           maxGapsPerDay: (m['maxGapsPerDay'] as num?)?.toInt(),
           maxConsecutivePeriods: (m['maxConsecutivePeriods'] as num?)?.toInt(),
-          timeOff: rawOff.map((k, v) => MapEntry(k, TimeOffState.values[(v as num).toInt()])),
+          timeOff: rawOff.map(
+              (k, v) => MapEntry(k, TimeOffState.values[(v as num).toInt()])),
         );
       }));
 
@@ -343,7 +384,10 @@ class PlannerState extends ChangeNotifier {
       ..clear()
       ..addAll((((snap['classrooms'] as List?) ?? const [])).map((e) {
         final m = Map<String, dynamic>.from(e as Map);
-        return ClassroomItem(id: m['id']?.toString(), name: m['name']?.toString() ?? '', roomType: m['roomType']?.toString() ?? 'standard');
+        return ClassroomItem(
+            id: m['id']?.toString(),
+            name: m['name']?.toString() ?? '',
+            roomType: m['roomType']?.toString() ?? 'standard');
       }));
 
     lessons
@@ -353,8 +397,12 @@ class PlannerState extends ChangeNotifier {
         return LessonSpec(
           id: m['id']?.toString() ?? "LS_hydrated",
           subjectId: m['subjectId']?.toString() ?? '',
-          teacherIds: ((m['teacherIds'] as List?) ?? const []).map((x) => x.toString()).toList(),
-          classIds: ((m['classIds'] as List?) ?? const []).map((x) => x.toString()).toList(),
+          teacherIds: ((m['teacherIds'] as List?) ?? const [])
+              .map((x) => x.toString())
+              .toList(),
+          classIds: ((m['classIds'] as List?) ?? const [])
+              .map((x) => x.toString())
+              .toList(),
           classDivisionId: m['classDivisionId']?.toString(),
           countPerWeek: (m['countPerWeek'] as num?)?.toInt() ?? 1,
           length: m['length']?.toString() ?? 'single',
@@ -386,9 +434,16 @@ class PlannerState extends ChangeNotifier {
                 'relationshipGroupKey': s.relationshipGroupKey,
               })
           .toList(),
-      'classes': classes.map((c) => {'id': c.id, 'name': c.name, 'abbr': c.abbr}).toList(),
+      'classes': classes
+          .map((c) => {'id': c.id, 'name': c.name, 'abbr': c.abbr})
+          .toList(),
       'divisions': divisions
-          .map((d) => {'id': d.id, 'classId': d.classId, 'name': d.name, 'code': d.code})
+          .map((d) => {
+                'id': d.id,
+                'classId': d.classId,
+                'name': d.name,
+                'code': d.code
+              })
           .toList(),
       'teachers': teachers
           .map((t) => {
@@ -401,7 +456,9 @@ class PlannerState extends ChangeNotifier {
                 'timeOff': t.timeOff.map((k, v) => MapEntry(k, v.index)),
               })
           .toList(),
-      'classrooms': classrooms.map((r) => {'id': r.id, 'name': r.name, 'roomType': r.roomType}).toList(),
+      'classrooms': classrooms
+          .map((r) => {'id': r.id, 'name': r.name, 'roomType': r.roomType})
+          .toList(),
       'lessons': lessons
           .map((l) => {
                 'id': l.id,
@@ -433,7 +490,15 @@ class PlannerState extends ChangeNotifier {
     await _persist();
   }
 
-
+  String _randomGuidV4() {
+    final r = Random.secure();
+    final b = List<int>.generate(16, (_) => r.nextInt(256));
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    String hx(int x) => x.toRadixString(16).padLeft(2, '0');
+    final h = b.map(hx).join();
+    return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20, 32)}';
+  }
 
   Future<void> pinLessonToSlot({
     required String lessonId,
@@ -462,12 +527,14 @@ class PlannerState extends ChangeNotifier {
     await _persist();
     notifyListeners();
   }
+
   bool get hasMinimumData =>
       subjects.isNotEmpty && classes.isNotEmpty && teachers.isNotEmpty;
 
   Map<String, dynamic> toSolverPayload() {
     final solverLessons = <Map<String, dynamic>>[];
-    final lessonClassesRows = <Map<String, dynamic>>[]; // emulates junction table writes
+    final lessonClassesRows =
+        <Map<String, dynamic>>[]; // emulates junction table writes
 
     var solverLid = 1;
     if (lessons.isNotEmpty) {

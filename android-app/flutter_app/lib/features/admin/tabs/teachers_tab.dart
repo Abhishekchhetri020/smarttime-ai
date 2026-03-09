@@ -1,6 +1,8 @@
+import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/database.dart';
 import '../planner_state.dart';
 import '../time_off_picker.dart';
 
@@ -33,9 +35,15 @@ class _TeachersTabState extends State<TeachersTab> {
     final planner = context.watch<PlannerState>();
     return ListView(
       children: [
-        TextField(controller: _first, decoration: const InputDecoration(labelText: 'First name')),
-        TextField(controller: _last, decoration: const InputDecoration(labelText: 'Last name')),
-        TextField(controller: _abbr, decoration: const InputDecoration(labelText: 'Abbreviation')),
+        TextField(
+            controller: _first,
+            decoration: const InputDecoration(labelText: 'First name')),
+        TextField(
+            controller: _last,
+            decoration: const InputDecoration(labelText: 'Last name')),
+        TextField(
+            controller: _abbr,
+            decoration: const InputDecoration(labelText: 'Abbreviation')),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -43,7 +51,10 @@ class _TeachersTabState extends State<TeachersTab> {
               child: DropdownButtonFormField<int>(
                 initialValue: _maxGaps,
                 decoration: const InputDecoration(labelText: 'Max gaps/day'),
-                items: [for (int i = 0; i <= 6; i++) DropdownMenuItem(value: i, child: Text('$i'))],
+                items: [
+                  for (int i = 0; i <= 6; i++)
+                    DropdownMenuItem(value: i, child: Text('$i'))
+                ],
                 onChanged: (v) => setState(() => _maxGaps = v ?? 2),
               ),
             ),
@@ -52,7 +63,10 @@ class _TeachersTabState extends State<TeachersTab> {
               child: DropdownButtonFormField<int>(
                 initialValue: _maxConsecutive,
                 decoration: const InputDecoration(labelText: 'Max consecutive'),
-                items: [for (int i = 1; i <= 8; i++) DropdownMenuItem(value: i, child: Text('$i'))],
+                items: [
+                  for (int i = 1; i <= 8; i++)
+                    DropdownMenuItem(value: i, child: Text('$i'))
+                ],
                 onChanged: (v) => setState(() => _maxConsecutive = v ?? 3),
               ),
             ),
@@ -74,7 +88,8 @@ class _TeachersTabState extends State<TeachersTab> {
           alignment: Alignment.centerLeft,
           child: ElevatedButton(
             onPressed: () async {
-              if (_first.text.trim().isEmpty || _abbr.text.trim().isEmpty) return;
+              if (_first.text.trim().isEmpty || _abbr.text.trim().isEmpty)
+                return;
               try {
                 await context.read<PlannerState>().addTeacher(
                       TeacherItem(
@@ -106,11 +121,34 @@ class _TeachersTabState extends State<TeachersTab> {
           ),
         ),
         const Divider(),
-        for (final t in planner.teachers)
-          ListTile(
-            title: Text('${t.firstName} ${t.lastName}'.trim()),
-            subtitle: Text('${t.abbr} • gaps:${t.maxGapsPerDay ?? '-'} • consec:${t.maxConsecutivePeriods ?? '-'} • off:${t.timeOff.length} slots'),
-          ),
+        if (planner.db != null)
+          StreamBuilder<List<TeacherRow>>(
+            stream: (planner.db!.select(planner.db!.teachers)
+                  ..orderBy([(t) => OrderingTerm.asc(t.name)]))
+                .watch(),
+            builder: (context, snap) {
+              final rows = snap.data ?? const <TeacherRow>[];
+              if (rows.isEmpty) return const SizedBox.shrink();
+              return Column(
+                children: rows
+                    .map(
+                      (t) => ListTile(
+                        title: Text(t.name),
+                        subtitle: Text(
+                            '${t.abbreviation} • gaps:${t.maxGapsPerDay ?? '-'}'),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          )
+        else
+          for (final t in planner.teachers)
+            ListTile(
+              title: Text('${t.firstName} ${t.lastName}'.trim()),
+              subtitle: Text(
+                  '${t.abbr} • gaps:${t.maxGapsPerDay ?? '-'} • consec:${t.maxConsecutivePeriods ?? '-'} • off:${t.timeOff.length} slots'),
+            ),
       ],
     );
   }
