@@ -18,6 +18,9 @@ dependencies:
   path: ^1.9.0
   pdf: ^3.11.1
   printing: ^5.13.4
+  file_picker: ^8.1.2
+  share_plus: ^10.1.2
+  csv: ^6.0.0
 
 dev_dependencies:
   flutter_test:

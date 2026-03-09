@@ -6,6 +6,7 @@ import '../timetable/engine_bridge.dart';
 import '../timetable/presentation/screens/solver_debug_screen.dart';
 import '../timetable/presentation/screens/cockpit_screen.dart';
 import '../../core/database.dart';
+import '../../core/services/export_service.dart';
 import '../timetable/data/conflict_service.dart';
 import 'planner_state.dart';
 import 'setup/setup_wizard_screen.dart';
@@ -41,6 +42,47 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _exportSchedule() async {
+    final planner = context.read<PlannerState>();
+    final db = planner.db;
+    if (db == null) {
+      setState(() => _status = 'Database unavailable.');
+      return;
+    }
+    try {
+      await ExportService().shareSmarttimeFile(db);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Exported and opened share sheet (.smarttime)')),
+        );
+      }
+      setState(() => _status = 'Export complete');
+    } catch (e) {
+      setState(() => _status = 'Export failed: $e');
+    }
+  }
+
+  Future<void> _importSchedule() async {
+    final planner = context.read<PlannerState>();
+    final db = planner.db;
+    if (db == null) {
+      setState(() => _status = 'Database unavailable.');
+      return;
+    }
+    try {
+      await ExportService().importSmarttimeFromPicker(db);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Import complete (.smarttime)')),
+        );
+      }
+      setState(() => _status = 'Import complete');
+    } catch (e) {
+      setState(() => _status = 'Import failed: $e');
+    }
   }
 
   Future<void> _generateNow() async {
@@ -116,7 +158,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         final lessonId = item['lessonId']?.toString();
         final dayIndex = item['dayIndex'] as int?;
         final periodIndex = item['periodIndex'] as int?;
-        if (lessonId == null || dayIndex == null || periodIndex == null) continue;
+        if (lessonId == null || dayIndex == null || periodIndex == null)
+          continue;
         final roomId = item['roomId']?.toString();
         cardCompanions.add(
           CardsCompanion.insert(
@@ -147,7 +190,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       );
 
       final cards = cardCompanions.length;
-      setState(() => _status = '${nativeResponse['message'] ?? nativeResponse['status'] ?? 'ok'} • cards:$cards');
+      setState(() => _status =
+          '${nativeResponse['message'] ?? nativeResponse['status'] ?? 'ok'} • cards:$cards');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -184,7 +228,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Setup Wizard', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text('Setup Wizard',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         Text(
                           planner.schoolName.isEmpty
@@ -205,7 +250,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                           appBar: AppBar(title: const Text('Setup Wizard')),
                           body: const Padding(
                             padding: EdgeInsets.all(12),
-                            child: SingleChildScrollView(child: SetupWizardScreen()),
+                            child: SingleChildScrollView(
+                                child: SetupWizardScreen()),
                           ),
                         ),
                       ),
@@ -252,10 +298,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Pre-Flight Warnings', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Pre-Flight Warnings',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     for (final w in _warnings)
-                      Text('• ${w.message}', style: const TextStyle(fontSize: 12)),
+                      Text('• ${w.message}',
+                          style: const TextStyle(fontSize: 12)),
                   ],
                 ),
               ),
@@ -267,6 +315,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 ElevatedButton(
                   onPressed: _busy ? null : _generateNow,
                   child: const Text('Generate Now'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _exportSchedule,
+                  icon: const Icon(Icons.ios_share),
+                  label: const Text('Export Schedule'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _importSchedule,
+                  icon: const Icon(Icons.file_upload),
+                  label: const Text('Import .smarttime'),
                 ),
                 OutlinedButton(
                   onPressed: () {
