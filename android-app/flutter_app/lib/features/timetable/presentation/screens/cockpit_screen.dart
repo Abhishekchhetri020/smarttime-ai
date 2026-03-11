@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/database.dart';
+import '../../data/timetable_pdf_service.dart';
 import '../../data/timetable_service.dart';
 import '../widgets/universal_timetable_grid.dart';
 
@@ -16,6 +17,7 @@ class CockpitScreen extends StatefulWidget {
 class _CockpitScreenState extends State<CockpitScreen> {
   ViewMode _mode = ViewMode.classView;
   final _service = TimetableService();
+  final _pdfService = TimetablePdfService();
 
   static const _days = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   static const _periods = <PeriodSlot>[
@@ -105,10 +107,23 @@ class _CockpitScreenState extends State<CockpitScreen> {
     };
   }
 
+  Future<void> _printMasterPdf() async {
+    await _pdfService.printCockpitMasterPdf(widget.db);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Cockpit')),
+      appBar: AppBar(
+        title: const Text('Cockpit'),
+        actions: [
+          IconButton(
+            tooltip: 'Download/Print PDF',
+            onPressed: _printMasterPdf,
+            icon: const Icon(Icons.picture_as_pdf),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
