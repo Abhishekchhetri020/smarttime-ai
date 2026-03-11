@@ -41,7 +41,6 @@ class SmartCspSolver {
         val classIdx: Int = Int.MAX_VALUE,
         val teacherIdx: Int = Int.MAX_VALUE,
         val lockFlags: Byte = 0,
-        var residualPenalty: Int = 0,
     ) {
         companion object {
             const val LOCK_TIME: Byte = 0x01
@@ -524,6 +523,7 @@ class SmartCspSolver {
     fun solve(
         lessons: List<Lesson>,
         rooms: List<Room>,
+        classes: List<SchoolClass> = emptyList(),
         constraints: ConstraintConfig = ConstraintConfig(),
         days: Int = 5,
         periodsPerDay: Int = 8,
@@ -535,7 +535,7 @@ class SmartCspSolver {
         require(periodsPerDay > 0) { "periodsPerDay must be > 0" }
         require(periodsPerDay <= 62) { "periodsPerDay must be <= 62 for Long bitmask occupancy" }
 
-        val preCheck = detectInfeasibleInput(lessons, constraints, days, periodsPerDay)
+        val preCheck = detectInfeasibleInput(lessons, classes, constraints, days, periodsPerDay)
         if (preCheck != null) {
             return SolveResult(
                 status = "INFEASIBLE_INPUT",
@@ -545,14 +545,18 @@ class SmartCspSolver {
                 diagnostics = Diagnostics(
                     solverVersion = VERSION,
                     unscheduledReasonCounts = mapOf(preCheck to 1),
-                    totals = Totals(lessonsRequested = lessons.size, assignedEntries = 0, hardViolations = 0),
+                    totals = Totals(
+                        lessonsRequested = lessons.size,
+                        assignedEntries = 0,
+                        hardViolations = 0,
+                    ),
                     search = SearchStats(0, 0, 0),
                 ),
                 score = Long.MIN_VALUE,
             )
         }
 
-        val model = buildModel(lessons, rooms, constraints, days, periodsPerDay)
+        val model = buildModel(lessons, rooms, classes, constraints, days, periodsPerDay)
         val deadlineNanos = System.nanoTime() + timeoutMs.coerceAtLeast(1L) * 1_000_000L
         val totalSlots = model.days * model.periodsPerDay
 
@@ -599,11 +603,26 @@ class SmartCspSolver {
         for (pin in pinned.sortedBy { it.lessonId }) {
             val lessonIdx = model.lessonIdToIndex[pin.lessonId] ?: continue
             val slot = slotIndex(pin.day - 1, pin.period - 1, periodsPerDay)
-            if (slot < 0 || slot >= days * periodsPerDay) continue
+            if (slot !in 0 until (days * periodsPerDay)) continue
             val roomIdx = model.roomIds.indexOf(pin.roomId).takeIf { it >= 0 } ?: continue
-            if (canPlace(model, baseState, lessonIdx, slot, roomIdx) == null) {
-                applyPlacement(model, baseState, lessonIdx, slot, roomIdx, depth = 0, pinned = true, undoStack = null)
-                removeFromUnassigned(unassigned, unassignedCount, lessonIdx).also { unassignedCount = it }
+
+            val failure = canPlace(model, baseState, lessonIdx, slot, roomIdx)
+            if (failure == null) {
+                applyPlacement(model, baseState, lessonIdx, slot, roomIdx, 0, true, null)
+                unassignedCount = removeFromUnassigned(unassigned, unassignedCount, lessonIdx)
+            } else {
+                val reason = "pinned_$failure"
+                hardViolations += HardViolation(
+                    type = "pinned_placement_failure",
+                    lessonId = model.lessons[lessonIdx].id,
+                    classId = model.lessons[lessonIdx].primaryClassId,
+                    teacherId = model.lessons[lessonIdx].primaryTeacherId,
+                    subjectId = model.lessons[lessonIdx].subjectId,
+                    reason = reason,
+                    attemptedSlots = 1,
+                )
+                unscheduledReasons[reason] = (unscheduledReasons[reason] ?: 0) + 1
+                unassignedCount = removeFromUnassigned(unassigned, unassignedCount, lessonIdx)
             }
         }
 
@@ -618,7 +637,7 @@ class SmartCspSolver {
             }
         }
         for (lessonIdx in removable) {
-            removeFromUnassigned(unassigned, unassignedCount, lessonIdx).also { unassignedCount = it }
+            unassignedCount = removeFromUnassigned(unassigned, unassignedCount, lessonIdx)
         }
 
         val globalStats = SearchStatsMutable()
@@ -631,23 +650,11 @@ class SmartCspSolver {
                 val reason = dominantFailureReason(model, baseState, rootLesson)
                 hardViolations += hardViolationFromLesson(model, rootLesson, reason)
                 unscheduledReasons[reason] = (unscheduledReasons[reason] ?: 0) + 1
-                removeFromUnassigned(unassigned, unassignedCount, rootLesson).also { unassignedCount = it }
+                unassignedCount = removeFromUnassigned(unassigned, unassignedCount, rootLesson)
+
                 val stats = SearchStatsMutable()
                 val undoStack = ArrayDeque<UndoRecord>()
-                backtrack(
-                    model = model,
-                    state = baseState,
-                    unassigned = unassigned.copyOf(),
-                    unassignedCount = unassignedCount,
-                    hardViolations = hardViolations.toMutableList(),
-                    unscheduledReasons = unscheduledReasons.toMutableMap(),
-                    stats = stats,
-                    progressCallback = progressCallback,
-                    deadlineNanos = deadlineNanos,
-                    branchSeed = 3_001L,
-                    depth = 1,
-                    undoStack = undoStack,
-                )
+                backtrack(model, baseState, unassigned.copyOf(), unassignedCount, hardViolations.toMutableList(), unscheduledReasons.toMutableMap(), stats, progressCallback, deadlineNanos, 3_001L, 1, undoStack)
                 globalStats.merge(stats)
             } else {
                 val branches = 4
@@ -675,37 +682,16 @@ class SmartCspSolver {
                                 val slot = model.candidateSlot[candidate]
                                 val room = model.candidateRoom[candidate]
                                 if (canPlace(model, state, rootLesson, slot, room) != null) continue
-
                                 val mark = beginUndoMark(undoStack)
-                                applyPlacement(model, state, rootLesson, slot, room, depth = 1, pinned = false, undoStack = undoStack)
+                                applyPlacement(model, state, rootLesson, slot, room, 1, false, undoStack)
                                 branchCount = removeFromUnassigned(branchUnassigned, branchCount, rootLesson)
-
-                                val jumpDepth = backtrack(
-                                    model = model,
-                                    state = state,
-                                    unassigned = branchUnassigned,
-                                    unassignedCount = branchCount,
-                                    hardViolations = branchHard,
-                                    unscheduledReasons = branchReasons,
-                                    stats = branchStats,
-                                    progressCallback = progressCallback,
-                                    deadlineNanos = deadlineNanos,
-                                    branchSeed = branchSeed,
-                                    depth = 1,
-                                    undoStack = undoStack,
-                                )
-
+                                val jumpDepth = backtrack(model, state, branchUnassigned, branchCount, branchHard, branchReasons, branchStats, progressCallback, deadlineNanos, branchSeed, 1, undoStack)
                                 branchCount = addToUnassigned(branchUnassigned, branchCount, rootLesson)
                                 undoToMark(model, state, undoStack, mark)
                                 if (jumpDepth < 1 || branchStats.timedOut) break
                             }
 
-                            BranchResult(
-                                state = state,
-                                hardViolations = branchHard.toList(),
-                                unscheduledReasons = branchReasons.toMap(),
-                                stats = branchStats,
-                            )
+                            BranchResult(state, branchHard.toList(), branchReasons.toMap(), branchStats)
                         }
                     }.awaitAll()
                 }
@@ -743,8 +729,10 @@ class SmartCspSolver {
         }
 
         val finalAssignments = buildAssignmentsFromState(model, baseState, useBest = true)
+        val strictViolations = validateBestSnapshot(model, baseState)
+        val baseHardViolations = baseState.bestHardViolations.ifEmpty { hardViolations.toList() }
+        val finalHardViolations = (baseHardViolations + strictViolations).distinct()
         val finalPenalties = baseState.scorer.toBreakdown()
-        val finalHardViolations = baseState.bestHardViolations.ifEmpty { hardViolations.toList() }
         val finalScore = scoreResult(finalHardViolations.size, finalPenalties)
 
         val status = when {
@@ -776,7 +764,6 @@ class SmartCspSolver {
             score = finalScore,
         )
     }
-
     fun runBenchmark(
         teacherCount: Int = 200,
         classCount: Int = 50,
@@ -1128,7 +1115,6 @@ class SmartCspSolver {
                 out[k++] = i
             } else {
                 if (firstReason == null) firstReason = reason
-                recordResidualPenalty(state, model, slot, reason)
             }
         }
         if (k == 0 && firstReason != null) {
@@ -1194,8 +1180,6 @@ class SmartCspSolver {
         val occStride = model.occStride
         val subjectCount = model.subjectCount
         val sparse = state.sparseSlotState
-
-        if (isStabilityLocked(state, dayIdx, periodIdx)) return "stability_lock"
 
         val teacherStart = model.lessonTeacherStart[lessonIdx]
         val teacherCount = model.lessonTeacherCount[lessonIdx]
@@ -1317,10 +1301,9 @@ class SmartCspSolver {
         }
 
         val rd = occIndex(roomIdx, dayIdx, model.occStride)
-        if (!shouldBypassRoomConflictForSoftSeed(model, state)) {
-            if (hasSparseRoomConflict(state, dayIdx, periodIdx, roomIdx)) return "room_conflict"
-            if ((state.roomOcc[rd] and bit) != 0L) return "room_conflict"
-        }
+        if ((model.roomAvailabilityMask[rd] and bit) == 0L) return "room_unavailable"
+        if (hasSparseRoomConflict(state, dayIdx, periodIdx, roomIdx)) return "room_conflict"
+        if ((state.roomOcc[rd] and bit) != 0L) return "room_conflict"
 
         if (model.lessonLabDouble[lessonIdx] == 1) {
             if (periodIdx + 1 >= model.periodsPerDay) return "lab_double_out_of_bounds"
@@ -1460,10 +1443,9 @@ class SmartCspSolver {
         }
 
         val rd = occIndex(roomIdx, dayIdx, model.occStride)
-        if (!shouldBypassRoomConflictForSoftSeed(model, state)) {
-            if (hasSparseRoomConflict(state, dayIdx, periodIdx, roomIdx)) return "room_conflict"
-            if ((state.roomOcc[rd] and bit) != 0L) return "room_conflict"
-        }
+        if ((model.roomAvailabilityMask[rd] and bit) == 0L) return "room_unavailable"
+        if (hasSparseRoomConflict(state, dayIdx, periodIdx, roomIdx)) return "room_conflict"
+        if ((state.roomOcc[rd] and bit) != 0L) return "room_conflict"
 
         return null
     }
@@ -1786,6 +1768,56 @@ class SmartCspSolver {
         return (packed and 0xffffffffL).toInt()
     }
 
+    private fun validateBestSnapshot(model: SolverModel, state: MutableState): List<HardViolation> {
+        val violations = mutableListOf<HardViolation>()
+        val teacherSeen = HashSet<Pair<Int, Int>>()
+        val classSeen = HashSet<Pair<Int, Int>>()
+        val roomSeen = HashSet<Pair<Int, Int>>()
+        for (lessonIdx in 0 until model.lessonCount) {
+            if (!state.bestLessonAssigned[lessonIdx]) continue
+            val slot = state.bestLessonAssignedSlot[lessonIdx]
+            val roomIdx = state.bestLessonAssignedRoom[lessonIdx]
+            if (slot < 0 || roomIdx < 0) {
+                violations += HardViolation("invalid_final_state", model.lessons[lessonIdx].id, model.lessons[lessonIdx].primaryClassId, model.lessons[lessonIdx].primaryTeacherId, model.lessons[lessonIdx].subjectId, "assigned_lesson_missing_slot_or_room", model.lessonAttemptSlots[lessonIdx])
+                continue
+            }
+            if (model.fixedSlot[lessonIdx] >= 0 && slot != model.fixedSlot[lessonIdx]) {
+                violations += HardViolation("invalid_final_state", model.lessons[lessonIdx].id, model.lessons[lessonIdx].primaryClassId, model.lessons[lessonIdx].primaryTeacherId, model.lessons[lessonIdx].subjectId, "fixed_slot_violation", model.lessonAttemptSlots[lessonIdx])
+            }
+            val span = if (model.lessonLabDouble[lessonIdx] == 1) 2 else 1
+            if (span == 2 && model.slotPeriod[slot] + 1 >= model.periodsPerDay) {
+                violations += HardViolation("invalid_final_state", model.lessons[lessonIdx].id, model.lessons[lessonIdx].primaryClassId, model.lessons[lessonIdx].primaryTeacherId, model.lessons[lessonIdx].subjectId, "lab_double_out_of_bounds", model.lessonAttemptSlots[lessonIdx])
+                continue
+            }
+            for (offset in 0 until span) {
+                val actualSlot = slot + offset
+                val dayIdx = model.slotDay[actualSlot]
+                val periodIdx = model.slotPeriod[actualSlot]
+                val bit = 1L shl periodIdx
+                val roomOccIdx = occIndex(roomIdx, dayIdx, model.occStride)
+                if ((model.roomAvailabilityMask[roomOccIdx] and bit) == 0L) violations += HardViolation("invalid_final_state", model.lessons[lessonIdx].id, model.lessons[lessonIdx].primaryClassId, model.lessons[lessonIdx].primaryTeacherId, model.lessons[lessonIdx].subjectId, "room_unavailable", model.lessonAttemptSlots[lessonIdx])
+                if (!roomSeen.add(roomIdx to actualSlot)) violations += HardViolation("invalid_final_state", model.lessons[lessonIdx].id, model.lessons[lessonIdx].primaryClassId, model.lessons[lessonIdx].primaryTeacherId, model.lessons[lessonIdx].subjectId, "room_conflict", model.lessonAttemptSlots[lessonIdx])
+                val teacherStart = model.lessonTeacherStart[lessonIdx]
+                val teacherCount = model.lessonTeacherCount[lessonIdx]
+                for (i in 0 until teacherCount) {
+                    val teacher = model.lessonTeacherFlat[teacherStart + i]
+                    val td = occIndex(teacher, dayIdx, model.occStride)
+                    if ((model.teacherAvailabilityMask[td] and bit) == 0L) violations += HardViolation("invalid_final_state", model.lessons[lessonIdx].id, model.lessons[lessonIdx].primaryClassId, model.lessons[lessonIdx].primaryTeacherId, model.lessons[lessonIdx].subjectId, "teacher_unavailable", model.lessonAttemptSlots[lessonIdx])
+                    if (!teacherSeen.add(teacher to actualSlot)) violations += HardViolation("invalid_final_state", model.lessons[lessonIdx].id, model.lessons[lessonIdx].primaryClassId, model.lessons[lessonIdx].primaryTeacherId, model.lessons[lessonIdx].subjectId, "teacher_conflict", model.lessonAttemptSlots[lessonIdx])
+                }
+                val classStart = model.lessonClassStart[lessonIdx]
+                val classCount = model.lessonClassCount[lessonIdx]
+                for (i in 0 until classCount) {
+                    val classId = model.lessonClassFlat[classStart + i]
+                    val cd = occIndex(classId, dayIdx, model.occStride)
+                    if ((model.classAvailabilityMask[cd] and bit) == 0L) violations += HardViolation("invalid_final_state", model.lessons[lessonIdx].id, model.classIds[classId], model.lessons[lessonIdx].primaryTeacherId, model.lessons[lessonIdx].subjectId, "class_unavailable", model.lessonAttemptSlots[lessonIdx])
+                    if (!classSeen.add(classId to actualSlot)) violations += HardViolation("invalid_final_state", model.lessons[lessonIdx].id, model.classIds[classId], model.lessons[lessonIdx].primaryTeacherId, model.lessons[lessonIdx].subjectId, "class_conflict", model.lessonAttemptSlots[lessonIdx])
+                }
+            }
+        }
+        return violations.distinct()
+    }
+
     private fun failureReasonId(reason: String): Int {
         return when (reason) {
             "teacher_conflict" -> FAILURE_TEACHER_CONFLICT
@@ -1924,333 +1956,22 @@ class SmartCspSolver {
         return rec != null && rec.lessonIdx != Int.MAX_VALUE
     }
 
-    private fun shouldBypassRoomConflictForSoftSeed(model: SolverModel, state: MutableState): Boolean {
-        val target = max(1, model.lessonCount / 5)
-        return state.assignedLessonCount < target
-    }
-
-    private fun recordResidualPenalty(state: MutableState, model: SolverModel, slot: Int, reason: String?) {
-        if (reason == null) return
-        val dayIdx = model.slotDay[slot]
-        val periodIdx = model.slotPeriod[slot]
-        val k = sparseKey(dayIdx, periodIdx, encodeResourceId(RESOURCE_ROOM, 0), Int.MAX_VALUE)
-        val prev = state.sparseSlotState[k] ?: SlotRecord()
-        val nextPenalty = (prev.residualPenalty + 1).coerceAtMost(10_000)
-        state.sparseSlotState[k] = prev.copy(residualPenalty = nextPenalty)
-    }
-
-    private fun isStabilityLocked(state: MutableState, dayIdx: Int, periodIdx: Int): Boolean {
-        val k = sparseKey(dayIdx, periodIdx, encodeResourceId(RESOURCE_ROOM, 0), Int.MAX_VALUE)
-        val rec = state.sparseSlotState[k] ?: return false
-        return rec.residualPenalty >= STABILITY_LOCK_THRESHOLD
-    }
-
     private fun buildModel(
         lessonsInput: List<Lesson>,
         roomsInput: List<Room>,
+        classesInput: List<SchoolClass>,
         constraints: ConstraintConfig,
         days: Int,
         periodsPerDay: Int,
     ): SolverModel {
-        val lessons = lessonsInput.sortedBy { it.id }
-
-        val teacherSet = linkedSetOf<String>()
-        val classSet = linkedSetOf<String>()
-        val subjectSet = linkedSetOf<String>()
-        val roomSet = linkedSetOf<String>()
-
-        lessons.forEach {
-            teacherSet.addAll(it.teacherIds)
-            classSet.addAll(it.classIds)
-            subjectSet.add(it.subjectId)
-        }
-
-        val roomsResolved = if (roomsInput.isEmpty()) {
-            lessons.flatMap { lesson ->
-                val synthetic = lesson.preferredRoomId ?: "room_${lesson.primaryClassId}"
-                listOf(Room(synthetic, lesson.requiredRoomType ?: "classroom"))
-            }.distinctBy { it.id }
-        } else {
-            roomsInput.sortedBy { it.id }
-        }
-
-        roomsResolved.forEach { roomSet += it.id }
-
-        val teacherIds = teacherSet.sorted()
-        val classIds = classSet.sorted()
-        val roomIds = roomSet.sorted()
-        val subjectIds = subjectSet.sorted()
-
-        val teacherIndex = teacherIds.withIndex().associate { it.value to it.index }
-        val classIndex = classIds.withIndex().associate { it.value to it.index }
-        val roomIndex = roomIds.withIndex().associate { it.value to it.index }
-        val subjectIndex = subjectIds.withIndex().associate { it.value to it.index }
-
-        val lessonCount = lessons.size
-
-        val lessonClassStart = IntArray(lessonCount)
-        val lessonClassCount = IntArray(lessonCount)
-        val lessonTeacherStart = IntArray(lessonCount)
-        val lessonTeacherCount = IntArray(lessonCount)
-        val lessonSubject = IntArray(lessonCount)
-        val lessonLabDouble = IntArray(lessonCount)
-        val lessonAttemptSlots = IntArray(lessonCount)
-        val lessonPinned = BooleanArray(lessonCount)
-        val fixedSlot = IntArray(lessonCount) { -1 }
-
-        val classFlat = ArrayList<Int>()
-        val teacherFlat = ArrayList<Int>()
-
-        for (i in lessons.indices) {
-            val lesson = lessons[i]
-            lessonClassStart[i] = classFlat.size
-            lessonClassCount[i] = lesson.classIds.size
-            lesson.classIds.forEach { classFlat += (classIndex[it] ?: 0) }
-
-            lessonTeacherStart[i] = teacherFlat.size
-            lessonTeacherCount[i] = lesson.teacherIds.size
-            lesson.teacherIds.forEach { teacherFlat += (teacherIndex[it] ?: 0) }
-
-            lessonSubject[i] = subjectIndex[lesson.subjectId] ?: 0
-            lessonLabDouble[i] = if (lesson.isLabDouble) 1 else 0
-
-            val forced = constraints.fixedPeriods[lesson.id]
-            val fixedDay = forced?.day ?: lesson.fixedDay
-            val fixedPeriod = forced?.period ?: lesson.fixedPeriod
-            if (fixedDay != null && fixedPeriod != null) {
-                val d = fixedDay - 1
-                val p = fixedPeriod - 1
-                if (d in 0 until days && p in 0 until periodsPerDay) {
-                    fixedSlot[i] = slotIndex(d, p, periodsPerDay)
-                    lessonPinned[i] = true
-                }
-            }
-        }
-
-        val lessonClassFlat = classFlat.toIntArray()
-        val lessonTeacherFlat = teacherFlat.toIntArray()
-
-        val roomById = roomsResolved.associateBy { it.id }
-        val lessonCandidateStart = IntArray(lessonCount)
-        val lessonCandidateCount = IntArray(lessonCount)
-        val candidateSlot = ArrayList<Int>()
-        val candidateRoom = ArrayList<Int>()
-
-        for (i in lessons.indices) {
-            val lesson = lessons[i]
-            val roomCandidates = resolveRoomCandidates(lesson, roomById, roomIndex)
-            lessonCandidateStart[i] = candidateSlot.size
-
-            if (roomCandidates.isNotEmpty()) {
-                val slots = if (fixedSlot[i] >= 0) intArrayOf(fixedSlot[i]) else IntArray(days * periodsPerDay) { it }
-                for (slot in slots) {
-                    val p = slot % periodsPerDay
-                    if (lesson.isLabDouble && p + 1 >= periodsPerDay) continue
-                    for (room in roomCandidates) {
-                        candidateSlot += slot
-                        candidateRoom += room
-                    }
-                }
-            }
-
-            val start = lessonCandidateStart[i]
-            lessonCandidateCount[i] = candidateSlot.size - start
-            lessonAttemptSlots[i] = lessonCandidateCount[i]
-        }
-        var maxCandidatesPerLesson = 0
-        for (i in 0 until lessonCount) {
-            val count = lessonCandidateCount[i]
-            if (count > maxCandidatesPerLesson) maxCandidatesPerLesson = count
-        }
-
-        val occStride = alignedDayStride(days)
-        val teacherAvailabilityMask = LongArray(teacherIds.size * occStride)
-        val fullDayMask = dayMask(periodsPerDay)
-        for (teacher in teacherIds.indices) {
-            val base = teacher * occStride
-            for (day in 0 until days) {
-                teacherAvailabilityMask[base + day] = fullDayMask
-            }
-        }
-        constraints.teacherAvailability.forEach { (teacher, slots) ->
-            val teacherIdx = teacherIndex[teacher] ?: return@forEach
-            for (day in 0 until days) {
-                teacherAvailabilityMask[occIndex(teacherIdx, day, occStride)] = 0L
-            }
-            slots.forEach { key ->
-                val day = key.day - 1
-                val period = key.period - 1
-                if (day in 0 until days && period in 0 until periodsPerDay) {
-                    val idx = occIndex(teacherIdx, day, occStride)
-                    teacherAvailabilityMask[idx] = teacherAvailabilityMask[idx] or (1L shl period)
-                }
-            }
-        }
-        val classAvailabilityMask = LongArray(classIds.size * occStride)
-        val roomAvailabilityMask = LongArray(roomIds.size * occStride)
-        for (classIdx in classIds.indices) {
-            val base = classIdx * occStride
-            for (day in 0 until days) {
-                classAvailabilityMask[base + day] = fullDayMask
-            }
-        }
-        for (roomIdx in roomIds.indices) {
-            val base = roomIdx * occStride
-            for (day in 0 until days) {
-                roomAvailabilityMask[base + day] = fullDayMask
-            }
-        }
-
-        val teacherMaxPeriodsPerDay = IntArray(teacherIds.size) { -1 }
-        constraints.teacherMaxPeriodsPerDay.forEach { (teacher, value) ->
-            val idx = teacherIndex[teacher] ?: return@forEach
-            teacherMaxPeriodsPerDay[idx] = value
-        }
-
-        val classMaxPeriodsPerDay = IntArray(classIds.size) { -1 }
-        constraints.classMaxPeriodsPerDay.forEach { (classId, value) ->
-            val idx = classIndex[classId] ?: return@forEach
-            classMaxPeriodsPerDay[idx] = value
-        }
-
-        val subjectDailyLimit = IntArray(classIds.size * subjectIds.size * days) { -1 }
-        constraints.subjectDailyLimit.forEach { (key, value) ->
-            val parts = key.split(":")
-            if (parts.size != 2) return@forEach
-            val classIdx = classIndex[parts[0]] ?: return@forEach
-            val subjectIdx = subjectIndex[parts[1]] ?: return@forEach
-            for (day in 0 until days) {
-                subjectDailyLimit[((classIdx * subjectIds.size) + subjectIdx) * days + day] = value
-            }
-        }
-
-        val teacherMaxConsecutive = IntArray(teacherIds.size) { -1 }
-        constraints.teacherMaxConsecutivePeriods.forEach { (teacher, value) ->
-            val idx = teacherIndex[teacher] ?: return@forEach
-            teacherMaxConsecutive[idx] = value
-        }
-
-        val classMaxConsecutive = IntArray(classIds.size) { -1 }
-        constraints.classMaxConsecutivePeriods.forEach { (classId, value) ->
-            val idx = classIndex[classId] ?: return@forEach
-            classMaxConsecutive[idx] = value
-        }
-
-        val teacherNoLastPeriodCap = IntArray(teacherIds.size) { -1 }
-        constraints.teacherNoLastPeriodMaxPerWeek.forEach { (teacher, value) ->
-            val idx = teacherIndex[teacher] ?: return@forEach
-            teacherNoLastPeriodCap[idx] = value
-        }
-
-        val lessonAdjacencyDegree = IntArray(lessonCount)
-        for (i in 0 until lessonCount) {
-            var d = 0
-            for (j in 0 until lessonCount) {
-                if (i == j) continue
-                if (overlapsTeachers(i, j, lessonTeacherStart, lessonTeacherCount, lessonTeacherFlat) ||
-                    overlapsClasses(i, j, lessonClassStart, lessonClassCount, lessonClassFlat)
-                ) {
-                    d += 1
-                }
-            }
-            lessonAdjacencyDegree[i] = d
-        }
-
-        val slotDay = IntArray(days * periodsPerDay)
-        val slotPeriod = IntArray(days * periodsPerDay)
-        for (d in 0 until days) {
-            for (p in 0 until periodsPerDay) {
-                val s = slotIndex(d, p, periodsPerDay)
-                slotDay[s] = d
-                slotPeriod[s] = p
-            }
-        }
-
-        val weights = intArrayOf(
-            constraints.softWeights["teacher_gaps"] ?: 1,
-            constraints.softWeights["class_gaps"] ?: 1,
-            constraints.softWeights["subject_distribution"] ?: 1,
-            constraints.softWeights["teacher_room_stability"] ?: 1,
-            constraints.softWeights["teacher_consecutive_overload"] ?: 1,
-            constraints.softWeights["class_consecutive_overload"] ?: 1,
-            constraints.softWeights["teacher_last_period_overflow"] ?: 1,
-            constraints.softWeights["period_load_balance"] ?: ConstraintWeight.MED_SOFT.penalty,
-        )
-
-        return SolverModel(
-            lessons = lessons,
-            rooms = roomsResolved,
-            constraints = constraints,
-            days = days,
-            periodsPerDay = periodsPerDay,
-            lessonCount = lessonCount,
-            teacherCount = teacherIds.size,
-            classCount = classIds.size,
-            roomCount = roomIds.size,
-            subjectCount = subjectIds.size,
-            teacherIds = teacherIds,
-            classIds = classIds,
-            roomIds = roomIds,
-            subjectIds = subjectIds,
-            lessonClassStart = lessonClassStart,
-            lessonClassCount = lessonClassCount,
-            lessonTeacherStart = lessonTeacherStart,
-            lessonTeacherCount = lessonTeacherCount,
-            lessonClassFlat = lessonClassFlat,
-            lessonTeacherFlat = lessonTeacherFlat,
-            lessonSubject = lessonSubject,
-            lessonLabDouble = lessonLabDouble,
-            lessonAttemptSlots = lessonAttemptSlots,
-            lessonPinned = lessonPinned,
-            fixedSlot = fixedSlot,
-            lessonCandidateStart = lessonCandidateStart,
-            lessonCandidateCount = lessonCandidateCount,
-            candidateSlot = candidateSlot.toIntArray(),
-            candidateRoom = candidateRoom.toIntArray(),
-            teacherAvailabilityMask = teacherAvailabilityMask,
-            classAvailabilityMask = classAvailabilityMask,
-            roomAvailabilityMask = roomAvailabilityMask,
-            teacherMaxPeriodsPerDay = teacherMaxPeriodsPerDay,
-            classMaxPeriodsPerDay = classMaxPeriodsPerDay,
-            subjectDailyLimit = subjectDailyLimit,
-            teacherMaxConsecutive = teacherMaxConsecutive,
-            classMaxConsecutive = classMaxConsecutive,
-            teacherNoLastPeriodCap = teacherNoLastPeriodCap,
-            lessonAdjacencyDegree = lessonAdjacencyDegree,
-            slotDay = slotDay,
-            slotPeriod = slotPeriod,
-            periodPreferenceScores = PERIOD_PREFERENCE_SCORES,
-            weights = weights,
-            lessonIdToIndex = lessons.withIndex().associate { it.value.id to it.index },
-            occStride = occStride,
-            maxCandidatesPerLesson = maxCandidatesPerLesson,
-        )
-    }
-
-    private fun resolveRoomCandidates(
-        lesson: Lesson,
-        roomById: Map<String, Room>,
-        roomIndex: Map<String, Int>,
-    ): IntArray {
-        lesson.preferredRoomId?.let { preferred ->
-            return roomIndex[preferred]?.let { intArrayOf(it) } ?: IntArray(0)
-        }
-
-        lesson.requiredRoomType?.let { req ->
-            val matches = roomById.values.filter { it.roomType == req }.mapNotNull { roomIndex[it.id] }
-            return matches.sorted().toIntArray()
-        }
-
-        return roomById.keys.mapNotNull { roomIndex[it] }.sorted().toIntArray()
-    }
-
     private fun detectInfeasibleInput(
         lessons: List<Lesson>,
+        classes: List<SchoolClass>,
         constraints: ConstraintConfig,
         days: Int,
         periodsPerDay: Int,
     ): String? {
-        val capacityPerClass = days * periodsPerDay
+        val defaultCapacityPerClass = days * periodsPerDay
         val classDemand = mutableMapOf<String, Int>()
         for (lesson in lessons) {
             val demand = if (lesson.isLabDouble) 2 else 1
@@ -2258,53 +1979,22 @@ class SmartCspSolver {
                 classDemand[classId] = (classDemand[classId] ?: 0) + demand
             }
         }
-        if (classDemand.any { it.value > capacityPerClass }) return "capacity_exceeded"
 
-        for ((teacherId, slots) in constraints.teacherAvailability) {
-            val teacherDemand = lessons
-                .filter { it.teacherIds.contains(teacherId) }
-                .sumOf { if (it.isLabDouble) 2 else 1 }
-            if (teacherDemand > slots.size) return "teacher_availability_insufficient"
+        val classAvailabilityById = classes.associateBy { it.id }
+        for ((classId, demand) in classDemand) {
+            val mask = classAvailabilityById[classId]?.availabilityMask
+            val capacity = if (mask != null) java.lang.Long.bitCount(mask) * days else defaultCapacityPerClass
+            if (demand > capacity) return "capacity_exceeded"
         }
 
+        for ((teacherId, slots) in constraints.teacherAvailability) {
+            val teacherDemand = lessons.filter { it.teacherIds.contains(teacherId) }.sumOf { if (it.isLabDouble) 2 else 1 }
+            if (teacherDemand > slots.size) return "teacher_availability_insufficient"
+        }
         return null
     }
 
-    private fun scoreResult(hardViolations: Int, penalties: List<SoftPenalty>): Long {
-        var soft = 0L
-        for (i in penalties.indices) {
-            val penalty = penalties[i]
-            soft += penalty.penalty.toLong() * penalty.weight.toLong()
-        }
-        return -1_000_000_000L * hardViolations - soft
-    }
-
-    /**
-     * Day-aligned occupancy index used by teacher/class/room `LongArray` masks:
-     *   rowBase = entityIndex * stride
-     *   idx = rowBase + dayIdx
-     * `stride` may include cache-line padding (`alignedDayStride`) so each
-     * entity-day segment maps to machine-word aligned storage.
-     */
-    private fun occIndex(entityIndex: Int, dayIdx: Int, stride: Int): Int {
-        return entityIndex * stride + dayIdx
-    }
-
-    /**
-     * Cache-line aligned stride: 8 Longs = 64 bytes per row chunk.
-     * Padding reduces cache-line splits during day-level occupancy reads.
-     */
-    private fun alignedDayStride(days: Int): Int {
-        val wordsPerCacheLine = 8
-        val remainder = days % wordsPerCacheLine
-        return if (remainder == 0) days else days + (wordsPerCacheLine - remainder)
-    }
-
-    private fun dayMask(periodsPerDay: Int): Long {
-        return if (periodsPerDay == 64) -1L else (1L shl periodsPerDay) - 1L
-    }
-
-    private fun slotIndex(dayIdx: Int, periodIdx: Int, periodsPerDay: Int): Int {
+    private fun slotIndex(    private fun slotIndex(dayIdx: Int, periodIdx: Int, periodsPerDay: Int): Int {
         return dayIdx * periodsPerDay + periodIdx
     }
 
@@ -2393,7 +2083,7 @@ class SmartCspSolver {
     }
 
     companion object {
-        const val VERSION = "kotlin-csp-2.0.0"
+        const val VERSION = "kotlin-csp-2.1.0"
         private const val RESOURCE_TEACHER = 1
         private const val RESOURCE_CLASS = 2
         private const val RESOURCE_ROOM = 3
@@ -2424,7 +2114,6 @@ class SmartCspSolver {
         private const val W_TEACHER_LAST = 6
         private const val W_PERIOD_LOAD = 7
 
-        private const val STABILITY_LOCK_THRESHOLD = 40
 
         private val PERIOD_PREFERENCE_SCORES = intArrayOf(
             10, 15, 20, 25, 15, 49, 47, 7, 25, 5, 15, 38, 2, 9, 13, 10, 8, 11, 12, 59,
