@@ -9,19 +9,22 @@ class PeriodSlot {
   final String label;
   final bool isBreak;
 
-  const PeriodSlot({required this.id, required this.label, this.isBreak = false});
+  const PeriodSlot(
+      {required this.id, required this.label, this.isBreak = false});
 }
 
 /// One cell payload after view-mode pivoting.
 ///
 /// Keep this UI model decoupled from Drift entities.
 class TimetableCellData {
+  final String id;
   final String primary; // subject
   final String secondary; // teacher/class abbreviation
   final String? tertiary; // room
   final Color? accent;
 
   const TimetableCellData({
+    required this.id,
     required this.primary,
     required this.secondary,
     this.tertiary,
@@ -36,6 +39,7 @@ class UniversalTimetableGrid extends StatelessWidget {
     required this.rowLabels,
     required this.periods,
     required this.cells,
+    this.onMoveCell,
   });
 
   final ViewMode viewMode;
@@ -44,6 +48,7 @@ class UniversalTimetableGrid extends StatelessWidget {
 
   /// Key format: `rowIndex|periodIndex`
   final Map<String, TimetableCellData> cells;
+  final Future<String?> Function(String lessonId, int row, int col)? onMoveCell;
 
   static const double _headerH = 42;
   static const double _rowLabelW = 86;
@@ -55,7 +60,8 @@ class UniversalTimetableGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalGridWidth = periods.fold<double>(0, (sum, p) => sum + (p.isBreak ? _breakW : _cellW));
+    final totalGridWidth = periods.fold<double>(
+        0, (sum, p) => sum + (p.isBreak ? _breakW : _cellW));
     final fullWidth = _rowLabelW + totalGridWidth;
     final fullHeight = _headerH + (rowLabels.length * _cellH);
 
@@ -66,7 +72,10 @@ class UniversalTimetableGrid extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             _modeLabel(viewMode),
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
         Expanded(
@@ -111,17 +120,20 @@ class UniversalTimetableGrid extends StatelessWidget {
         final w = slot.isBreak ? _breakW : _cellW;
         if (!slot.isBreak) {
           final data = cells[keyFor(r, c)];
-          if (data != null) {
-            out.add(
-              Positioned(
-                left: x + 3,
-                top: _headerH + (r * _cellH) + 3,
-                width: w - 6,
-                height: _cellH - 6,
-                child: TimetableCell(data: data),
+          out.add(
+            Positioned(
+              left: x + 3,
+              top: _headerH + (r * _cellH) + 3,
+              width: w - 6,
+              height: _cellH - 6,
+              child: TimetableDropCell(
+                row: r,
+                col: c,
+                data: data,
+                onMoveCell: onMoveCell,
               ),
-            );
-          }
+            ),
+          );
         }
         x += w;
       }
@@ -139,6 +151,62 @@ class UniversalTimetableGrid extends StatelessWidget {
       case ViewMode.room:
         return 'Room View';
     }
+  }
+}
+
+class TimetableDropCell extends StatelessWidget {
+  const TimetableDropCell({
+    super.key,
+    required this.row,
+    required this.col,
+    required this.data,
+    required this.onMoveCell,
+  });
+
+  final int row;
+  final int col;
+  final TimetableCellData? data;
+  final Future<String?> Function(String lessonId, int row, int col)? onMoveCell;
+
+  @override
+  Widget build(BuildContext context) {
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (details) => data == null,
+      onAcceptWithDetails: (details) async {
+        final move = onMoveCell;
+        if (move == null) return;
+        final error = await move(details.data, row, col);
+        if (!context.mounted) return;
+        if (error != null && error.isNotEmpty) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(error)));
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        if (data == null) {
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              color: candidateData.isNotEmpty
+                  ? Colors.green.withValues(alpha: 0.15)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const SizedBox.expand(),
+          );
+        }
+        return LongPressDraggable<String>(
+          data: data!.id,
+          feedback: Material(
+            color: Colors.transparent,
+            child: SizedBox(
+                width: 126, height: 66, child: TimetableCell(data: data!)),
+          ),
+          childWhenDragging:
+              Opacity(opacity: 0.25, child: TimetableCell(data: data!)),
+          child: TimetableCell(data: data!),
+        );
+      },
+    );
   }
 }
 

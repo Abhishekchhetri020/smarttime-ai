@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/database.dart';
+import '../../data/timetable_service.dart';
 import '../widgets/universal_timetable_grid.dart';
 
 class CockpitScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class CockpitScreen extends StatefulWidget {
 
 class _CockpitScreenState extends State<CockpitScreen> {
   ViewMode _mode = ViewMode.classView;
+  final _service = TimetableService();
 
   static const _days = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   static const _periods = <PeriodSlot>[
@@ -52,9 +54,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
         final teacherAbbr = lesson.teacherIds
             .map((id) => teacherById[id]?.abbreviation ?? id)
             .join(', ');
-        final classAbbr = lesson.classIds
-            .map((id) => classById[id]?.abbr ?? id)
-            .join(', ');
+        final classAbbr =
+            lesson.classIds.map((id) => classById[id]?.abbr ?? id).join(', ');
 
         final secondary = switch (_mode) {
           ViewMode.teacher => classAbbr,
@@ -63,6 +64,7 @@ class _CockpitScreenState extends State<CockpitScreen> {
         };
 
         cells[UniversalTimetableGrid.keyFor(row, col)] = TimetableCellData(
+          id: lesson.id,
           primary: subject,
           secondary: secondary,
           tertiary: c.roomId,
@@ -80,6 +82,29 @@ class _CockpitScreenState extends State<CockpitScreen> {
     return periodIndex;
   }
 
+  int? _periodIndexFromColumn(int col) {
+    if (col < 0 || col >= _periods.length) return null;
+    final slot = _periods[col];
+    if (slot.isBreak) return null;
+    if (col >= 4) return col - 1;
+    return col;
+  }
+
+  Future<String?> _moveLessonValidated(
+      String lessonId, int row, int col) async {
+    final periodIndex = _periodIndexFromColumn(col);
+    if (periodIndex == null) return 'Cannot drop onto a break column.';
+    final result = await _service.moveLessonValidated(
+        widget.db, lessonId, '$row:$periodIndex');
+    return switch (result) {
+      MoveLessonSuccess() => null,
+      MoveLessonTeacherConflict(:final message) => message,
+      MoveLessonClassConflict(:final message) => message,
+      MoveLessonRoomConflict(:final message) => message,
+      MoveLessonNotFound(:final message) => message,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,12 +115,15 @@ class _CockpitScreenState extends State<CockpitScreen> {
           children: [
             Row(
               children: [
-                const Text('View: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                const Text('View: ',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(width: 8),
                 SegmentedButton<ViewMode>(
                   segments: const [
-                    ButtonSegment(value: ViewMode.teacher, label: Text('Teacher')),
-                    ButtonSegment(value: ViewMode.classView, label: Text('Class')),
+                    ButtonSegment(
+                        value: ViewMode.teacher, label: Text('Teacher')),
+                    ButtonSegment(
+                        value: ViewMode.classView, label: Text('Class')),
                     ButtonSegment(value: ViewMode.room, label: Text('Room')),
                   ],
                   selected: {_mode},
@@ -116,6 +144,7 @@ class _CockpitScreenState extends State<CockpitScreen> {
                     rowLabels: _days,
                     periods: _periods,
                     cells: snap.data!.cells,
+                    onMoveCell: _moveLessonValidated,
                   );
                 },
               ),
