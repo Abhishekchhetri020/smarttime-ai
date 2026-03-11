@@ -6,6 +6,7 @@ import '../timetable/engine_bridge.dart';
 import '../timetable/presentation/screens/solver_debug_screen.dart';
 import '../timetable/presentation/screens/cockpit_screen.dart';
 import '../../core/database.dart';
+import '../../core/services/bulk_import_service.dart';
 import '../../core/services/export_service.dart';
 import '../timetable/data/conflict_service.dart';
 import '../timetable/data/preflight_service.dart';
@@ -84,6 +85,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       setState(() => _status = 'Import complete');
     } catch (e) {
       setState(() => _status = 'Import failed: $e');
+    }
+  }
+
+  Future<void> _bulkImportData() async {
+    final planner = context.read<PlannerState>();
+    final db = planner.db;
+    if (db == null) {
+      setState(() => _status = 'Database unavailable.');
+      return;
+    }
+    try {
+      final summary = await BulkImportService().importMasterCsvFiles(db);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Imported ${summary.lessons} Lessons, ${summary.teachers} Teachers, and ${summary.rooms} Rooms successfully.'),
+          ),
+        );
+      }
+      setState(() => _status = 'Bulk CSV import complete');
+    } catch (e) {
+      setState(() => _status = 'Bulk CSV import failed: $e');
     }
   }
 
@@ -173,8 +197,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         final lessonId = item['lessonId']?.toString();
         final dayIndex = item['dayIndex'] as int?;
         final periodIndex = item['periodIndex'] as int?;
-        if (lessonId == null || dayIndex == null || periodIndex == null)
+        if (lessonId == null || dayIndex == null || periodIndex == null) {
           continue;
+        }
         final roomId = item['roomId']?.toString();
         cardCompanions.add(
           CardsCompanion.insert(
@@ -383,6 +408,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     onPressed: _busy ? null : _importSchedule,
                     icon: const Icon(Icons.file_upload),
                     label: const Text('Import .smarttime'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _bulkImportData,
+                    icon: const Icon(Icons.table_view),
+                    label: const Text('Bulk Import Data'),
                   ),
                   OutlinedButton(
                     onPressed: () {

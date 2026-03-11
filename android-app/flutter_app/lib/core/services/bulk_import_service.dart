@@ -295,23 +295,31 @@ class BulkImportService {
     throw StateError('File ${file.name} has no readable bytes/path');
   }
 
+  String _sanitizeString(Object? value) => value?.toString().trim() ?? '';
+
+  bool _isBlankRow(List<dynamic> row) =>
+      row.every((cell) => _sanitizeString(cell).isEmpty);
+
   List<Map<String, String>> _parseCsvRows(Uint8List bytes) {
     final text = utf8.decode(bytes, allowMalformed: true);
     final rows = const CsvToListConverter(eol: '\n').convert(text);
     if (rows.isEmpty) return const [];
 
     final headers =
-        rows.first.map((e) => e.toString().trim()).toList(growable: false);
+        rows.first.map((e) => _sanitizeString(e)).toList(growable: false);
     final out = <Map<String, String>>[];
     for (var i = 1; i < rows.length; i++) {
       final row = rows[i];
-      if (row.isEmpty) continue;
+      if (row.isEmpty || _isBlankRow(row)) continue;
       final mapped = <String, String>{};
       for (var c = 0; c < headers.length; c++) {
         final key = headers[c];
-        final value = c < row.length ? row[c].toString().trim() : '';
+        if (key.isEmpty) continue;
+        final value = c < row.length ? _sanitizeString(row[c]) : '';
         mapped[key] = value;
+        mapped[_k(key)] = value;
       }
+      if (mapped.values.every((v) => v.trim().isEmpty)) continue;
       out.add(mapped);
     }
     return out;
@@ -706,8 +714,9 @@ class BulkImportService {
       final lessonId = _req(row, ['lesson_id']).isEmpty
           ? 'LM_${autoLesson++}'
           : _req(row, ['lesson_id']);
-      if (className.isEmpty || subjectName.isEmpty || teacherName.isEmpty)
+      if (className.isEmpty || subjectName.isEmpty || teacherName.isEmpty) {
         continue;
+      }
 
       final classId = 'CLS_${_k(className).replaceAll(' ', '_')}';
       classByName.putIfAbsent(
