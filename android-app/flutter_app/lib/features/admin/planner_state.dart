@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 
 import '../../core/database.dart';
+import 'schedule_entry.dart';
 import 'time_off_picker.dart';
 
 class SubjectItem {
@@ -174,6 +175,8 @@ class PlannerState extends ChangeNotifier {
     '14:15-15:00',
   ];
 
+  final List<ScheduleEntry> scheduleEntries = [];
+
   void setSchoolName(String value) {
     schoolName = value.trim();
     _touch();
@@ -188,7 +191,33 @@ class PlannerState extends ChangeNotifier {
     bellTimes
       ..clear()
       ..addAll(values.where((e) => e.trim().isNotEmpty).map((e) => e.trim()));
+    if (scheduleEntries.isEmpty) {
+      _syncScheduleEntriesFromBellTimes();
+    }
     _touch();
+  }
+
+  void setScheduleEntries(List<ScheduleEntry> values) {
+    scheduleEntries
+      ..clear()
+      ..addAll(values);
+    bellTimes
+      ..clear()
+      ..addAll(scheduleEntries
+          .where((e) => e.type == ScheduleEntryType.period)
+          .map((e) => e.timeRange));
+    _touch();
+  }
+
+  void _syncScheduleEntriesFromBellTimes() {
+    scheduleEntries
+      ..clear()
+      ..addAll(
+        bellTimes.asMap().entries
+            .map((entry) =>
+                ScheduleEntry.fromBellTime(entry.value, index: entry.key))
+            .whereType<ScheduleEntry>(),
+      );
   }
 
   Future<void> addSubject(SubjectItem item) async {
@@ -307,6 +336,11 @@ class PlannerState extends ChangeNotifier {
     _touch();
   }
 
+  Future<void> refreshFromDatabase() async {
+    if (_db == null) return;
+    await _hydrate();
+  }
+
   Future<void> _hydrate() async {
     final snap = await _db!.loadPlannerSnapshot();
     if (snap == null) {
@@ -322,6 +356,29 @@ class PlannerState extends ChangeNotifier {
       ..clear()
       ..addAll(
           ((snap['bellTimes'] as List?) ?? const []).map((e) => e.toString()));
+
+    final rawEntries = (snap['scheduleEntries'] as List?) ?? const [];
+    if (rawEntries.isNotEmpty) {
+      scheduleEntries
+        ..clear()
+        ..addAll(
+          rawEntries
+              .whereType<Map>()
+              .map((e) => ScheduleEntry.fromJson(Map<String, dynamic>.from(e)))
+              .whereType<ScheduleEntry>(),
+        );
+      if (scheduleEntries.isNotEmpty) {
+        bellTimes
+          ..clear()
+          ..addAll(scheduleEntries
+              .where((e) => e.type == ScheduleEntryType.period)
+              .map((e) => e.timeRange));
+      }
+    }
+
+    if (scheduleEntries.isEmpty) {
+      _syncScheduleEntriesFromBellTimes();
+    }
 
     subjects
       ..clear()
@@ -425,6 +482,7 @@ class PlannerState extends ChangeNotifier {
       'schoolName': schoolName,
       'workingDays': workingDays,
       'bellTimes': bellTimes,
+      'scheduleEntries': scheduleEntries.map((e) => e.toJson()).toList(),
       'subjects': subjects
           .map((s) => {
                 'id': s.id,
@@ -587,7 +645,7 @@ class PlannerState extends ChangeNotifier {
     return {
       'days': workingDays,
       'periodsPerDay': bellTimes.isEmpty ? 8 : bellTimes.length,
-      'timeoutMs': 30000,
+      'timeoutMs': 60000,
       'lessons': solverLessons,
       'rooms': classrooms
           .map((r) => {
