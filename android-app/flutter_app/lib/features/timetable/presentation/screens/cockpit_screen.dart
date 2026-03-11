@@ -128,23 +128,29 @@ class _CockpitScreenState extends State<CockpitScreen> {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            Row(
-              children: [
-                const Text('View: ',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(width: 8),
-                SegmentedButton<ViewMode>(
-                  segments: const [
-                    ButtonSegment(
-                        value: ViewMode.teacher, label: Text('Teacher')),
-                    ButtonSegment(
-                        value: ViewMode.classView, label: Text('Class')),
-                    ButtonSegment(value: ViewMode.room, label: Text('Room')),
-                  ],
-                  selected: {_mode},
-                  onSelectionChanged: (v) => setState(() => _mode = v.first),
-                ),
-              ],
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _ModeTab(
+                    label: 'Teacher',
+                    selected: _mode == ViewMode.teacher,
+                    onTap: () => setState(() => _mode = ViewMode.teacher),
+                  ),
+                  const SizedBox(width: 8),
+                  _ModeTab(
+                    label: 'Class',
+                    selected: _mode == ViewMode.classView,
+                    onTap: () => setState(() => _mode = ViewMode.classView),
+                  ),
+                  const SizedBox(width: 8),
+                  _ModeTab(
+                    label: 'Room',
+                    selected: _mode == ViewMode.room,
+                    onTap: () => setState(() => _mode = ViewMode.room),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -175,4 +181,45 @@ class _CockpitVm {
   final Map<String, TimetableCellData> cells;
 
   const _CockpitVm(this.cells);
+}
+
+class _ModeTab extends StatelessWidget {
+  const _ModeTab(
+      {required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outlineVariant,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: selected
+                ? Theme.of(context).colorScheme.onPrimaryContainer
+                : Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
 }

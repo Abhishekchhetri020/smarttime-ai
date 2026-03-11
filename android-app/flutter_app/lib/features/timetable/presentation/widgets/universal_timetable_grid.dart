@@ -154,7 +154,7 @@ class UniversalTimetableGrid extends StatelessWidget {
   }
 }
 
-class TimetableDropCell extends StatelessWidget {
+class TimetableDropCell extends StatefulWidget {
   const TimetableDropCell({
     super.key,
     required this.row,
@@ -169,13 +169,20 @@ class TimetableDropCell extends StatelessWidget {
   final Future<String?> Function(String lessonId, int row, int col)? onMoveCell;
 
   @override
+  State<TimetableDropCell> createState() => _TimetableDropCellState();
+}
+
+class _TimetableDropCellState extends State<TimetableDropCell> {
+  bool _dragging = false;
+
+  @override
   Widget build(BuildContext context) {
     return DragTarget<String>(
-      onWillAcceptWithDetails: (details) => data == null,
+      onWillAcceptWithDetails: (details) => widget.data == null,
       onAcceptWithDetails: (details) async {
-        final move = onMoveCell;
+        final move = widget.onMoveCell;
         if (move == null) return;
-        final error = await move(details.data, row, col);
+        final error = await move(details.data, widget.row, widget.col);
         if (!context.mounted) return;
         if (error != null && error.isNotEmpty) {
           ScaffoldMessenger.of(context)
@@ -183,27 +190,43 @@ class TimetableDropCell extends StatelessWidget {
         }
       },
       builder: (context, candidateData, rejectedData) {
-        if (data == null) {
-          return DecoratedBox(
+        if (widget.data == null) {
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
             decoration: BoxDecoration(
               color: candidateData.isNotEmpty
-                  ? Colors.green.withValues(alpha: 0.15)
+                  ? Theme.of(context)
+                      .colorScheme
+                      .tertiaryContainer
+                      .withValues(alpha: 0.85)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: candidateData.isNotEmpty
+                    ? Theme.of(context).colorScheme.tertiary
+                    : Colors.transparent,
+                width: 1.5,
+              ),
             ),
             child: const SizedBox.expand(),
           );
         }
         return LongPressDraggable<String>(
-          data: data!.id,
+          data: widget.data!.id,
+          onDragStarted: () => setState(() => _dragging = true),
+          onDragEnd: (_) => setState(() => _dragging = false),
+          onDraggableCanceled: (_, __) => setState(() => _dragging = false),
           feedback: Material(
             color: Colors.transparent,
             child: SizedBox(
-                width: 126, height: 66, child: TimetableCell(data: data!)),
+              width: 126,
+              height: 66,
+              child: TimetableCell(data: widget.data!, isDragging: true),
+            ),
           ),
           childWhenDragging:
-              Opacity(opacity: 0.25, child: TimetableCell(data: data!)),
-          child: TimetableCell(data: data!),
+              Opacity(opacity: 0.20, child: TimetableCell(data: widget.data!)),
+          child: TimetableCell(data: widget.data!, isDragging: _dragging),
         );
       },
     );
@@ -211,62 +234,77 @@ class TimetableDropCell extends StatelessWidget {
 }
 
 class TimetableCell extends StatelessWidget {
-  const TimetableCell({super.key, required this.data});
+  const TimetableCell({super.key, required this.data, this.isDragging = false});
 
   final TimetableCellData data;
+  final bool isDragging;
 
   @override
   Widget build(BuildContext context) {
     final accent = data.accent ?? const Color(0xFF2B5EC8);
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.90),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              data.primary,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                height: 1.1,
+    return AnimatedScale(
+      scale: isDragging ? 1.04 : 1.0,
+      duration: const Duration(milliseconds: 120),
+      child: AnimatedOpacity(
+        opacity: isDragging ? 0.85 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        child: Material(
+          color: Colors.transparent,
+          elevation: isDragging ? 12 : 2,
+          shadowColor: Colors.black54,
+          borderRadius: BorderRadius.circular(8),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.90),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.black12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data.primary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    data.secondary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.90),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      height: 1.0,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (data.tertiary != null && data.tertiary!.isNotEmpty)
+                    Text(
+                      data.tertiary!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.78),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w500,
+                        height: 1.0,
+                      ),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 3),
-            Text(
-              data.secondary,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.90),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                height: 1.0,
-              ),
-            ),
-            const Spacer(),
-            if (data.tertiary != null && data.tertiary!.isNotEmpty)
-              Text(
-                data.tertiary!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.78),
-                  fontSize: 9,
-                  fontWeight: FontWeight.w500,
-                  height: 1.0,
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );
