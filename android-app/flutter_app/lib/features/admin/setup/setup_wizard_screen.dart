@@ -103,7 +103,32 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                 final db = planner.db;
                 if (db == null) return;
                 try {
-                  final summary = await importer.importMasterCsvFiles(db);
+                  final lessonsFile = await importer.pickLessonsMasterCsv();
+                  if (lessonsFile == null || !context.mounted) return;
+                  final pickConstraints = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Optional Constraints'),
+                      content: const Text(
+                          'Lessons loaded. Select Teachers_Constraints.csv or Skip?'),
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Skip')),
+                        ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Select File')),
+                      ],
+                    ),
+                  );
+                  final teachersFile = (pickConstraints ?? false)
+                      ? await importer.pickTeachersConstraintsCsv()
+                      : null;
+                  final summary = await importer.importMasterCsvData(
+                    db,
+                    lessonsFile: lessonsFile,
+                    teachersFile: teachersFile,
+                  );
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

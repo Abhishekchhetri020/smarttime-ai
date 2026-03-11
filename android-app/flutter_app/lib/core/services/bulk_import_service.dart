@@ -654,32 +654,45 @@ class BulkImportService {
     return [lessons, teachers];
   }
 
-  Future<MasterImportSummary> importMasterCsvFiles(AppDatabase db) async {
+  Future<PlatformFile?> pickLessonsMasterCsv() async {
     final picked = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
+      allowMultiple: false,
       type: FileType.custom,
       allowedExtensions: ['csv'],
       withData: true,
     );
-    if (picked == null || picked.files.isEmpty) {
-      return const MasterImportSummary(lessons: 0, teachers: 0, rooms: 0);
+    if (picked == null || picked.files.isEmpty) return null;
+    final file = picked.files.first;
+    if (!file.name.toLowerCase().contains('lessons_master')) {
+      throw StateError('Please select Lessons_Master.csv');
     }
+    return file;
+  }
 
-    PlatformFile? lessonsFile;
-    PlatformFile? teachersFile;
-    for (final f in picked.files) {
-      final n = f.name.toLowerCase();
-      if (n.contains('lessons_master')) lessonsFile = f;
-      if (n.contains('teachers_constraints')) teachersFile = f;
+  Future<PlatformFile?> pickTeachersConstraintsCsv() async {
+    final picked = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+      withData: true,
+    );
+    if (picked == null || picked.files.isEmpty) return null;
+    final file = picked.files.first;
+    if (!file.name.toLowerCase().contains('teachers_constraints')) {
+      throw StateError('Please select Teachers_Constraints.csv');
     }
-    if (lessonsFile == null || teachersFile == null) {
-      throw StateError(
-          'Select both Lessons_Master CSV and Teachers_Constraints CSV');
-    }
+    return file;
+  }
 
+  Future<MasterImportSummary> importMasterCsvData(
+    AppDatabase db, {
+    required PlatformFile lessonsFile,
+    PlatformFile? teachersFile,
+  }) async {
     final lessonsRows = _parseCsvRows(await _bytesForPlatformFile(lessonsFile));
-    final teachersRows =
-        _parseCsvRows(await _bytesForPlatformFile(teachersFile));
+    final teachersRows = teachersFile == null
+        ? const <Map<String, String>>[]
+        : _parseCsvRows(await _bytesForPlatformFile(teachersFile));
 
     final teacherByName = <String, TeacherImportDto>{};
     for (final row in teachersRows) {
