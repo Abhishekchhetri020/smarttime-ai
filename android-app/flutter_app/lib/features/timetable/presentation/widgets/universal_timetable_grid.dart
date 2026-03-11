@@ -50,11 +50,11 @@ class UniversalTimetableGrid extends StatelessWidget {
   final Map<String, TimetableCellData> cells;
   final Future<String?> Function(String lessonId, int row, int col)? onMoveCell;
 
-  static const double _headerH = 42;
-  static const double _rowLabelW = 86;
-  static const double _cellW = 132;
-  static const double _breakW = 16;
-  static const double _cellH = 72;
+  static const double _headerH = 56;
+  static const double _rowLabelW = 110;
+  static const double _cellW = 152;
+  static const double _breakW = 56;
+  static const double _cellH = 92;
 
   static String keyFor(int row, int col) => '$row|$col';
 
@@ -89,6 +89,7 @@ class UniversalTimetableGrid extends StatelessWidget {
                 width: fullWidth,
                 height: fullHeight,
                 child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
                     _GridBackdrop(
                       rowLabels: rowLabels,
@@ -219,8 +220,8 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
           feedback: Material(
             color: Colors.transparent,
             child: SizedBox(
-              width: 126,
-              height: 66,
+              width: 136,
+              height: 74,
               child: TimetableCell(data: widget.data!, isDragging: true),
             ),
           ),
@@ -261,31 +262,31 @@ class TimetableCell extends StatelessWidget {
               border: Border.all(color: Colors.black12),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     data.primary,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      height: 1.1,
+                      height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(
                     data.secondary,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.90),
-                      fontSize: 10,
+                      color: Colors.white.withValues(alpha: 0.92),
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w600,
-                      height: 1.0,
+                      height: 1.15,
                     ),
                   ),
                   const Spacer(),
@@ -295,10 +296,10 @@ class TimetableCell extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.78),
-                        fontSize: 9,
+                        color: Colors.white.withValues(alpha: 0.82),
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w500,
-                        height: 1.0,
+                        height: 1.1,
                       ),
                     ),
                 ],
@@ -352,9 +353,7 @@ class _GridBackdrop extends StatelessWidget {
         top: 0,
         width: w,
         height: headerH,
-        child: p.isBreak
-            ? Container(color: Colors.black.withValues(alpha: 0.06))
-            : _headerBox(p.label),
+        child: p.isBreak ? _breakHeaderBox(p.label) : _headerBox(p.label),
       ));
       x += w;
     }
@@ -380,12 +379,30 @@ class _GridBackdrop extends StatelessWidget {
           height: cellH,
           child: Container(
             decoration: BoxDecoration(
-              color: p.isBreak ? Colors.black.withValues(alpha: 0.06) : null,
+              color: p.isBreak ? const Color(0xFFEFE8FF) : null,
               border: Border(
                 right: BorderSide(color: Colors.grey.shade300, width: 0.7),
                 bottom: BorderSide(color: Colors.grey.shade300, width: 0.7),
               ),
             ),
+            child: p.isBreak
+                ? Center(
+                    child: RotatedBox(
+                      quarterTurns: 3,
+                      child: Text(
+                        p.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF5D429E),
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  )
+                : null,
           ),
         ));
         gx += w;
@@ -405,6 +422,27 @@ class _GridBackdrop extends StatelessWidget {
       child: Text(
         label,
         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  Widget _breakHeaderBox(String label) {
+    return Container(
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9DEFF),
+        border: Border.all(color: const Color(0xFFCDB9FA), width: 0.8),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF4B2F85),
+          letterSpacing: 0.2,
+        ),
       ),
     );
   }

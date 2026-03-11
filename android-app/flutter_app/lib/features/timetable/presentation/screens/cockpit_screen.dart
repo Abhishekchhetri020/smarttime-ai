@@ -24,7 +24,7 @@ class _CockpitScreenState extends State<CockpitScreen> {
     PeriodSlot(id: 'p1', label: 'P1'),
     PeriodSlot(id: 'p2', label: 'P2'),
     PeriodSlot(id: 'p3', label: 'P3'),
-    PeriodSlot(id: 'br1', label: 'Break', isBreak: true),
+    PeriodSlot(id: 'br1', label: 'SHORT BREAK', isBreak: true),
     PeriodSlot(id: 'p4', label: 'P4'),
     PeriodSlot(id: 'p5', label: 'P5'),
     PeriodSlot(id: 'p6', label: 'P6'),
@@ -41,6 +41,7 @@ class _CockpitScreenState extends State<CockpitScreen> {
       final subjectById = {for (final s in subjects) s.id: s};
       final teacherById = {for (final t in teachers) t.id: t};
       final classById = {for (final c in classes) c.id: c};
+      final roomNameById = <String, String>{};
       final lessonById = {for (final l in lessons) l.id: l};
 
       final cells = <String, TimetableCellData>{};
@@ -69,7 +70,7 @@ class _CockpitScreenState extends State<CockpitScreen> {
           id: lesson.id,
           primary: subject,
           secondary: secondary,
-          tertiary: c.roomId,
+          tertiary: _resolveRoomLabel(c.roomId, roomNameById),
         );
       }
 
@@ -160,6 +161,27 @@ class _CockpitScreenState extends State<CockpitScreen> {
                   if (!snap.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
+                  if (snap.data!.cells.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.calendar_month_outlined, size: 52),
+                          SizedBox(height: 12),
+                          Text(
+                            'No Schedule Generated Yet',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w700),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Run Pre-Flight and generate a schedule to view the cockpit.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  }
                   return UniversalTimetableGrid(
                     viewMode: _mode,
                     rowLabels: _days,
@@ -181,6 +203,21 @@ class _CockpitVm {
   final Map<String, TimetableCellData> cells;
 
   const _CockpitVm(this.cells);
+}
+
+String? _resolveRoomLabel(String? roomId, Map<String, String> roomNameById) {
+  if (roomId == null || roomId.trim().isEmpty) return null;
+  final direct = roomNameById[roomId];
+  if (direct != null && direct.trim().isNotEmpty) return direct;
+  final raw = roomId.trim();
+  if (raw.startsWith('room_CLS_')) {
+    final cleaned = raw
+        .replaceFirst('room_CLS_', '')
+        .replaceAll('_', ' ')
+        .replaceAllMapped(RegExp(r'\b\w'), (m) => m.group(0)!.toUpperCase());
+    return cleaned;
+  }
+  return raw;
 }
 
 class _ModeTab extends StatelessWidget {
