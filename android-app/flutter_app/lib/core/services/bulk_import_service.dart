@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:csv/csv.dart';
 import 'package:drift/drift.dart' show Value;
+import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -303,6 +304,31 @@ class BulkImportService {
   List<Map<String, String>> _parseCsvRows(Uint8List bytes) {
     final text = utf8.decode(bytes, allowMalformed: true);
     final rows = const CsvToListConverter(eol: '\n').convert(text);
+    return _mapRows(rows);
+  }
+
+  List<Map<String, String>> _parseExcelRows(Uint8List bytes) {
+    final excel = Excel.decodeBytes(bytes);
+    if (excel.tables.isEmpty) return const [];
+    final sheet = excel.tables.values.first;
+    if (sheet.maxRows == 0) return const [];
+    final rows = <List<dynamic>>[];
+    for (final row in sheet.rows) {
+      rows.add(row.map((cell) => cell?.value).toList(growable: false));
+    }
+    return _mapRows(rows);
+  }
+
+  List<Map<String, String>> _parseStructuredRows(
+      Uint8List bytes, String filename) {
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.xlsx')) {
+      return _parseExcelRows(bytes);
+    }
+    return _parseCsvRows(bytes);
+  }
+
+  List<Map<String, String>> _mapRows(List<List<dynamic>> rows) {
     if (rows.isEmpty) return const [];
 
     final headers =
@@ -658,13 +684,14 @@ class BulkImportService {
     final picked = await FilePicker.platform.pickFiles(
       allowMultiple: false,
       type: FileType.custom,
-      allowedExtensions: ['csv'],
+      allowedExtensions: ['csv', 'xlsx'],
       withData: true,
     );
     if (picked == null || picked.files.isEmpty) return null;
     final file = picked.files.first;
     if (!file.name.toLowerCase().contains('lessons_master')) {
-      throw StateError('Please select Lessons_Master.csv');
+      throw StateError(
+          'Please select Lessons_Master.csv or Lessons_Master.xlsx');
     }
     return file;
   }
@@ -673,13 +700,14 @@ class BulkImportService {
     final picked = await FilePicker.platform.pickFiles(
       allowMultiple: false,
       type: FileType.custom,
-      allowedExtensions: ['csv'],
+      allowedExtensions: ['csv', 'xlsx'],
       withData: true,
     );
     if (picked == null || picked.files.isEmpty) return null;
     final file = picked.files.first;
     if (!file.name.toLowerCase().contains('teachers_constraints')) {
-      throw StateError('Please select Teachers_Constraints.csv');
+      throw StateError(
+          'Please select Teachers_Constraints.csv or Teachers_Constraints.xlsx');
     }
     return file;
   }
@@ -689,10 +717,16 @@ class BulkImportService {
     required PlatformFile lessonsFile,
     PlatformFile? teachersFile,
   }) async {
-    final lessonsRows = _parseCsvRows(await _bytesForPlatformFile(lessonsFile));
+    final lessonsRows = _parseStructuredRows(
+      await _bytesForPlatformFile(lessonsFile),
+      lessonsFile.name,
+    );
     final teachersRows = teachersFile == null
         ? const <Map<String, String>>[]
-        : _parseCsvRows(await _bytesForPlatformFile(teachersFile));
+        : _parseStructuredRows(
+            await _bytesForPlatformFile(teachersFile),
+            teachersFile.name,
+          );
 
     final teacherByName = <String, TeacherImportDto>{};
     for (final row in teachersRows) {
