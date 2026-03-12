@@ -1,9 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/services/bulk_import_service.dart';
+import 'planner_state.dart';
 import 'timetable_setup_shell.dart';
 
 class TimetableDashboardScreen extends StatelessWidget {
   const TimetableDashboardScreen({super.key});
+
+  Future<void> _importFromExcel(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final importer = BulkImportService();
+      final lessonsFile = await importer.pickLessonsMasterCsv();
+      if (lessonsFile == null) {
+        messenger.showSnackBar(const SnackBar(content: Text('Import cancelled.')));
+        return;
+      }
+      final constraintsFile = await importer.pickTeachersConstraintsCsv();
+      final planner = context.read<PlannerState>();
+      final db = planner.db;
+      if (db == null) {
+        messenger.showSnackBar(const SnackBar(content: Text('Database not ready. Try again.')));
+        return;
+      }
+      final summary = await importer.importMasterCsvData(
+        db,
+        lessonsFile: lessonsFile,
+        teachersFile: constraintsFile,
+      );
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Import complete • ${summary.lessons} lessons, ${summary.teachers} teachers, ${summary.rooms} rooms.',
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Import failed: $e')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +58,7 @@ class TimetableDashboardScreen extends StatelessWidget {
                     ),
                   );
                 },
+                onImport: () => _importFromExcel(context),
               ),
             ),
           ),
@@ -58,9 +95,10 @@ class TimetableDashboardScreen extends StatelessWidget {
 }
 
 class _HeroCard extends StatelessWidget {
-  const _HeroCard({required this.onCreate});
+  const _HeroCard({required this.onCreate, required this.onImport});
 
   final VoidCallback onCreate;
+  final VoidCallback onImport;
 
   @override
   Widget build(BuildContext context) {
@@ -88,10 +126,21 @@ class _HeroCard extends StatelessWidget {
                   ),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: onCreate,
-              icon: const Icon(Icons.add),
-              label: const Text('New Timetable'),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: onCreate,
+                  icon: const Icon(Icons.add),
+                  label: const Text('New Timetable'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onImport,
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Import Excel'),
+                ),
+              ],
             ),
           ],
         ),

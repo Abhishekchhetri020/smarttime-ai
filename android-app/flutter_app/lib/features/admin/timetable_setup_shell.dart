@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/services/bulk_import_service.dart';
 import 'generation_progress_screen.dart';
 import 'planner_state.dart';
 import 'setup/class_setup_screen.dart';
@@ -84,6 +85,37 @@ class TimetableSetupShell extends StatelessWidget {
                     classCount: planner.classes.length,
                     lessonCount: planner.lessons.length,
                     missing: entries.where((e) => e.warningCount > 0).map((e) => e.title).toList(),
+                    onImport: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      try {
+                        final importer = BulkImportService();
+                        final lessonsFile = await importer.pickLessonsMasterCsv();
+                        if (lessonsFile == null) {
+                          messenger.showSnackBar(const SnackBar(content: Text('Import cancelled.')));
+                          return;
+                        }
+                        final constraintsFile = await importer.pickTeachersConstraintsCsv();
+                        final db = planner.db;
+                        if (db == null) {
+                          messenger.showSnackBar(const SnackBar(content: Text('Database not ready. Try again.')));
+                          return;
+                        }
+                        final summary = await importer.importMasterCsvData(
+                          db,
+                          lessonsFile: lessonsFile,
+                          teachersFile: constraintsFile,
+                        );
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Import complete • ${summary.lessons} lessons, ${summary.teachers} teachers, ${summary.rooms} rooms.',
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        messenger.showSnackBar(SnackBar(content: Text('Import failed: $e')));
+                      }
+                    },
                   );
                 }
                 final entry = entries[index];
@@ -152,6 +184,7 @@ class _PreGenerationReviewCard extends StatelessWidget {
     required this.classCount,
     required this.lessonCount,
     required this.missing,
+    required this.onImport,
   });
 
   final int completed;
@@ -160,6 +193,7 @@ class _PreGenerationReviewCard extends StatelessWidget {
   final int classCount;
   final int lessonCount;
   final List<String> missing;
+  final Future<void> Function() onImport;
 
   bool get canGenerate => teacherCount > 0 && classCount > 0 && lessonCount > 0;
 
@@ -207,18 +241,29 @@ class _PreGenerationReviewCard extends StatelessWidget {
             ],
             SizedBox(
               width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: canGenerate
-                    ? () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const GenerationProgressScreen(),
-                          ),
-                        );
-                      }
-                    : null,
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('Generate Timetable'),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: canGenerate
+                        ? () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const GenerationProgressScreen(),
+                              ),
+                            );
+                          }
+                        : null,
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text('Generate Timetable'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onImport,
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Import Excel'),
+                  ),
+                ],
               ),
             ),
             if (!canGenerate) ...[

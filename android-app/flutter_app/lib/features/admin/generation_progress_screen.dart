@@ -67,11 +67,11 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen> {
 
   String _friendlyError(String raw) {
     final lower = raw.toLowerCase();
-    if (lower.contains('critical: double booking detected')) {
-      return 'Generation stopped because a teacher was double-booked in the same day/period. Please review lessons and teacher assignments, then try again.';
-    }
-    if (lower.contains('illegalstateexception')) {
-      return 'Generation stopped because the solver detected an invalid scheduling state. Please review your timetable inputs and try again.';
+    if (lower.contains('double booking') ||
+        lower.contains('fatal') ||
+        lower.contains('halt') ||
+        lower.contains('illegalstateexception')) {
+      return 'We found conflicting timetable constraints (for example, double-booked teachers or overlapping requirements). Please adjust lessons, teacher availability, or class assignments, then retry generation.';
     }
     return raw;
   }
@@ -122,9 +122,10 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Generation failed',
+                      'Conflict Detected',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: Theme.of(context).colorScheme.onErrorContainer,
+                            fontWeight: FontWeight.w700,
                           ),
                     ),
                     const SizedBox(height: 8),
