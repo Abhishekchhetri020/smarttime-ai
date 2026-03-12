@@ -1,85 +1,88 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import 'planner_state.dart';
+import 'setup/class_setup_screen.dart';
+import 'setup/lesson_setup_screen.dart';
+import 'setup/room_setup_screen.dart';
+import 'setup/subject_setup_screen.dart';
+import 'setup/teacher_setup_screen.dart';
 import 'widgets/setup_section_card.dart';
 
 class TimetableSetupShell extends StatelessWidget {
   const TimetableSetupShell({super.key});
 
-  static const List<_SetupEntry> _entries = <_SetupEntry>[
-    _SetupEntry(
-      title: 'Teachers',
-      description: 'Add staff profiles, subjects, and availability basics.',
-      statusText: 'Not started',
-      warningCount: 0,
-      icon: Icons.person_outline,
-    ),
-    _SetupEntry(
-      title: 'Classes',
-      description: 'Configure grade levels, divisions, and class strength.',
-      statusText: 'Not started',
-      warningCount: 0,
-      icon: Icons.groups_outlined,
-    ),
-    _SetupEntry(
-      title: 'Rooms',
-      description: 'Define classrooms, labs, and room capacities.',
-      statusText: 'Not started',
-      warningCount: 0,
-      icon: Icons.meeting_room_outlined,
-    ),
-    _SetupEntry(
-      title: 'Subjects',
-      description: 'Map curriculum subjects and weekly load targets.',
-      statusText: 'Not started',
-      warningCount: 0,
-      icon: Icons.book_outlined,
-    ),
-    _SetupEntry(
-      title: 'Lessons',
-      description: 'Set lesson counts and placement requirements.',
-      statusText: 'Not started',
-      warningCount: 0,
-      icon: Icons.view_week_outlined,
-    ),
-    _SetupEntry(
-      title: 'Constraints',
-      description: 'Capture hard rules and preferred scheduling patterns.',
-      statusText: 'Not started',
-      warningCount: 0,
-      icon: Icons.rule_folder_outlined,
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final planner = context.watch<PlannerState>();
+    final entries = <_SetupEntry>[
+      _SetupEntry(
+        title: 'Teachers',
+        description: 'Add staff profiles, subjects, and availability basics.',
+        statusText: '${planner.teachers.length} configured',
+        warningCount: planner.teachers.isEmpty ? 1 : 0,
+        builder: (_) => const TeacherSetupScreen(),
+      ),
+      _SetupEntry(
+        title: 'Classes',
+        description: 'Configure grade levels, divisions, and class strength.',
+        statusText: '${planner.classes.length} configured',
+        warningCount: planner.classes.isEmpty ? 1 : 0,
+        builder: (_) => const ClassSetupScreen(),
+      ),
+      _SetupEntry(
+        title: 'Rooms',
+        description: 'Define classrooms, labs, and room capacities.',
+        statusText: '${planner.classrooms.length} configured',
+        warningCount: 0,
+        builder: (_) => const RoomSetupScreen(),
+      ),
+      _SetupEntry(
+        title: 'Subjects',
+        description: 'Map curriculum subjects and weekly load targets.',
+        statusText: '${planner.subjects.length} configured',
+        warningCount: planner.subjects.isEmpty ? 1 : 0,
+        builder: (_) => const SubjectSetupScreen(),
+      ),
+      _SetupEntry(
+        title: 'Lessons',
+        description: 'Set lesson counts and placement requirements.',
+        statusText: '${planner.lessons.length} configured',
+        warningCount: planner.lessons.isEmpty ? 1 : 0,
+        builder: (_) => const LessonSetupScreen(),
+      ),
+      _SetupEntry(
+        title: 'Constraints',
+        description: 'Capture hard rules and preferred scheduling patterns.',
+        statusText: 'Coming in next phase',
+        warningCount: 0,
+        builder: (_) => const _PlaceholderSectionScreen(title: 'Constraints'),
+      ),
+    ];
+
+    final completed = entries.where((e) => e.warningCount == 0 && !e.statusText.startsWith('Coming')).length;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Timetable Setup')),
       body: CustomScrollView(
         slivers: [
           SliverPersistentHeader(
             pinned: true,
-            delegate: _ProgressHeaderDelegate(),
+            delegate: _ProgressHeaderDelegate(completed: completed, total: entries.length),
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             sliver: SliverList.builder(
-              itemCount: _entries.length + 1,
+              itemCount: entries.length + 1,
               itemBuilder: (context, index) {
-                if (index == _entries.length) {
+                if (index == entries.length) {
                   return _PreGenerationReviewCard(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const _PlaceholderSectionScreen(
-                            title: 'Pre-generation Review',
-                          ),
-                        ),
-                      );
-                    },
+                    completed: completed,
+                    total: entries.length,
+                    missing: entries.where((e) => e.warningCount > 0).map((e) => e.title).toList(),
                   );
                 }
-
-                final _SetupEntry entry = _entries[index];
+                final entry = entries[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: SetupSectionCard(
@@ -87,16 +90,7 @@ class TimetableSetupShell extends StatelessWidget {
                     description: entry.description,
                     statusText: entry.statusText,
                     warningCount: entry.warningCount,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => _PlaceholderSectionScreen(
-                            title: entry.title,
-                            icon: entry.icon,
-                          ),
-                        ),
-                      );
-                    },
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: entry.builder)),
                   ),
                 );
               },
@@ -109,17 +103,17 @@ class TimetableSetupShell extends StatelessWidget {
 }
 
 class _ProgressHeaderDelegate extends SliverPersistentHeaderDelegate {
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+  const _ProgressHeaderDelegate({required this.completed, required this.total});
 
+  final int completed;
+  final int total;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final value = total == 0 ? 0.0 : completed / total;
     return Material(
       elevation: overlapsContent ? 1 : 0,
-      color: scheme.surface,
+      color: Theme.of(context).colorScheme.surface,
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         alignment: Alignment.centerLeft,
@@ -127,17 +121,11 @@ class _ProgressHeaderDelegate extends SliverPersistentHeaderDelegate {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'Setup Progress',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Setup Progress', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            const LinearProgressIndicator(value: 0.0),
+            LinearProgressIndicator(value: value),
             const SizedBox(height: 6),
-            Text(
-              '0 of 6 sections completed',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text('$completed of $total sections ready', style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),
@@ -146,58 +134,39 @@ class _ProgressHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   double get maxExtent => 96;
-
   @override
   double get minExtent => 96;
-
   @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) =>
-      false;
+  bool shouldRebuild(covariant _ProgressHeaderDelegate oldDelegate) => completed != oldDelegate.completed || total != oldDelegate.total;
 }
 
 class _PreGenerationReviewCard extends StatelessWidget {
-  const _PreGenerationReviewCard({required this.onTap});
+  const _PreGenerationReviewCard({required this.completed, required this.total, required this.missing});
 
-  final VoidCallback onTap;
+  final int completed;
+  final int total;
+  final List<String> missing;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(top: 8),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: const Icon(Icons.fact_check_outlined),
-        title: const Text('Pre-generation Review'),
-        subtitle: const Text(
-          'Validate setup completeness and inspect warnings before generating.',
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
-class _PlaceholderSectionScreen extends StatelessWidget {
-  const _PlaceholderSectionScreen({required this.title, this.icon});
-
-  final String title;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon ?? Icons.construction_outlined, size: 48),
-            const SizedBox(height: 12),
-            Text(
-              '$title screen coming soon',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Pre-generation Review', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text('$completed of $total setup sections are ready.'),
+            const SizedBox(height: 8),
+            if (missing.isEmpty)
+              const Text('Ready for the next generation phase.')
+            else ...[
+              const Text('Still needed:'),
+              const SizedBox(height: 4),
+              ...missing.map((m) => Text('• $m')),
+            ],
           ],
         ),
       ),
@@ -205,18 +174,24 @@ class _PlaceholderSectionScreen extends StatelessWidget {
   }
 }
 
-class _SetupEntry {
-  const _SetupEntry({
-    required this.title,
-    required this.description,
-    required this.statusText,
-    required this.warningCount,
-    required this.icon,
-  });
+class _PlaceholderSectionScreen extends StatelessWidget {
+  const _PlaceholderSectionScreen({required this.title});
+  final String title;
 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(child: Text('$title screen coming soon')),
+    );
+  }
+}
+
+class _SetupEntry {
+  const _SetupEntry({required this.title, required this.description, required this.statusText, required this.warningCount, required this.builder});
   final String title;
   final String description;
   final String statusText;
   final int warningCount;
-  final IconData icon;
+  final WidgetBuilder builder;
 }
