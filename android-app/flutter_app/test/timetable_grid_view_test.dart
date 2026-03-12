@@ -4,7 +4,8 @@ import 'package:smarttime_ai/features/timetable/presentation/controllers/solver_
 import 'package:smarttime_ai/features/timetable/presentation/widgets/timetable_grid_view.dart';
 
 void main() {
-  testWidgets('timetable grid renders at least one lesson card', (tester) async {
+  testWidgets('timetable grid renders at least one lesson card',
+      (tester) async {
     const assignment = TimetableAssignment(
       lessonId: 'L1',
       day: 1,
@@ -27,7 +28,7 @@ void main() {
     );
 
     expect(find.text('MATH'), findsOneWidget);
-    expect(find.text('T:T1'), findsOneWidget);
-    expect(find.text('C:C1'), findsOneWidget);
+    expect(find.text('T1'), findsOneWidget);
+    expect(find.text('C1'), findsOneWidget);
   });
 }

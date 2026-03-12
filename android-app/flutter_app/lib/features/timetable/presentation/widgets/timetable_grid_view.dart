@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../controllers/solver_controller.dart';
+import '../../timetable_display.dart';
 
 enum ExportOption { pdf, csv, print }
 
@@ -37,8 +38,11 @@ class TimetableGridView extends StatelessWidget {
               tooltip: 'Export Options',
               onSelected: onExportSelected,
               itemBuilder: (context) => const [
-                PopupMenuItem(value: ExportOption.pdf, child: Text('Save as PDF')),
-                PopupMenuItem(value: ExportOption.csv, child: Text('Save as Excel (CSV)')),
+                PopupMenuItem(
+                    value: ExportOption.pdf, child: Text('Save as PDF')),
+                PopupMenuItem(
+                    value: ExportOption.csv,
+                    child: Text('Save as Excel (CSV)')),
                 PopupMenuItem(value: ExportOption.print, child: Text('Print')),
               ],
               child: const Padding(
@@ -61,11 +65,15 @@ class TimetableGridView extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.table_chart_outlined, size: 72, color: Colors.grey.shade500),
+                  Icon(Icons.table_chart_outlined,
+                      size: 72, color: Colors.grey.shade500),
                   const SizedBox(height: 12),
-                  const Text('Ready to Generate', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  const Text('Ready to Generate',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
-                  const Text('No assignments yet. Run solver to populate the timetable.'),
+                  const Text(
+                      'No assignments yet. Run solver to populate the timetable.'),
                   const SizedBox(height: 12),
                   ElevatedButton.icon(
                     onPressed: onRunSolver,
@@ -78,32 +86,32 @@ class TimetableGridView extends StatelessWidget {
           )
         else
           Expanded(
-          child: InteractiveViewer(
-            minScale: 0.6,
-            maxScale: 3.0,
-            boundaryMargin: const EdgeInsets.all(180),
-            constrained: false,
-            child: SizedBox(
-              width: width,
-              height: height,
-              child: Stack(
-                children: [
-                  CustomPaint(
-                    size: Size(width, height),
-                    painter: _GridPainter(days: days, periods: periodsPerDay),
-                  ),
-                  ...assignments.map((a) => Positioned(
-                        left: (a.day - 1) * _cellW + 4,
-                        top: (a.period - 1) * _cellH + 4,
-                        width: _cellW - 8,
-                        height: _cellH - 8,
-                        child: _LessonCard(a: a),
-                      )),
-                ],
+            child: InteractiveViewer(
+              minScale: 0.6,
+              maxScale: 3.0,
+              boundaryMargin: const EdgeInsets.all(180),
+              constrained: false,
+              child: SizedBox(
+                width: width,
+                height: height,
+                child: Stack(
+                  children: [
+                    CustomPaint(
+                      size: Size(width, height),
+                      painter: _GridPainter(days: days, periods: periodsPerDay),
+                    ),
+                    ...assignments.map((a) => Positioned(
+                          left: (a.day - 1) * _cellW + 4,
+                          top: (a.period - 1) * _cellH + 4,
+                          width: _cellW - 8,
+                          height: _cellH - 8,
+                          child: _LessonCard(a: a),
+                        )),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -156,10 +164,15 @@ class _LessonCard extends StatelessWidget {
   const _LessonCard({required this.a});
 
   final TimetableAssignment a;
+  static const _catalog = TimetableDisplayCatalog();
 
   @override
   Widget build(BuildContext context) {
     final color = TimetableGridView.subjectColor(a.subjectId);
+    final subject = _catalog.subjectLabel(a.subjectId);
+    final teachers = _catalog.joinTeacherLabels(a.teacherIds);
+    final classes = _catalog.joinClassLabels(a.classIds);
+    final room = _catalog.roomLabel(a.roomId);
 
     return Container(
       decoration: BoxDecoration(
@@ -174,14 +187,15 @@ class _LessonCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              a.subjectId,
-              maxLines: 1,
+              subject,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const Spacer(),
-            Text('T:${a.teacherIds.join(',')}'),
-            Text('C:${a.classIds.join(',')}'),
+            if (teachers.isNotEmpty) Text(teachers),
+            if (classes.isNotEmpty) Text(classes),
+            if (room != null && room.isNotEmpty) Text(room),
           ],
         ),
       ),

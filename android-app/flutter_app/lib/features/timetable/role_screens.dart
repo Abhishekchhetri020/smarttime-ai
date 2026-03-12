@@ -1,40 +1,47 @@
 import 'package:flutter/material.dart';
 import '../admin/admin_dashboard_screen.dart';
+import 'timetable_display.dart';
 import 'timetable_repo.dart';
 
 class SuperAdminScreen extends StatelessWidget {
   const SuperAdminScreen({super.key});
   @override
-  Widget build(BuildContext context) => const AdminDashboardScreen(role: 'Super Admin');
+  Widget build(BuildContext context) =>
+      const AdminDashboardScreen(role: 'Super Admin');
 }
 
 class InchargeScreen extends StatelessWidget {
   const InchargeScreen({super.key});
   @override
-  Widget build(BuildContext context) => const AdminDashboardScreen(role: 'Timetable In-Charge');
+  Widget build(BuildContext context) =>
+      const AdminDashboardScreen(role: 'Timetable In-Charge');
 }
 
 class TeacherScreen extends StatelessWidget {
   const TeacherScreen({super.key});
   @override
-  Widget build(BuildContext context) => const TimetableEntriesView(title: 'Teacher Timetable');
+  Widget build(BuildContext context) =>
+      const TimetableEntriesView(title: 'Teacher Timetable');
 }
 
 class StudentScreen extends StatelessWidget {
   const StudentScreen({super.key});
   @override
-  Widget build(BuildContext context) => const TimetableEntriesView(title: 'Student Timetable');
+  Widget build(BuildContext context) =>
+      const TimetableEntriesView(title: 'Student Timetable');
 }
 
 class ParentScreen extends StatelessWidget {
   const ParentScreen({super.key});
   @override
-  Widget build(BuildContext context) => const TimetableEntriesView(title: 'Parent Timetable');
+  Widget build(BuildContext context) =>
+      const TimetableEntriesView(title: 'Parent Timetable');
 }
 
 class TimetableEntriesView extends StatelessWidget {
   final String title;
   const TimetableEntriesView({super.key, required this.title});
+  static const _catalog = TimetableDisplayCatalog();
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +67,10 @@ class TimetableEntriesView extends StatelessWidget {
           final p = (e['period'] as num?)?.toInt() ?? 1;
           if (d > maxDay) maxDay = d;
           if (p > maxPeriod) maxPeriod = p;
-          grid['$d-$p'] = '${e['subjectId'] ?? ''}\n${e['classId'] ?? ''}'.trim();
+          grid['$d-$p'] = [
+            _catalog.subjectLabel(e['subjectId']?.toString() ?? ''),
+            _catalog.classLabel(e['classId']?.toString() ?? ''),
+          ].where((value) => value.isNotEmpty).join('\n');
         }
 
         return Column(
@@ -84,7 +94,8 @@ class TimetableEntriesView extends StatelessWidget {
                     width: 120,
                     padding: const EdgeInsets.all(8),
                     color: Colors.grey.shade200,
-                    child: Text('Day $d', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    child: Text('Day $d',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
                   ),
               ],
             ),
@@ -101,7 +112,9 @@ class TimetableEntriesView extends StatelessWidget {
                             height: 64,
                             alignment: Alignment.center,
                             color: Colors.grey.shade100,
-                            child: Text('P$p', style: const TextStyle(fontWeight: FontWeight.w600)),
+                            child: Text('P$p',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
                           ),
                       ],
                     ),
@@ -156,7 +169,9 @@ class _Cell extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       child: Text(
         text,
-        style: TextStyle(fontSize: 12, fontWeight: header ? FontWeight.w600 : FontWeight.normal),
+        style: TextStyle(
+            fontSize: 12,
+            fontWeight: header ? FontWeight.w600 : FontWeight.normal),
       ),
     );
   }

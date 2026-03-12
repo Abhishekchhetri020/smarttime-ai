@@ -4,7 +4,7 @@ import '../../admin/time_off_picker.dart';
 class SolverPayloadMapper {
   Future<Map<String, dynamic>> fromCanonicalState(
     PlannerState planner, {
-    int timeoutMs = 30000,
+    int timeoutMs = 60000,
   }) async {
     final db = planner.db;
     if (db == null) {
@@ -88,7 +88,7 @@ class SolverPayloadMapper {
 
   Map<String, dynamic> fromPlanner(
     PlannerState planner, {
-    int timeoutMs = 30000,
+    int timeoutMs = 60000,
   }) {
     final teachers = [...planner.teachers]
       ..sort((a, b) => a.id.compareTo(b.id));

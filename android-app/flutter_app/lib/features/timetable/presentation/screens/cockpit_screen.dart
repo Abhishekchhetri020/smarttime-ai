@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/database.dart';
 import '../../data/timetable_pdf_service.dart';
 import '../../data/timetable_service.dart';
+import '../../timetable_display.dart';
 import '../widgets/universal_timetable_grid.dart';
 
 class CockpitScreen extends StatefulWidget {
@@ -20,16 +21,6 @@ class _CockpitScreenState extends State<CockpitScreen> {
   final _pdfService = TimetablePdfService();
 
   static const _days = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  static const _periods = <PeriodSlot>[
-    PeriodSlot(id: 'p1', label: 'P1'),
-    PeriodSlot(id: 'p2', label: 'P2'),
-    PeriodSlot(id: 'p3', label: 'P3'),
-    PeriodSlot(id: 'br1', label: 'SHORT BREAK', isBreak: true),
-    PeriodSlot(id: 'p4', label: 'P4'),
-    PeriodSlot(id: 'p5', label: 'P5'),
-    PeriodSlot(id: 'p6', label: 'P6'),
-    PeriodSlot(id: 'p7', label: 'P7'),
-  ];
 
   Stream<_CockpitVm> _vmStream() {
     return widget.db.select(widget.db.cards).watch().asyncMap((cards) async {
@@ -38,11 +29,35 @@ class _CockpitScreenState extends State<CockpitScreen> {
       final teachers = await widget.db.select(widget.db.teachers).get();
       final classes = await widget.db.select(widget.db.classes).get();
 
-      final subjectById = {for (final s in subjects) s.id: s};
-      final teacherById = {for (final t in teachers) t.id: t};
-      final classById = {for (final c in classes) c.id: c};
-      final roomNameById = <String, String>{};
       final lessonById = {for (final l in lessons) l.id: l};
+      final plannerSnap = await widget.db.loadPlannerSnapshot();
+      final catalog = TimetableDisplayCatalog.fromDatabase(
+        subjects: subjects,
+        teachers: teachers,
+        classes: classes,
+        plannerSnapshot: plannerSnap,
+      );
+      final periods = buildTimetableSlots(
+        plannerSnapshot: plannerSnap,
+        usedPeriodIndexes: cards.map((card) => card.periodIndex),
+      )
+          .map(
+            (slot) => PeriodSlot(
+              id: slot.id,
+              label: slot.label,
+              isBreak: slot.isBreak,
+              periodIndex: slot.periodIndex,
+            ),
+          )
+          .toList(growable: false);
+      final periodColumnByPeriodIndex = <int, int>{};
+      for (var i = 0; i < periods.length; i++) {
+        final p = periods[i];
+        final idx = p.periodIndex;
+        if (idx != null) {
+          periodColumnByPeriodIndex[idx] = i;
+        }
+      }
 
       final cells = <String, TimetableCellData>{};
       for (final c in cards) {
@@ -50,52 +65,43 @@ class _CockpitScreenState extends State<CockpitScreen> {
         if (lesson == null) continue;
 
         final row = c.dayIndex.clamp(0, _days.length - 1);
-        final col = _periodColumnFromPeriodIndex(c.periodIndex);
-        if (col < 0) continue;
+        final col = periodColumnByPeriodIndex[c.periodIndex];
+        if (col == null) continue;
 
-        final subject = subjectById[lesson.subjectId]?.abbr ?? lesson.subjectId;
-        final teacherAbbr = lesson.teacherIds
-            .map((id) => teacherById[id]?.abbreviation ?? id)
-            .join(', ');
-        final classAbbr =
-            lesson.classIds.map((id) => classById[id]?.abbr ?? id).join(', ');
+        final subject = catalog.subjectLabel(lesson.subjectId);
+        final teacherAbbr = catalog.joinTeacherLabels(lesson.teacherIds);
+        final classAbbr = catalog.joinClassLabels(lesson.classIds);
 
         final secondary = switch (_mode) {
           ViewMode.teacher => classAbbr,
           ViewMode.classView => teacherAbbr,
-          ViewMode.room => '$classAbbr / $teacherAbbr',
+          ViewMode.room => [classAbbr, teacherAbbr]
+              .where((value) => value.trim().isNotEmpty)
+              .join(' / '),
         };
 
         cells[UniversalTimetableGrid.keyFor(row, col)] = TimetableCellData(
           id: lesson.id,
           primary: subject,
           secondary: secondary,
-          tertiary: _resolveRoomLabel(c.roomId, roomNameById),
+          tertiary: catalog.roomLabel(c.roomId),
+          accent: _subjectAccent(catalog.subjectColor(lesson.subjectId)),
         );
       }
 
-      return _CockpitVm(cells);
+      return _CockpitVm(cells: cells, periods: periods);
     });
   }
 
-  int _periodColumnFromPeriodIndex(int periodIndex) {
-    // We render a break column after P3, so shift periods >=3 by +1.
-    if (periodIndex < 0) return -1;
-    if (periodIndex >= 3) return periodIndex + 1;
-    return periodIndex;
-  }
-
-  int? _periodIndexFromColumn(int col) {
-    if (col < 0 || col >= _periods.length) return null;
-    final slot = _periods[col];
-    if (slot.isBreak) return null;
-    if (col >= 4) return col - 1;
-    return col;
+  int? _periodIndexFromColumn(List<PeriodSlot> periods, int col) {
+    if (col < 0 || col >= periods.length) return null;
+    final slot = periods[col];
+    return slot.periodIndex;
   }
 
   Future<String?> _moveLessonValidated(
-      String lessonId, int row, int col) async {
-    final periodIndex = _periodIndexFromColumn(col);
+      String lessonId, int row, int col, List<PeriodSlot> periods) async {
+    final periodIndex = _periodIndexFromColumn(periods, col);
     if (periodIndex == null) return 'Cannot drop onto a break column.';
     final result = await _service.moveLessonValidated(
         widget.db, lessonId, '$row:$periodIndex');
@@ -182,12 +188,14 @@ class _CockpitScreenState extends State<CockpitScreen> {
                       ),
                     );
                   }
+                  final vm = snap.data!;
                   return UniversalTimetableGrid(
                     viewMode: _mode,
                     rowLabels: _days,
-                    periods: _periods,
-                    cells: snap.data!.cells,
-                    onMoveCell: _moveLessonValidated,
+                    periods: vm.periods,
+                    cells: vm.cells,
+                    onMoveCell: (lessonId, row, col) =>
+                        _moveLessonValidated(lessonId, row, col, vm.periods),
                   );
                 },
               ),
@@ -201,23 +209,14 @@ class _CockpitScreenState extends State<CockpitScreen> {
 
 class _CockpitVm {
   final Map<String, TimetableCellData> cells;
+  final List<PeriodSlot> periods;
 
-  const _CockpitVm(this.cells);
+  const _CockpitVm({required this.cells, required this.periods});
 }
 
-String? _resolveRoomLabel(String? roomId, Map<String, String> roomNameById) {
-  if (roomId == null || roomId.trim().isEmpty) return null;
-  final direct = roomNameById[roomId];
-  if (direct != null && direct.trim().isNotEmpty) return direct;
-  final raw = roomId.trim();
-  if (raw.startsWith('room_CLS_')) {
-    final cleaned = raw
-        .replaceFirst('room_CLS_', '')
-        .replaceAll('_', ' ')
-        .replaceAllMapped(RegExp(r'\b\w'), (m) => m.group(0)!.toUpperCase());
-    return cleaned;
-  }
-  return raw;
+Color? _subjectAccent(int? rawColor) {
+  if (rawColor == null) return null;
+  return Color(rawColor);
 }
 
 class _ModeTab extends StatelessWidget {

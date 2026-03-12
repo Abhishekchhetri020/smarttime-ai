@@ -71,11 +71,28 @@ class SolverController extends ChangeNotifier {
       final res = await client.solve(payload);
       status = res.rawStatus;
       if (!res.isOk) {
-        error = res.errorMessage ?? 'Solver error: ${res.rawStatus}';
+        final diagnostics = res.raw['diagnostics'] is Map
+            ? Map<String, dynamic>.from(res.raw['diagnostics'] as Map)
+            : const <String, dynamic>{};
+        final reasonCounts = diagnostics['unscheduledReasonCounts'] is Map
+            ? Map<String, dynamic>.from(
+                diagnostics['unscheduledReasonCounts'] as Map)
+            : const <String, dynamic>{};
+        final topReason =
+            reasonCounts.entries.isEmpty ? null : reasonCounts.entries.first;
+        if (res.rawStatus == 'SEED_TIMEOUT' && topReason != null) {
+          error =
+              'Timeout: dominant bottleneck ${topReason.key} (${topReason.value})';
+        } else {
+          error = res.errorMessage ?? 'Solver error: ${res.rawStatus}';
+        }
         if (res.rawStatus == 'SEED_NOT_FOUND' ||
-            res.rawStatus == 'SEED_INFEASIBLE_INPUT') {
+            res.rawStatus == 'SEED_INFEASIBLE_INPUT' ||
+            res.rawStatus == 'SEED_TIMEOUT') {
           final warnings = conflictService.preflight(planner);
           failureHints = [
+            if (topReason != null)
+              'Dominant bottleneck: ${topReason.key} (${topReason.value})',
             if (warnings.isEmpty)
               'No obvious preflight issue detected. Check pinned slots, teacher availability, and room/class capacity.'
             else

@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 
 import '../../../core/database.dart';
 import '../presentation/controllers/solver_controller.dart';
+import '../timetable_display.dart';
 
 class TimetablePdfService {
   Future<Uint8List> buildMasterGridPdf({
@@ -25,6 +26,7 @@ class TimetablePdfService {
                 'subjectId': a.subjectId,
                 'teacherIds': a.teacherIds,
                 'classIds': a.classIds,
+                'roomId': a.roomId,
               })
           .toList(),
     };
@@ -38,81 +40,67 @@ class TimetablePdfService {
     final subjects = await db.select(db.subjects).get();
     final teachers = await db.select(db.teachers).get();
     final classes = await db.select(db.classes).get();
+    final plannerSnapshot = await db.loadPlannerSnapshot();
 
-    final lessonById = {for (final l in lessons) l.id: l};
-    final subjectById = {
-      for (final s in subjects) s.id: (s.abbr.isNotEmpty ? s.abbr : s.name)
-    };
-    final teacherById = {
-      for (final t in teachers)
-        t.id: (t.abbreviation.isNotEmpty ? t.abbreviation : t.name)
-    };
-    final classById = {
-      for (final c in classes) c.id: (c.abbr.isNotEmpty ? c.abbr : c.name)
-    };
-    final roomById = <String, String>{};
-    final plannerSnap = await db.loadPlannerSnapshot();
-    final breakPeriodLabels = _breakPeriodLabelsFromPlanner(plannerSnap);
-
+    final lessonById = {for (final lesson in lessons) lesson.id: lesson};
+    final catalog = TimetableDisplayCatalog.fromDatabase(
+      subjects: subjects,
+      teachers: teachers,
+      classes: classes,
+      plannerSnapshot: plannerSnapshot,
+    );
+    final slots = buildTimetableSlots(
+      plannerSnapshot: plannerSnapshot,
+      usedPeriodIndexes: cards.map((card) => card.periodIndex),
+    );
     final dayCount = cards.isEmpty
         ? 5
-        : (cards.map((e) => e.dayIndex).reduce((a, b) => a > b ? a : b) + 1)
+        : (cards.map((card) => card.dayIndex).reduce((a, b) => a > b ? a : b) +
+                1)
             .clamp(1, 6);
-    final periodCount = cards.isEmpty
-        ? 8
-        : (cards.map((e) => e.periodIndex).reduce((a, b) => a > b ? a : b) + 1)
-            .clamp(1, 12);
 
-    final classIds = classes.map((e) => e.id).toList()..sort();
-    final teacherIds = teachers.map((e) => e.id).toList()..sort();
+    final classIds = classes.map((item) => item.id).toList()..sort();
+    final teacherIds = teachers.map((item) => item.id).toList()..sort();
 
     final doc = pw.Document();
 
     for (final classId in classIds) {
-      final pageCards = cards.where((c) {
-        final l = lessonById[c.lessonId];
-        return l != null && l.classIds.contains(classId);
-      }).toList();
+      final pageCards = cards.where((card) {
+        final lesson = lessonById[card.lessonId];
+        return lesson != null && lesson.classIds.contains(classId);
+      }).toList(growable: false);
       doc.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
           build: (_) => _buildGridPage(
-            title: 'Class Timetable: ${classById[classId] ?? classId}',
+            title: 'Class Timetable: ${catalog.classLabel(classId)}',
             cards: pageCards,
             lessonById: lessonById,
-            subjectById: subjectById,
-            teacherById: teacherById,
-            classById: classById,
+            catalog: catalog,
             days: dayCount,
-            periodsPerDay: periodCount,
-            roomById: roomById,
-            secondaryMode: 'teacher',
-            breakPeriodLabels: breakPeriodLabels,
+            slots: slots,
+            secondaryMode: _PdfSecondaryMode.teacher,
           ),
         ),
       );
     }
 
     for (final teacherId in teacherIds) {
-      final pageCards = cards.where((c) {
-        final l = lessonById[c.lessonId];
-        return l != null && l.teacherIds.contains(teacherId);
-      }).toList();
+      final pageCards = cards.where((card) {
+        final lesson = lessonById[card.lessonId];
+        return lesson != null && lesson.teacherIds.contains(teacherId);
+      }).toList(growable: false);
       doc.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
           build: (_) => _buildGridPage(
-            title: 'Teacher Timetable: ${teacherById[teacherId] ?? teacherId}',
+            title: 'Teacher Timetable: ${catalog.teacherLabel(teacherId)}',
             cards: pageCards,
             lessonById: lessonById,
-            subjectById: subjectById,
-            teacherById: teacherById,
-            classById: classById,
+            catalog: catalog,
             days: dayCount,
-            periodsPerDay: periodCount,
-            roomById: roomById,
-            secondaryMode: 'class',
-            breakPeriodLabels: breakPeriodLabels,
+            slots: slots,
+            secondaryMode: _PdfSecondaryMode.classroom,
           ),
         ),
       );
@@ -124,7 +112,9 @@ class TimetablePdfService {
   Future<void> printCockpitMasterPdf(AppDatabase db) async {
     final bytes = await buildCockpitMasterPdf(db);
     await Printing.layoutPdf(
-        onLayout: (_) async => bytes, name: 'smarttime_master_report.pdf');
+      onLayout: (_) async => bytes,
+      name: 'smarttime_master_report.pdf',
+    );
   }
 
   Future<void> printPdf(Uint8List bytes) async {
@@ -136,41 +126,41 @@ class TimetablePdfService {
   }
 }
 
+enum _PdfSecondaryMode { teacher, classroom }
+
 pw.Widget _buildGridPage({
   required String title,
   required List<CardRow> cards,
   required Map<String, LessonRow> lessonById,
-  required Map<String, String> subjectById,
-  required Map<String, String> teacherById,
-  required Map<String, String> classById,
-  required Map<String, String> roomById,
+  required TimetableDisplayCatalog catalog,
   required int days,
-  required int periodsPerDay,
-  required String secondaryMode,
-  required Set<int> breakPeriodLabels,
+  required List<TimetableSlotDescriptor> slots,
+  required _PdfSecondaryMode secondaryMode,
 }) {
   final grid =
-      List.generate(periodsPerDay, (_) => List<String?>.filled(days, null));
+      List.generate(slots.length, (_) => List<String?>.filled(days, null));
   final colorGrid =
-      List.generate(periodsPerDay, (_) => List<PdfColor?>.filled(days, null));
+      List.generate(slots.length, (_) => List<PdfColor?>.filled(days, null));
+  final slotIndexByPeriodIndex = <int, int>{
+    for (var index = 0; index < slots.length; index++)
+      if (slots[index].periodIndex != null) slots[index].periodIndex!: index,
+  };
 
-  for (final c in cards) {
-    final lesson = lessonById[c.lessonId];
+  for (final card in cards) {
+    final lesson = lessonById[card.lessonId];
     if (lesson == null) continue;
-    final d = c.dayIndex;
-    final p = c.periodIndex;
-    if (d < 0 || d >= days || p < 0 || p >= periodsPerDay) continue;
+    final dayIndex = card.dayIndex;
+    final rowIndex = slotIndexByPeriodIndex[card.periodIndex];
+    if (rowIndex == null || dayIndex < 0 || dayIndex >= days) continue;
 
-    final subject = subjectById[lesson.subjectId] ?? lesson.subjectId;
-    final teacherText =
-        lesson.teacherIds.map((id) => teacherById[id] ?? id).join(', ');
-    final classText =
-        lesson.classIds.map((id) => classById[id] ?? id).join(', ');
-    final secondary = secondaryMode == 'teacher' ? teacherText : classText;
+    final subject = catalog.subjectLabel(lesson.subjectId);
+    final secondary = secondaryMode == _PdfSecondaryMode.teacher
+        ? catalog.joinTeacherLabels(lesson.teacherIds)
+        : catalog.joinClassLabels(lesson.classIds);
 
-    final room = _resolveRoomLabel(c.roomId, roomById);
-    grid[p][d] = '$subject\n$secondary${room.isNotEmpty ? '\n$room' : ''}';
-    colorGrid[p][d] = _subjectPdfColor(subject);
+    grid[rowIndex][dayIndex] =
+        pdfCellText(subject: subject, secondary: secondary);
+    colorGrid[rowIndex][dayIndex] = _subjectPdfColor(subject);
   }
 
   return pw.Column(
@@ -190,7 +180,7 @@ pw.Widget _buildGridPage({
               style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
             ),
             pw.Text(
-              '$days days × $periodsPerDay periods',
+              '$days days × ${slots.where((slot) => !slot.isBreak).length} periods',
               style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey700),
             ),
           ],
@@ -203,29 +193,38 @@ pw.Widget _buildGridPage({
         children: [
           pw.TableRow(
             children: [
-              _headerCell('P\\D'),
-              for (int d = 1; d <= days; d++) _headerCell('Day $d'),
+              _headerCell('Slot'),
+              for (int day = 1; day <= days; day++) _headerCell('Day $day'),
             ],
           ),
-          for (int p = 1; p <= periodsPerDay; p++)
+          for (int rowIndex = 0; rowIndex < slots.length; rowIndex++)
             pw.TableRow(
               children: [
-                _headerCell(breakPeriodLabels.contains(p) ? 'Break' : 'P$p'),
-                for (int d = 1; d <= days; d++)
+                _headerCell(slots[rowIndex].label,
+                    shaded: slots[rowIndex].isBreak),
+                for (int day = 1; day <= days; day++)
                   pw.Container(
-                    color: colorGrid[p - 1][d - 1] ?? PdfColors.white,
+                    color: slots[rowIndex].isBreak
+                        ? PdfColors.grey200
+                        : (colorGrid[rowIndex][day - 1] ?? PdfColors.white),
                     padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 4),
-                    constraints: const pw.BoxConstraints(minHeight: 54),
+                      horizontal: 5,
+                      vertical: 4,
+                    ),
+                    constraints: pw.BoxConstraints(
+                      minHeight: slots[rowIndex].isBreak ? 28 : 54,
+                    ),
                     child: pw.Text(
-                      grid[p - 1][d - 1] ?? '',
-                      maxLines: 4,
+                      slots[rowIndex].isBreak
+                          ? ''
+                          : (grid[rowIndex][day - 1] ?? ''),
+                      maxLines: 3,
                       softWrap: true,
                       overflow: pw.TextOverflow.clip,
                       style: pw.TextStyle(
                         fontSize: 7.5,
                         lineSpacing: 1.1,
-                        color: grid[p - 1][d - 1] == null
+                        color: grid[rowIndex][day - 1] == null
                             ? PdfColors.black
                             : PdfColors.white,
                       ),
@@ -244,7 +243,7 @@ Future<Uint8List> _buildMasterPdfBytes(Map<String, dynamic> input) async {
   final days = input['days'] as int;
   final periodsPerDay = input['periodsPerDay'] as int;
   final rows = (input['rows'] as List)
-      .map((e) => Map<String, dynamic>.from(e as Map))
+      .map((entry) => Map<String, dynamic>.from(entry as Map))
       .toList(growable: false);
 
   final doc = pw.Document();
@@ -254,20 +253,29 @@ Future<Uint8List> _buildMasterPdfBytes(Map<String, dynamic> input) async {
   final colorGrid =
       List.generate(periodsPerDay, (_) => List<PdfColor?>.filled(days, null));
 
-  for (final r in rows) {
-    final d = (r['day'] as num).toInt();
-    final p = (r['period'] as num).toInt();
-    if (d < 1 || d > days || p < 1 || p > periodsPerDay) continue;
-    final subject = r['subjectId']?.toString() ?? 'SUB';
-    final teachers = ((r['teacherIds'] as List?) ?? const [])
-        .map((e) => e.toString())
-        .join('|');
-    final classes = ((r['classIds'] as List?) ?? const [])
-        .map((e) => e.toString())
-        .join('|');
+  for (final row in rows) {
+    final day = (row['day'] as num).toInt();
+    final period = (row['period'] as num).toInt();
+    if (day < 1 || day > days || period < 1 || period > periodsPerDay) continue;
 
-    grid[p - 1][d - 1] = '$subject\nT:$teachers\nC:$classes';
-    colorGrid[p - 1][d - 1] = _subjectPdfColor(subject);
+    final subject = humanizeTimetableId(row['subjectId']?.toString() ?? 'SUB');
+    final teachers = ((row['teacherIds'] as List?) ?? const [])
+        .map((value) => humanizeTimetableId(value.toString()))
+        .where((value) => value.isNotEmpty)
+        .join(', ');
+    final classes = ((row['classIds'] as List?) ?? const [])
+        .map((value) => humanizeTimetableId(value.toString()))
+        .where((value) => value.isNotEmpty)
+        .join(', ');
+    final room = humanizeTimetableId(row['roomId']?.toString() ?? '');
+
+    grid[period - 1][day - 1] = pdfCellText(
+      subject: subject,
+      secondary: [teachers, classes, room]
+          .where((value) => value.trim().isNotEmpty)
+          .join(' | '),
+    );
+    colorGrid[period - 1][day - 1] = _subjectPdfColor(subject);
   }
 
   doc.addPage(
@@ -284,9 +292,11 @@ Future<Uint8List> _buildMasterPdfBytes(Map<String, dynamic> input) async {
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(title,
-                  style: pw.TextStyle(
-                      fontSize: 15, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                title,
+                style:
+                    pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
+              ),
               pw.Text(
                 '$days days × $periodsPerDay periods',
                 style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey700),
@@ -302,27 +312,29 @@ Future<Uint8List> _buildMasterPdfBytes(Map<String, dynamic> input) async {
             pw.TableRow(
               children: [
                 _headerCell('P\\D'),
-                for (int d = 1; d <= days; d++) _headerCell('Day $d'),
+                for (int day = 1; day <= days; day++) _headerCell('Day $day'),
               ],
             ),
-            for (int p = 1; p <= periodsPerDay; p++)
+            for (int period = 1; period <= periodsPerDay; period++)
               pw.TableRow(
                 children: [
-                  _headerCell('P$p'),
-                  for (int d = 1; d <= days; d++)
+                  _headerCell('P$period'),
+                  for (int day = 1; day <= days; day++)
                     pw.Container(
-                      color: colorGrid[p - 1][d - 1] ?? PdfColors.white,
+                      color: colorGrid[period - 1][day - 1] ?? PdfColors.white,
                       padding: const pw.EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 4),
+                        horizontal: 5,
+                        vertical: 4,
+                      ),
                       height: 50,
                       child: pw.Text(
-                        grid[p - 1][d - 1] ?? '',
-                        maxLines: 4,
+                        grid[period - 1][day - 1] ?? '',
+                        maxLines: 3,
                         softWrap: true,
                         style: pw.TextStyle(
                           fontSize: 7.5,
                           lineSpacing: 1.1,
-                          color: grid[p - 1][d - 1] == null
+                          color: grid[period - 1][day - 1] == null
                               ? PdfColors.black
                               : PdfColors.white,
                         ),
@@ -339,46 +351,27 @@ Future<Uint8List> _buildMasterPdfBytes(Map<String, dynamic> input) async {
   return doc.save();
 }
 
-pw.Widget _headerCell(String text) {
+pw.Widget _headerCell(String text, {bool shaded = false}) {
   return pw.Container(
-    color: PdfColors.blueGrey100,
+    color: shaded ? PdfColors.grey300 : PdfColors.blueGrey100,
     padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
     alignment: pw.Alignment.center,
-    child: pw.Text(text,
-        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+    child: pw.Text(
+      text,
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+    ),
   );
 }
 
-String _resolveRoomLabel(String? roomId, Map<String, String> roomById) {
-  final value = roomId?.trim() ?? '';
-  if (value.isEmpty) return '';
-  final direct = roomById[value];
-  if (direct != null && direct.trim().isNotEmpty) return direct;
-  if (value.startsWith('room_CLS_')) {
-    return value
-        .replaceFirst('room_CLS_', '')
-        .replaceAll('_', ' ')
-        .replaceAllMapped(RegExp(r'\b\w'), (m) => m.group(0)!.toUpperCase());
-  }
-  return value;
-}
-
-Set<int> _breakPeriodLabelsFromPlanner(Map<String, dynamic>? plannerSnap) {
-  final bellTimes = ((plannerSnap?['bellTimes'] as List?) ?? const []);
-  final labels = <int>{};
-  for (var i = 0; i < bellTimes.length; i++) {
-    final raw = bellTimes[i];
-    final label = raw is String
-        ? raw
-        : (raw is Map ? (raw['label']?.toString() ?? '') : '');
-    final lower = label.toLowerCase();
-    if (lower.contains('break') ||
-        lower.contains('lunch') ||
-        lower.contains('recess')) {
-      labels.add(i + 1);
-    }
-  }
-  return labels;
+@visibleForTesting
+String pdfCellText({
+  required String subject,
+  required String secondary,
+}) {
+  return [subject.trim(), secondary.trim()]
+      .where((line) => line.isNotEmpty)
+      .join('\n');
 }
 
 PdfColor _subjectPdfColor(String subjectId) {

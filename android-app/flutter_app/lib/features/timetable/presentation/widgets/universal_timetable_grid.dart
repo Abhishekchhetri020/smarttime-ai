@@ -8,9 +8,14 @@ class PeriodSlot {
   final String id;
   final String label;
   final bool isBreak;
+  final int? periodIndex;
 
-  const PeriodSlot(
-      {required this.id, required this.label, this.isBreak = false});
+  const PeriodSlot({
+    required this.id,
+    required this.label,
+    this.isBreak = false,
+    this.periodIndex,
+  });
 }
 
 /// One cell payload after view-mode pivoting.
@@ -54,7 +59,7 @@ class UniversalTimetableGrid extends StatelessWidget {
   static const double _rowLabelW = 110;
   static const double _cellW = 152;
   static const double _breakW = 56;
-  static const double _cellH = 92;
+  static const double _cellH = 98;
 
   static String keyFor(int row, int col) => '$row|$col';
 
@@ -220,8 +225,8 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
           feedback: Material(
             color: Colors.transparent,
             child: SizedBox(
-              width: 136,
-              height: 74,
+              width: 140,
+              height: 86,
               child: TimetableCell(data: widget.data!, isDragging: true),
             ),
           ),
@@ -262,13 +267,14 @@ class TimetableCell extends StatelessWidget {
               border: Border.all(color: Colors.black12),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     data.primary,
                     maxLines: 2,
+                    softWrap: true,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
@@ -277,19 +283,26 @@ class TimetableCell extends StatelessWidget {
                       height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    data.secondary,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      height: 1.15,
+                  const SizedBox(height: 3),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: Text(
+                        data.secondary,
+                        maxLines: 2,
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          height: 1.15,
+                        ),
+                      ),
                     ),
                   ),
-                  const Spacer(),
+                  if (data.tertiary != null && data.tertiary!.isNotEmpty)
+                    const SizedBox(height: 3),
                   if (data.tertiary != null && data.tertiary!.isNotEmpty)
                     Text(
                       data.tertiary!,
