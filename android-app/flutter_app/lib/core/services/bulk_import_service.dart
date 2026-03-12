@@ -826,6 +826,7 @@ class BulkImportService {
       });
     }
 
+    late MasterImportSummary summary;
     await db.transaction(() async {
       await db.delete(db.cards).go();
       await db.delete(db.lessonTeachers).go();
@@ -890,13 +891,17 @@ class BulkImportService {
         'lessons': plannerLessons,
       };
       await db.savePlannerSnapshot(plannerSnap);
+
+      final dbLessons = await db.select(db.lessons).get();
+      final dbTeachers = await db.select(db.teachers).get();
+      summary = MasterImportSummary(
+        lessons: dbLessons.length,
+        teachers: dbTeachers.length,
+        rooms: roomNames.length,
+      );
     });
 
-    return MasterImportSummary(
-      lessons: lessonDtos.length,
-      teachers: teacherByName.length,
-      rooms: roomNames.length,
-    );
+    return summary;
   }
 
   /// Atomic high-throughput insert path.

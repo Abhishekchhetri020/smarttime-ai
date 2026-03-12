@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -129,11 +130,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         lessonsFile: lessonsFile,
         teachersFile: teachersFile,
       );
+      await planner.refreshFromDatabase();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Imported ${summary.lessons} Lessons, ${summary.teachers} Teachers, and ${summary.rooms} Rooms successfully.'),
+                'Imported ${summary.lessons} Lessons, ${summary.teachers} Teachers, and ${summary.rooms} Rooms to Database.'),
           ),
         );
       }
@@ -143,8 +145,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
-  void _runPreflight() {
+  Future<void> _runPreflight() async {
     final planner = context.read<PlannerState>();
+    await planner.refreshFromDatabase();
     final warnings = ConflictService().preflight(planner);
     final report = PreflightService().audit(planner);
     setState(() {
@@ -446,16 +449,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     icon: const Icon(Icons.table_view),
                     label: const Text('Bulk Import Data'),
                   ),
-                  OutlinedButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SolverDebugScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text('Open Grid Debug'),
-                  ),
+                  if (kDebugMode)
+                    OutlinedButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SolverDebugScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text('Open Grid Debug'),
+                    ),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple,
