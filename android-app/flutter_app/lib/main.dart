@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'core/database.dart';
 import 'features/admin/planner_state.dart';
+import 'features/admin/timetable_dashboard_screen.dart';
 import 'features/auth/auth_gate.dart';
 
 final AppDatabase _db = AppDatabase();
@@ -26,7 +27,7 @@ class SmartTimeApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0B3D91)),
           useMaterial3: true,
         ),
-        home: const AppHomeScreen(),
+        home: const TimetableDashboardScreen(),
       ),
     );
   }
