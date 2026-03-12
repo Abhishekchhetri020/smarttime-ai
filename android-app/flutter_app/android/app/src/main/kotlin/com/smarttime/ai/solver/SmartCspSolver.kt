@@ -1901,6 +1901,7 @@ class SmartCspSolver {
         val slots = if (useBest) state.bestLessonAssignedSlot else state.lessonAssignedSlot
         val rooms = if (useBest) state.bestLessonAssignedRoom else state.lessonAssignedRoom
         val pinnedFlags = if (useBest) state.bestLessonAssignedPinned else state.lessonAssignedPinned
+        val emittedTeacherSlots = HashMap<String, String>()
         val out = mutableListOf<Assignment>()
         for (lessonIdx in 0 until model.lessonCount) {
             if (!assigned[lessonIdx]) continue
@@ -1911,6 +1912,16 @@ class SmartCspSolver {
             val day = model.slotDay[slot] + 1
             val period = model.slotPeriod[slot] + 1
             val pinned = pinnedFlags[lessonIdx]
+            val roomId = model.roomIds[roomIdx]
+
+            verifyTeacherEmissionConflict(
+                teacherIds = lesson.teacherIds,
+                day = day,
+                period = period,
+                lessonId = lesson.id,
+                roomId = roomId,
+                seen = emittedTeacherSlots,
+            )
             out += Assignment(
                 lessonId = lesson.id,
                 classIds = lesson.classIds,
@@ -1918,11 +1929,19 @@ class SmartCspSolver {
                 subjectId = lesson.subjectId,
                 day = day,
                 period = period,
-                roomId = model.roomIds[roomIdx],
+                roomId = roomId,
                 pinned = pinned,
                 isLabDouble = lesson.isLabDouble,
             )
             if (lesson.isLabDouble) {
+                verifyTeacherEmissionConflict(
+                    teacherIds = lesson.teacherIds,
+                    day = day,
+                    period = period + 1,
+                    lessonId = lesson.id,
+                    roomId = roomId,
+                    seen = emittedTeacherSlots,
+                )
                 out += Assignment(
                     lessonId = lesson.id,
                     classIds = lesson.classIds,
@@ -1930,13 +1949,34 @@ class SmartCspSolver {
                     subjectId = lesson.subjectId,
                     day = day,
                     period = period + 1,
-                    roomId = model.roomIds[roomIdx],
+                    roomId = roomId,
                     pinned = pinned,
                     isLabDouble = true,
                 )
             }
         }
         return out
+    }
+
+    private fun verifyTeacherEmissionConflict(
+        teacherIds: List<String>,
+        day: Int,
+        period: Int,
+        lessonId: String,
+        roomId: String,
+        seen: MutableMap<String, String>,
+    ) {
+        for (teacherIdRaw in teacherIds) {
+            val teacherId = teacherIdRaw.trim()
+            if (teacherId.isEmpty()) continue
+            val key = "$teacherId|$day|$period"
+            val previous = seen.putIfAbsent(key, "$lessonId@$roomId")
+            if (previous != null) {
+                throw IllegalStateException(
+                    "CRITICAL: Double booking detected for Teacher $teacherId at day=$day period=$period (existing=$previous, incoming=$lessonId@$roomId)"
+                )
+            }
+        }
     }
 
     private fun assignmentEntriesCount(model: SolverModel, state: MutableState): Int {
