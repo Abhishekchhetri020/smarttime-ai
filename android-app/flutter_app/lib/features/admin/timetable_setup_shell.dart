@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'generation_progress_screen.dart';
 import 'planner_state.dart';
 import 'setup/class_setup_screen.dart';
 import 'setup/lesson_setup_screen.dart';
@@ -79,6 +80,9 @@ class TimetableSetupShell extends StatelessWidget {
                   return _PreGenerationReviewCard(
                     completed: completed,
                     total: entries.length,
+                    teacherCount: planner.teachers.length,
+                    classCount: planner.classes.length,
+                    lessonCount: planner.lessons.length,
                     missing: entries.where((e) => e.warningCount > 0).map((e) => e.title).toList(),
                   );
                 }
@@ -141,14 +145,32 @@ class _ProgressHeaderDelegate extends SliverPersistentHeaderDelegate {
 }
 
 class _PreGenerationReviewCard extends StatelessWidget {
-  const _PreGenerationReviewCard({required this.completed, required this.total, required this.missing});
+  const _PreGenerationReviewCard({
+    required this.completed,
+    required this.total,
+    required this.teacherCount,
+    required this.classCount,
+    required this.lessonCount,
+    required this.missing,
+  });
 
   final int completed;
   final int total;
+  final int teacherCount;
+  final int classCount;
+  final int lessonCount;
   final List<String> missing;
+
+  bool get canGenerate => teacherCount > 0 && classCount > 0 && lessonCount > 0;
 
   @override
   Widget build(BuildContext context) {
+    final checks = <({String label, bool ok})>[
+      (label: 'Teachers configured', ok: teacherCount > 0),
+      (label: 'Classes configured', ok: classCount > 0),
+      (label: 'Lessons configured', ok: lessonCount > 0),
+    ];
+
     return Card(
       margin: const EdgeInsets.only(top: 8),
       child: Padding(
@@ -159,13 +181,52 @@ class _PreGenerationReviewCard extends StatelessWidget {
             Text('Pre-generation Review', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Text('$completed of $total setup sections are ready.'),
+            const SizedBox(height: 12),
+            ...checks.map(
+              (check) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                      check.ok ? Icons.check_circle : Icons.radio_button_unchecked,
+                      size: 18,
+                      color: check.ok ? Colors.green : Theme.of(context).colorScheme.outline,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(check.label),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 8),
-            if (missing.isEmpty)
-              const Text('Ready for the next generation phase.')
-            else ...[
+            if (missing.isNotEmpty) ...[
               const Text('Still needed:'),
               const SizedBox(height: 4),
               ...missing.map((m) => Text('• $m')),
+              const SizedBox(height: 12),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: canGenerate
+                    ? () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const GenerationProgressScreen(),
+                          ),
+                        );
+                      }
+                    : null,
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('Generate Timetable'),
+              ),
+            ),
+            if (!canGenerate) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Add at least 1 teacher, 1 class, and 1 lesson to enable generation.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
           ],
         ),
