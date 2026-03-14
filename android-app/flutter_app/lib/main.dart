@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/database.dart';
+import 'core/theme/app_theme.dart';
 import 'features/admin/planner_state.dart';
 import 'features/admin/timetable_dashboard_screen.dart';
 import 'features/auth/auth_gate.dart';
@@ -23,10 +24,8 @@ class SmartTimeApp extends StatelessWidget {
       create: (_) => PlannerState(_db),
       child: MaterialApp(
         title: 'SmartTime AI',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0B3D91)),
-          useMaterial3: true,
-        ),
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
         home: const TimetableDashboardScreen(),
       ),
     );
