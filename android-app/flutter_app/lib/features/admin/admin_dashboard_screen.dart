@@ -8,9 +8,12 @@ import '../timetable/presentation/screens/solver_debug_screen.dart';
 import '../timetable/presentation/screens/cockpit_screen.dart';
 import '../../core/database.dart';
 import '../../core/services/bulk_import_service.dart';
+import '../../core/services/excel_export_service.dart';
+import '../../core/services/excel_import_template.dart';
 import '../../core/services/export_service.dart';
 import '../timetable/data/conflict_service.dart';
 import '../timetable/data/preflight_service.dart';
+import '../timetable/data/timetable_pdf_service.dart';
 import 'planner_state.dart';
 import 'setup/setup_wizard_screen.dart';
 import 'widgets/dashboard_analytics_widget.dart';
@@ -78,6 +81,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
     try {
       await ExportService().importSmarttimeFromPicker(db);
+      await planner.refreshFromDatabase();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Import complete (.smarttime)')),
@@ -142,6 +146,65 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       setState(() => _status = 'Bulk CSV import complete');
     } catch (e) {
       setState(() => _status = 'Bulk CSV import failed: $e');
+    }
+  }
+
+  Future<void> _exportExcel() async {
+    final planner = context.read<PlannerState>();
+    final db = planner.db;
+    if (db == null) {
+      setState(() => _status = 'Database unavailable.');
+      return;
+    }
+    setState(() { _busy = true; _status = 'Generating Excel...'; });
+    try {
+      await ExcelExportService().exportAndShare(db);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Excel timetable exported')),
+        );
+      }
+      setState(() => _status = 'Excel export complete');
+    } catch (e) {
+      setState(() => _status = 'Excel export failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _exportPdf() async {
+    final planner = context.read<PlannerState>();
+    final db = planner.db;
+    if (db == null) {
+      setState(() => _status = 'Database unavailable.');
+      return;
+    }
+    setState(() { _busy = true; _status = 'Generating PDF...'; });
+    try {
+      final cockpitService = TimetablePdfService();
+      await cockpitService.printCockpitMasterPdf(db);
+      setState(() => _status = 'PDF export complete');
+    } catch (e) {
+      setState(() => _status = 'PDF export failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _downloadImportTemplate() async {
+    setState(() { _busy = true; _status = 'Generating import template...'; });
+    try {
+      await ExcelImportTemplateService().generateAndShare();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Import template generated')),
+        );
+      }
+      setState(() => _status = 'Template ready');
+    } catch (e) {
+      setState(() => _status = 'Template generation failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -214,7 +277,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             .toList(growable: false),
       );
 
+      final sw = Stopwatch()..start();
       final nativeResponse = await EngineBridge.triggerSolver(payload);
+      sw.stop();
+      debugPrint('--- ENGINEBRIDGE SOLVER COMPLETED IN: ${sw.elapsedMilliseconds}ms ---');
+
       debugPrint('EngineBridge response: $nativeResponse');
 
       final cardsRaw = (nativeResponse['cards'] as List?) ?? const [];
@@ -448,6 +515,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     onPressed: _busy ? null : _bulkImportData,
                     icon: const Icon(Icons.table_view),
                     label: const Text('Bulk Import Data'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _exportExcel,
+                    icon: const Icon(Icons.grid_on),
+                    label: const Text('Export Excel'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _exportPdf,
+                    icon: const Icon(Icons.picture_as_pdf),
+                    label: const Text('Export PDF'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _downloadImportTemplate,
+                    icon: const Icon(Icons.file_download),
+                    label: const Text('Import Template'),
                   ),
                   if (kDebugMode)
                     OutlinedButton(

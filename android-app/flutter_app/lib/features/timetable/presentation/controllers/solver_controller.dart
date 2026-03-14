@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/solver/dart_solver_payload_mapper.dart';
+import '../../../../core/solver/solver_engine.dart';
+import '../../../../core/solver/solver_models.dart';
 import '../../../admin/planner_state.dart';
 import '../../data/conflict_service.dart';
 import '../../data/native_solver_client.dart';
@@ -58,6 +61,103 @@ class SolverController extends ChangeNotifier {
   final List<TimetableAssignment> assignments = [];
   List<String> failureHints = const [];
 
+  // ── Dart solver fields ──
+  final _dartMapper = DartSolverPayloadMapper();
+  SolverResult? lastResult;
+  List<SolverVariant> variants = const [];
+  SolverProgress? currentProgress;
+
+  /// Primary solver: Pure-Dart engine (Isolate-based, with variants).
+  Future<void> runDartSolver(
+    PlannerState planner, {
+    int variantCount = 3,
+    int timeoutMs = 60000,
+  }) async {
+    isLoading = true;
+    error = null;
+    status = 'Initializing Dart solver...';
+    failureHints = const [];
+    assignments.clear();
+    variants = const [];
+    lastResult = null;
+    notifyListeners();
+
+    try {
+      final payload = _dartMapper.fromPlanner(
+        planner,
+        timeoutMs: timeoutMs,
+        variantCount: variantCount,
+      );
+
+      debugPrint('--- DART SOLVER: ${payload.lessons.length} lessons, '
+          '${payload.rooms.length} rooms, ${payload.days}d × ${payload.periodsPerDay}p ---');
+
+      final result = await SolverEngine.solve(payload, onProgress: (progress) {
+        currentProgress = progress;
+        status = '${progress.phase}: ${progress.message}';
+        notifyListeners();
+      });
+
+      lastResult = result;
+      variants = result.variants;
+      status = result.status;
+
+      if (result.isOk && result.best != null) {
+        _mapDartAssignments(result.best!, planner);
+        debugPrint('--- DART SOLVER: ${result.status} in ${result.elapsedMs}ms, '
+            'score: ${result.best!.totalScore.toStringAsFixed(1)}, '
+            '${result.variants.length} variant(s) ---');
+      } else {
+        error = result.errorMessage ?? 'Solver failed: ${result.status}';
+        final warnings = conflictService.preflight(planner);
+        failureHints = [
+          if (result.errorMessage != null) result.errorMessage!,
+          if (warnings.isNotEmpty) ...warnings.take(3).map((w) => w.message),
+        ];
+      }
+    } catch (e) {
+      error = e.toString();
+      debugPrint('--- DART SOLVER ERROR: $e ---');
+    } finally {
+      isLoading = false;
+      currentProgress = null;
+      notifyListeners();
+    }
+  }
+
+  /// Select a specific variant by index and apply its assignments.
+  void selectVariant(int index, PlannerState planner) {
+    if (index < 0 || index >= variants.length) return;
+    assignments.clear();
+    _mapDartAssignments(variants[index], planner);
+    notifyListeners();
+  }
+
+  void _mapDartAssignments(SolverVariant variant, PlannerState planner) {
+    final lessonMap = <String, dynamic>{};
+    for (final l in planner.lessons) {
+      for (int k = 0; k < l.countPerWeek; k++) {
+        lessonMap['${l.id}_$k'] = l;
+      }
+    }
+
+    for (final a in variant.assignments) {
+      final plannerLesson = lessonMap[a.lessonId];
+      if (plannerLesson == null) continue;
+
+      assignments.add(TimetableAssignment(
+        lessonId: a.lessonId,
+        day: a.day + 1, // Convert 0-indexed back to 1-indexed
+        period: a.period + 1,
+        subjectId: plannerLesson.subjectId,
+        classIds: List<String>.from(plannerLesson.classIds),
+        teacherIds: List<String>.from(plannerLesson.teacherIds),
+        roomId: a.roomId,
+      ));
+    }
+  }
+
+  /// Fallback: Kotlin native solver (legacy).
   Future<void> run(PlannerState planner) async {
     isLoading = true;
     error = null;
@@ -68,7 +168,13 @@ class SolverController extends ChangeNotifier {
 
     try {
       final payload = await mapper.fromCanonicalState(planner);
+      
+      final sw = Stopwatch()..start();
       final res = await client.solve(payload);
+      sw.stop();
+      debugPrint('--- NATIVE SOLVER COMPLETED IN: ${sw.elapsedMilliseconds}ms ---');
+      debugPrint('--- SOLVER STATUS: ${res.rawStatus} ---');
+
       status = res.rawStatus;
       if (!res.isOk) {
         final diagnostics = res.raw['diagnostics'] is Map
