@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../timetable/role_screens.dart';
@@ -21,8 +22,11 @@ class AuthGate extends StatelessWidget {
         return FutureBuilder<IdTokenResult>(
           future: user.getIdTokenResult(true),
           builder: (context, tokenSnap) {
-            if (!tokenSnap.hasData) return const Center(child: CircularProgressIndicator());
-            final role = tokenSnap.data!.claims?['role']?.toString() ?? 'teacher';
+            if (!tokenSnap.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final role =
+                tokenSnap.data!.claims?['role']?.toString() ?? 'teacher';
             Widget child;
             switch (role) {
               case 'super_admin':
@@ -112,7 +116,8 @@ class _SignInPanelState extends State<SignInPanel> {
     } catch (e) {
       final msg = e.toString();
       if (msg.contains('ApiException: 10') || msg.contains('sign_in_failed')) {
-        setState(() => _err = 'Google Sign-In config mismatch (ApiException 10). Add SHA-1/SHA-256 in Firebase Android app settings, then download and replace google-services.json.');
+        setState(() => _err =
+            'Google Sign-In config mismatch (ApiException 10). Add SHA-1/SHA-256 in Firebase Android app settings, then download and replace google-services.json.');
       } else {
         setState(() => _err = msg);
       }
@@ -131,10 +136,16 @@ class _SignInPanelState extends State<SignInPanel> {
           children: [
             const Text('Sign in to SmartTime AI'),
             const SizedBox(height: 12),
-            TextField(controller: _email, decoration: const InputDecoration(labelText: 'Email')),
-            TextField(controller: _password, decoration: const InputDecoration(labelText: 'Password'), obscureText: true),
+            TextField(
+                controller: _email,
+                decoration: const InputDecoration(labelText: 'Email')),
+            TextField(
+                controller: _password,
+                decoration: const InputDecoration(labelText: 'Password'),
+                obscureText: true),
             const SizedBox(height: 12),
-            if (_err.isNotEmpty) Text(_err, style: const TextStyle(color: Colors.red)),
+            if (_err.isNotEmpty)
+              Text(_err, style: const TextStyle(color: Colors.red)),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -154,6 +165,20 @@ class _SignInPanelState extends State<SignInPanel> {
               onPressed: _loading ? null : _googleSignIn,
               child: const Text('Continue with Google'),
             ),
+            if (kDebugMode) ...[
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: _loading
+                    ? null
+                    : () {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                              builder: (_) => const InchargeScreen()),
+                        );
+                      },
+                child: const Text('Bypass Auth (Dev Mode)'),
+              ),
+            ],
           ],
         ),
       ),

@@ -216,11 +216,24 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async => m.createAll(),
+        onCreate: (m) async {
+          await m.createTable(subjects);
+          await m.createTable(classes);
+          await m.createTable(divisions);
+          await m.createTable(teachers);
+          await m.createTable(teacherUnavailability);
+          await m.createTable(lessons);
+          await m.createTable(cards);
+          await m.createTable(lessonClasses);
+          await m.createTable(lessonTeachers);
+          await m.createTable(entityTimeOff);
+          await m.createTable(softConstraintProfiles);
+          await m.createTable(appState);
+        },
         onUpgrade: (m, from, to) async {
           if (from < 7) {
             await m.createAll();

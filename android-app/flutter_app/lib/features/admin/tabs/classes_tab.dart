@@ -14,6 +14,9 @@ class _ClassesTabState extends State<ClassesTab> {
   final _name = TextEditingController();
   final _abbr = TextEditingController();
   String? _selectedClassId;
+
+  bool get _isClassFormValid =>
+      _name.text.trim().isNotEmpty && _abbr.text.trim().isNotEmpty;
   final _divisionName = TextEditingController();
   final _divisionCode = TextEditingController();
 
@@ -31,20 +34,35 @@ class _ClassesTabState extends State<ClassesTab> {
     final planner = context.watch<PlannerState>();
     return ListView(
       children: [
-        TextField(controller: _name, decoration: const InputDecoration(labelText: 'Class name')),
-        TextField(controller: _abbr, decoration: const InputDecoration(labelText: 'Abbreviation')),
+        TextField(
+          controller: _name,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            labelText: 'Class name',
+            helperText: 'Required',
+          ),
+        ),
+        TextField(
+          controller: _abbr,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            labelText: 'Abbreviation',
+            helperText: 'Required',
+          ),
+        ),
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,
           child: ElevatedButton(
-            onPressed: () {
-              if (_name.text.trim().isEmpty || _abbr.text.trim().isEmpty) return;
-              final c = ClassItem(name: _name.text.trim(), abbr: _abbr.text.trim());
-              context.read<PlannerState>().addClass(c);
-              setState(() => _selectedClassId = c.id);
-              _name.clear();
-              _abbr.clear();
-            },
+            onPressed: _isClassFormValid
+                ? () {
+                    final c = ClassItem(name: _name.text.trim(), abbr: _abbr.text.trim());
+                    context.read<PlannerState>().addClass(c);
+                    setState(() => _selectedClassId = c.id);
+                    _name.clear();
+                    _abbr.clear();
+                  }
+                : null,
             child: const Text('Add Class'),
           ),
         ),

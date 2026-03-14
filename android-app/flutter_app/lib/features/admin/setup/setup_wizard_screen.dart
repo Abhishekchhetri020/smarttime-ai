@@ -129,11 +129,12 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                     lessonsFile: lessonsFile,
                     teachersFile: teachersFile,
                   );
+                  await planner.refreshFromDatabase();
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                          'Imported ${summary.lessons} Lessons, ${summary.teachers} Teachers, and ${summary.rooms} Rooms successfully.'),
+                          'Imported ${summary.lessons} Lessons, ${summary.teachers} Teachers, and ${summary.rooms} Rooms to Database.'),
                     ),
                   );
                 } catch (e) {

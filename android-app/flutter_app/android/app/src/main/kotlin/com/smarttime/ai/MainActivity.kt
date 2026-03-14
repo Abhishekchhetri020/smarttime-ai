@@ -37,7 +37,7 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
                             constraints = SmartCspSolver.ConstraintConfig(),
                             days = 6,
                             periodsPerDay = 8,
-                            timeoutMs = 15_000L,
+                            timeoutMs = 60_000L,
                         )
 
                         val cards = solveResult.assignments.map {
@@ -81,7 +81,7 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
                 val days = (args["days"] as? Number)?.toInt() ?: 5
                 val periodsPerDay = (args["periodsPerDay"] as? Number)?.toInt() ?: 8
 
-                val timeoutMs = (args["timeoutMs"] as? Number)?.toLong() ?: 15_000L
+                val timeoutMs = (args["timeoutMs"] as? Number)?.toLong() ?: 60_000L
 
                 val lessons = parseLessons(args["lessons"] as? List<*>)
                 val rooms = parseRooms(args["rooms"] as? List<*>)

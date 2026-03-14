@@ -164,6 +164,6 @@ class SmartCspSolverTest {
         }
 
         val result = solver.solve(lessons, rooms = emptyList(), days = 1, periodsPerDay = 5)
-        assertEquals("SEED_INFEASIBLE_INPUT", result.status)
+        assertEquals("INFEASIBLE_INPUT", result.status)
     }
 }

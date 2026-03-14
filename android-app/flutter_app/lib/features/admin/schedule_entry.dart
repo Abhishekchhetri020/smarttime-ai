@@ -14,12 +14,14 @@ extension ScheduleEntryTypeX on ScheduleEntryType {
 }
 
 class ScheduleEntry {
+  final String id;
   final String label;
   final TimeOfDay start;
   final TimeOfDay end;
   final ScheduleEntryType type;
 
   const ScheduleEntry({
+    required this.id,
     required this.label,
     required this.start,
     required this.end,
@@ -29,6 +31,7 @@ class ScheduleEntry {
   String get timeRange => '${_fmt(start)}-${_fmt(end)}';
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'label': label,
         'start': _fmt(start),
         'end': _fmt(end),
@@ -36,12 +39,14 @@ class ScheduleEntry {
       };
 
   ScheduleEntry copyWith({
+    String? id,
     String? label,
     TimeOfDay? start,
     TimeOfDay? end,
     ScheduleEntryType? type,
   }) {
     return ScheduleEntry(
+      id: id ?? this.id,
       label: label ?? this.label,
       start: start ?? this.start,
       end: end ?? this.end,
@@ -54,6 +59,7 @@ class ScheduleEntry {
     final end = _parse(json['end']?.toString());
     if (start == null || end == null) return null;
     return ScheduleEntry(
+      id: json['id']?.toString() ?? 'P${DateTime.now().millisecondsSinceEpoch}',
       label: (json['label']?.toString() ?? '').trim().isEmpty
           ? 'Period'
           : json['label'].toString().trim(),
@@ -70,6 +76,7 @@ class ScheduleEntry {
     final end = _parse(parts[1].trim());
     if (start == null || end == null) return null;
     return ScheduleEntry(
+      id: 'P$index',
       label: 'Period ${index + 1}',
       start: start,
       end: end,

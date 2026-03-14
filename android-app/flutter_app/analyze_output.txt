@@ -1,0 +1,306 @@
+Analyzing flutter_app...                                        
+
+warning • The value of the local variable 'selectedClass' isn't used • lib/features/admin/lessons_builder_screen.dart:39:11 • unused_local_variable
+  error • The name 'Text' isn't a class • lib/features/admin/lessons_builder_screen.dart:45:35 • creation_with_non_type
+  error • The named parameter 'hint' isn't defined • lib/features/admin/lessons_builder_screen.dart:52:15 • undefined_named_parameter
+  error • The name 'Text' isn't a class • lib/features/admin/lessons_builder_screen.dart:52:27 • creation_with_non_type
+  error • The named parameter 'helperText' isn't defined • lib/features/admin/lessons_builder_screen.dart:53:15 • undefined_named_parameter
+  error • The name 'SizedBox' isn't a class • lib/features/admin/lessons_builder_screen.dart:60:19 • creation_with_non_type
+  error • The name 'Text' isn't a class • lib/features/admin/lessons_builder_screen.dart:61:19 • creation_with_non_type
+  error • Expected to find ';' • lib/features/admin/lessons_builder_screen.dart:61:60 • expected_token
+  error • Expected to find ')' • lib/features/admin/lessons_builder_screen.dart:61:61 • expected_token
+  error • Expected to find ']' • lib/features/admin/lessons_builder_screen.dart:61:61 • expected_token
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:62:13 • strict_top_level_inference
+   info • The variable name 'Wrap' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:62:13 • non_constant_identifier_names
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:63:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:63:22 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:63:22 • obsolete_colon_for_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:64:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:64:23 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:64:23 • obsolete_colon_for_default_value
+  error • Undefined name 'planner' • lib/features/admin/lessons_builder_screen.dart:64:25 • undefined_identifier
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:71:14 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:71:14 • expected_class_member
+  error • Getters, setters and methods can't be declared to be 'const' • lib/features/admin/lessons_builder_screen.dart:72:13 • const_method
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:72:19 • strict_top_level_inference
+   info • The variable name 'SizedBox' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:72:19 • non_constant_identifier_names
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:72:28 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:72:34 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:72:34 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:72:39 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:72:39 • expected_class_member
+  error • Getters, setters and methods can't be declared to be 'const' • lib/features/admin/lessons_builder_screen.dart:73:13 • const_method
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:73:19 • strict_top_level_inference
+   info • The variable name 'Text' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:73:19 • non_constant_identifier_names
+  error • Expected an identifier • lib/features/admin/lessons_builder_screen.dart:73:24 • missing_identifier
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:73:62 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:73:62 • expected_class_member
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:74:13 • strict_top_level_inference
+   info • The variable name 'Wrap' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:74:13 • non_constant_identifier_names
+  error • The name 'Wrap' is already defined • lib/features/admin/lessons_builder_screen.dart:74:13 • duplicate_definition
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:75:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:75:22 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:75:22 • obsolete_colon_for_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:76:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:76:23 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:76:23 • obsolete_colon_for_default_value
+  error • Undefined name 'planner' • lib/features/admin/lessons_builder_screen.dart:76:25 • undefined_identifier
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:83:14 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:83:14 • expected_class_member
+  error • Getters, setters and methods can't be declared to be 'const' • lib/features/admin/lessons_builder_screen.dart:84:13 • const_method
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:84:19 • strict_top_level_inference
+   info • The variable name 'SizedBox' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:84:19 • non_constant_identifier_names
+  error • The name 'SizedBox' is already defined • lib/features/admin/lessons_builder_screen.dart:84:19 • duplicate_definition
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:84:28 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:84:34 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:84:34 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:84:39 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:84:39 • expected_class_member
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:85:13 • strict_top_level_inference
+   info • The variable name 'DropdownButtonFormField' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:85:13 • non_constant_identifier_names
+   info • The type parameter name 'String' matches a visible type name • lib/features/admin/lessons_builder_screen.dart:85:37 • avoid_types_as_parameter_names
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:86:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:86:27 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:86:27 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:86:29 • non_constant_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:87:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:87:19 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:87:19 • obsolete_colon_for_default_value
+  error • The name 'Text' isn't a class • lib/features/admin/lessons_builder_screen.dart:87:27 • creation_with_non_type
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:88:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:88:20 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:88:20 • obsolete_colon_for_default_value
+  error • Undefined name 'selectedClass' • lib/features/admin/lessons_builder_screen.dart:88:22 • undefined_identifier
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:91:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:91:24 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:91:24 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:91:26 • non_constant_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:92:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:92:25 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:92:25 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:93:14 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:93:14 • expected_class_member
+  error • Getters, setters and methods can't be declared to be 'const' • lib/features/admin/lessons_builder_screen.dart:94:13 • const_method
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:94:19 • strict_top_level_inference
+   info • The variable name 'SizedBox' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:94:19 • non_constant_identifier_names
+  error • The name 'SizedBox' is already defined • lib/features/admin/lessons_builder_screen.dart:94:19 • duplicate_definition
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:94:28 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:94:34 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:94:34 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:94:39 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:94:39 • expected_class_member
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:95:13 • strict_top_level_inference
+   info • The variable name 'DropdownButtonFormField' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:95:13 • non_constant_identifier_names
+  error • The name 'DropdownButtonFormField' is already defined • lib/features/admin/lessons_builder_screen.dart:95:13 • duplicate_definition
+   info • The type parameter name 'int' matches a visible type name • lib/features/admin/lessons_builder_screen.dart:95:37 • avoid_types_as_parameter_names
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:96:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:96:27 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:96:27 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:96:29 • non_constant_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:97:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:97:20 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:97:20 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:97:22 • non_constant_default_value
+  error • A value of type 'int' can't be assigned to a variable of type 'int' • lib/features/admin/lessons_builder_screen.dart:97:36 • invalid_assignment
+  error • The operator '<=' can't be unconditionally invoked because the receiver can be 'null' • lib/features/admin/lessons_builder_screen.dart:97:41 • unchecked_use_of_nullable_value
+  error • The method '+' can't be unconditionally invoked because the receiver can be 'null' • lib/features/admin/lessons_builder_screen.dart:97:49 • unchecked_use_of_nullable_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:98:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:98:24 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:98:24 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:98:26 • non_constant_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:99:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:99:25 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:99:25 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:100:14 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:100:14 • expected_class_member
+  error • Getters, setters and methods can't be declared to be 'const' • lib/features/admin/lessons_builder_screen.dart:101:13 • const_method
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:101:19 • strict_top_level_inference
+   info • The variable name 'SizedBox' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:101:19 • non_constant_identifier_names
+  error • The name 'SizedBox' is already defined • lib/features/admin/lessons_builder_screen.dart:101:19 • duplicate_definition
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:101:28 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:101:34 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:101:34 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:101:39 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:101:39 • expected_class_member
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:102:13 • strict_top_level_inference
+   info • The variable name 'DropdownButtonFormField' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:102:13 • non_constant_identifier_names
+  error • The name 'DropdownButtonFormField' is already defined • lib/features/admin/lessons_builder_screen.dart:102:13 • duplicate_definition
+   info • The type parameter name 'String' matches a visible type name • lib/features/admin/lessons_builder_screen.dart:102:37 • avoid_types_as_parameter_names
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:103:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:103:27 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:103:27 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:103:29 • non_constant_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:104:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:104:20 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:104:20 • obsolete_colon_for_default_value
+  error • Methods can't be invoked in constant expressions • lib/features/admin/lessons_builder_screen.dart:105:58 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/features/admin/lessons_builder_screen.dart:106:58 • const_eval_method_invocation
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:108:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:108:24 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:108:24 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:108:26 • non_constant_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:109:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:109:25 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:109:25 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:110:14 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:110:14 • expected_class_member
+  error • Getters, setters and methods can't be declared to be 'const' • lib/features/admin/lessons_builder_screen.dart:111:13 • const_method
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:111:19 • strict_top_level_inference
+   info • The variable name 'SizedBox' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:111:19 • non_constant_identifier_names
+  error • The name 'SizedBox' is already defined • lib/features/admin/lessons_builder_screen.dart:111:19 • duplicate_definition
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:111:28 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:111:34 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:111:34 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:111:39 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:111:39 • expected_class_member
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:112:13 • strict_top_level_inference
+   info • The variable name 'DropdownButtonFormField' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:112:13 • non_constant_identifier_names
+  error • The name 'DropdownButtonFormField' is already defined • lib/features/admin/lessons_builder_screen.dart:112:13 • duplicate_definition
+   info • The type parameter name 'String' matches a visible type name • lib/features/admin/lessons_builder_screen.dart:112:37 • avoid_types_as_parameter_names
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:113:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:113:27 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:113:27 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:113:29 • non_constant_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:114:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:114:19 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:114:19 • obsolete_colon_for_default_value
+  error • The name 'Text' isn't a class • lib/features/admin/lessons_builder_screen.dart:114:27 • creation_with_non_type
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:115:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:115:20 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:115:20 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:115:22 • non_constant_default_value
+  error • Methods can't be invoked in constant expressions • lib/features/admin/lessons_builder_screen.dart:116:60 • const_eval_method_invocation
+  error • Undefined name 'planner' • lib/features/admin/lessons_builder_screen.dart:117:20 • undefined_identifier
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:119:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:119:24 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:119:24 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:119:26 • non_constant_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:120:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:120:25 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:120:25 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:121:14 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:121:14 • expected_class_member
+  error • Getters, setters and methods can't be declared to be 'const' • lib/features/admin/lessons_builder_screen.dart:122:13 • const_method
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:122:19 • strict_top_level_inference
+   info • The variable name 'SizedBox' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:122:19 • non_constant_identifier_names
+  error • The name 'SizedBox' is already defined • lib/features/admin/lessons_builder_screen.dart:122:19 • duplicate_definition
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:122:28 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:122:34 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:122:34 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:122:39 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:122:39 • expected_class_member
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:123:13 • strict_top_level_inference
+   info • The variable name 'DropdownButtonFormField' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:123:13 • non_constant_identifier_names
+  error • The name 'DropdownButtonFormField' is already defined • lib/features/admin/lessons_builder_screen.dart:123:13 • duplicate_definition
+   info • The type parameter name 'int' matches a visible type name • lib/features/admin/lessons_builder_screen.dart:123:37 • avoid_types_as_parameter_names
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:124:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:124:27 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:124:27 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:124:29 • non_constant_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:125:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:125:25 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:125:25 • obsolete_colon_for_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:126:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:126:20 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:126:20 • obsolete_colon_for_default_value
+  error • Methods can't be invoked in constant expressions • lib/features/admin/lessons_builder_screen.dart:127:51 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/features/admin/lessons_builder_screen.dart:128:51 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/features/admin/lessons_builder_screen.dart:129:51 • const_eval_method_invocation
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:131:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:131:24 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:131:24 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:131:26 • non_constant_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:132:14 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:132:14 • expected_class_member
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:133:13 • strict_top_level_inference
+   info • The variable name 'TextField' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:133:13 • non_constant_identifier_names
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:134:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:134:25 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:134:25 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:134:27 • non_constant_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:135:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:135:25 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:135:25 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:136:14 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:136:14 • expected_class_member
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:137:13 • strict_top_level_inference
+   info • The variable name 'SwitchListTile' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:137:13 • non_constant_identifier_names
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:138:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:138:20 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:138:20 • obsolete_colon_for_default_value
+  error • The name 'Text' isn't a class • lib/features/admin/lessons_builder_screen.dart:138:28 • creation_with_non_type
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:139:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:139:20 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:139:20 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:139:22 • non_constant_default_value
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:140:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:140:24 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:140:24 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:140:26 • non_constant_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:141:14 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:141:14 • expected_class_member
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:142:13 • expected_class_member
+  error • _isPinned isn't a type • lib/features/admin/lessons_builder_screen.dart:142:17 • not_a_type
+  error • A record type with exactly one positional field requires a trailing comma • lib/features/admin/lessons_builder_screen.dart:142:26 • record_type_one_positional_no_trailing_comma
+   info • The variable name 'Row' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:143:15 • non_constant_identifier_names
+  error • The body might complete normally, causing 'null' to be returned, but the return type, '(InvalidType,)', is a potentially non-nullable type • lib/features/admin/lessons_builder_screen.dart:143:15 • body_might_complete_normally
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:144:17 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:144:25 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:144:25 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:144:27 • non_constant_default_value
+  error • Undefined name 'planner' • lib/features/admin/lessons_builder_screen.dart:148:52 • undefined_identifier
+  error • The name 'SizedBox' isn't a class • lib/features/admin/lessons_builder_screen.dart:153:25 • creation_with_non_type
+  error • Undefined name 'planner' • lib/features/admin/lessons_builder_screen.dart:157:52 • undefined_identifier
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:163:16 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:163:16 • expected_class_member
+  error • Getters, setters and methods can't be declared to be 'const' • lib/features/admin/lessons_builder_screen.dart:164:13 • const_method
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:164:19 • strict_top_level_inference
+   info • The variable name 'SizedBox' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:164:19 • non_constant_identifier_names
+  error • The name 'SizedBox' is already defined • lib/features/admin/lessons_builder_screen.dart:164:19 • duplicate_definition
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:164:28 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:164:34 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:164:34 • obsolete_colon_for_default_value
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:164:39 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:164:39 • expected_class_member
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:165:13 • strict_top_level_inference
+   info • The variable name 'ElevatedButton' isn't a lowerCamelCase identifier • lib/features/admin/lessons_builder_screen.dart:165:13 • non_constant_identifier_names
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:166:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:166:24 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:166:24 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/features/admin/lessons_builder_screen.dart:166:26 • non_constant_default_value
+  error • Undefined name 'planner' • lib/features/admin/lessons_builder_screen.dart:168:29 • undefined_identifier
+   info • Missing type annotation • lib/features/admin/lessons_builder_screen.dart:185:15 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/features/admin/lessons_builder_screen.dart:185:20 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/features/admin/lessons_builder_screen.dart:185:20 • obsolete_colon_for_default_value
+  error • The name 'Text' isn't a class • lib/features/admin/lessons_builder_screen.dart:185:28 • creation_with_non_type
+  error • A function body must be provided • lib/features/admin/lessons_builder_screen.dart:186:14 • missing_function_body
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:186:14 • expected_class_member
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:187:11 • expected_class_member
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:187:12 • expected_class_member
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:188:9 • expected_class_member
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:188:10 • expected_class_member
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:189:7 • expected_class_member
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:189:8 • expected_class_member
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:190:5 • expected_class_member
+  error • Expected a class member • lib/features/admin/lessons_builder_screen.dart:190:6 • expected_class_member
+  error • Expected a method, getter, setter or operator declaration • lib/features/admin/lessons_builder_screen.dart:192:1 • expected_executable
+   info • 'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion • lib/features/admin/setup/subject_setup_screen.dart:87:185 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/features/admin/tabs/subjects_tab.dart:159:45 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/admin/tabs/subjects_tab.dart:181:44 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/admin/tabs/subjects_tab.dart:197:44 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/admin/tabs/teachers_tab.dart:119:44 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/admin/tabs/teachers_tab.dart:129:44 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/features/admin/timetable_dashboard_screen.dart:21:23 • use_build_context_synchronously
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:78:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:84:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:90:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:96:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:105:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:111:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:117:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:123:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:132:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:138:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:144:54 • missing_required_argument
+
+302 issues found. (ran in 4.8s)

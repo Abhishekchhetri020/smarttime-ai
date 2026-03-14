@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "416166951412",
+    "project_id": "smarttime-ai-1b64f",
+    "storage_bucket": "smarttime-ai-1b64f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:416166951412:android:44c6e6c74d95ceb4ae21a1",
+        "android_client_info": {
+          "package_name": "com.smarttime.ai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "416166951412-7dro17egsg5s6diqobkfte34a6busq90.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.smarttime.ai",
+            "certificate_hash": "edd4328f39e3126a6e103fbaf9f7239bb1b6d69c"
+          }
+        },
+        {
+          "client_id": "416166951412-rr26dr633uotckguvjs1rnaj29i3n3pr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.smarttime.ai",
+            "certificate_hash": "de79d7dcb06556d1968809a66ce44b9fa3fec33c"
+          }
+        },
+        {
+          "client_id": "416166951412-cvp2n09nkk1pl8ujjk2h1pckn9rrmcsl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzgo3UNffktZs_rvDjl2VcHn5hal3YOZE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "416166951412-cvp2n09nkk1pl8ujjk2h1pckn9rrmcsl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

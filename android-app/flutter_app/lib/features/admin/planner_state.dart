@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../../core/database.dart';
 import 'schedule_entry.dart';
@@ -154,6 +155,7 @@ class PlannerState extends ChangeNotifier {
   final AppDatabase? _db;
   AppDatabase? get db => _db;
   bool hydrated = false;
+  final _lock = Lock();
 
   final List<SubjectItem> subjects = [];
   final List<ClassItem> classes = [];
@@ -342,205 +344,226 @@ class PlannerState extends ChangeNotifier {
   }
 
   Future<void> _hydrate() async {
-    final snap = await _db!.loadPlannerSnapshot();
-    if (snap == null) {
-      hydrated = true;
-      notifyListeners();
-      return;
-    }
+    debugPrint('--- HYDRATE STARTED ---');
+    await _lock.synchronized(() async {
+      debugPrint('--- HYDRATE LOCK ACQUIRED ---');
+      final snap = await _db!.loadPlannerSnapshot();
+      debugPrint('--- HYDRATE SNAPSHOT LOADED: ${snap != null} ---');
+      if (snap == null) {
+        hydrated = true;
+        notifyListeners();
+        return;
+      }
 
-    schoolName = (snap['schoolName'] as String?) ?? schoolName;
-    workingDays = (snap['workingDays'] as int?) ?? workingDays;
+      schoolName = (snap['schoolName'] as String?) ?? schoolName;
+      workingDays = (snap['workingDays'] as int?) ?? workingDays;
 
-    bellTimes
-      ..clear()
-      ..addAll(
-          ((snap['bellTimes'] as List?) ?? const []).map((e) => e.toString()));
-
-    final rawEntries = (snap['scheduleEntries'] as List?) ?? const [];
-    if (rawEntries.isNotEmpty) {
-      scheduleEntries
+      bellTimes
         ..clear()
         ..addAll(
-          rawEntries
-              .whereType<Map>()
-              .map((e) => ScheduleEntry.fromJson(Map<String, dynamic>.from(e)))
-              .whereType<ScheduleEntry>(),
-        );
-      if (scheduleEntries.isNotEmpty) {
-        bellTimes
+            ((snap['bellTimes'] as List?) ?? const []).map((e) => e.toString()));
+
+      final rawEntries = (snap['scheduleEntries'] as List?) ?? const [];
+      if (rawEntries.isNotEmpty) {
+        scheduleEntries
           ..clear()
-          ..addAll(scheduleEntries
-              .where((e) => e.type == ScheduleEntryType.period)
-              .map((e) => e.timeRange));
+          ..addAll(
+            rawEntries
+                .whereType<Map<String, dynamic>>()
+                .map((e) => ScheduleEntry.fromJson(e))
+                .whereType<ScheduleEntry>(),
+          );
+        if (scheduleEntries.isNotEmpty) {
+          bellTimes
+            ..clear()
+            ..addAll(scheduleEntries
+                .where((e) => e.type == ScheduleEntryType.period)
+                .map((e) => e.timeRange));
+        }
       }
-    }
 
-    if (scheduleEntries.isEmpty) {
-      _syncScheduleEntriesFromBellTimes();
-    }
+      if (scheduleEntries.isEmpty) {
+        _syncScheduleEntriesFromBellTimes();
+      }
 
-    subjects
-      ..clear()
-      ..addAll((((snap['subjects'] as List?) ?? const [])).map((e) {
-        final m = Map<String, dynamic>.from(e as Map);
-        return SubjectItem(
-          id: m['id']?.toString(),
-          name: m['name']?.toString() ?? '',
-          abbr: m['abbr']?.toString() ?? '',
-          color: (m['color'] as num?)?.toInt() ?? 0xFF0B3D91,
-          relationshipGroupKey: m['relationshipGroupKey']?.toString(),
-        );
-      }));
-
-    classes
-      ..clear()
-      ..addAll((((snap['classes'] as List?) ?? const [])).map((e) {
-        final m = Map<String, dynamic>.from(e as Map);
-        return ClassItem(
+      subjects
+        ..clear()
+        ..addAll((((snap['subjects'] as List?) ?? const []))
+            .whereType<Map<String, dynamic>>()
+            .map((m) {
+          return SubjectItem(
             id: m['id']?.toString(),
             name: m['name']?.toString() ?? '',
-            abbr: m['abbr']?.toString() ?? '');
-      }));
+            abbr: m['abbr']?.toString() ?? '',
+            color: (m['color'] as num?)?.toInt() ?? 0xFF0B3D91,
+            relationshipGroupKey: m['relationshipGroupKey']?.toString(),
+          );
+        }));
 
-    divisions
-      ..clear()
-      ..addAll((((snap['divisions'] as List?) ?? const [])).map((e) {
-        final m = Map<String, dynamic>.from(e as Map);
-        return ClassDivisionItem(
-          id: m['id']?.toString(),
-          classId: m['classId']?.toString() ?? '',
-          name: m['name']?.toString() ?? '',
-          code: m['code']?.toString() ?? '',
-        );
-      }));
+      classes
+        ..clear()
+        ..addAll((((snap['classes'] as List?) ?? const []))
+            .whereType<Map<String, dynamic>>()
+            .map((m) {
+          return ClassItem(
+              id: m['id']?.toString(),
+              name: m['name']?.toString() ?? '',
+              abbr: m['abbr']?.toString() ?? '');
+        }));
 
-    for (final c in classes) {
-      c.divisions.addAll(divisions.where((d) => d.classId == c.id));
-    }
-
-    teachers
-      ..clear()
-      ..addAll((((snap['teachers'] as List?) ?? const [])).map((e) {
-        final m = Map<String, dynamic>.from(e as Map);
-        final rawOff =
-            Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
-        return TeacherItem(
-          id: m['id']?.toString(),
-          firstName: m['firstName']?.toString() ?? '',
-          lastName: m['lastName']?.toString() ?? '',
-          abbr: m['abbr']?.toString() ?? '',
-          maxGapsPerDay: (m['maxGapsPerDay'] as num?)?.toInt(),
-          maxConsecutivePeriods: (m['maxConsecutivePeriods'] as num?)?.toInt(),
-          timeOff: rawOff.map(
-              (k, v) => MapEntry(k, TimeOffState.values[(v as num).toInt()])),
-        );
-      }));
-
-    classrooms
-      ..clear()
-      ..addAll((((snap['classrooms'] as List?) ?? const [])).map((e) {
-        final m = Map<String, dynamic>.from(e as Map);
-        return ClassroomItem(
+      divisions
+        ..clear()
+        ..addAll((((snap['divisions'] as List?) ?? const []))
+            .whereType<Map<String, dynamic>>()
+            .map((m) {
+          return ClassDivisionItem(
             id: m['id']?.toString(),
+            classId: m['classId']?.toString() ?? '',
             name: m['name']?.toString() ?? '',
-            roomType: m['roomType']?.toString() ?? 'standard');
-      }));
+            code: m['code']?.toString() ?? '',
+          );
+        }));
 
-    lessons
-      ..clear()
-      ..addAll((((snap['lessons'] as List?) ?? const [])).map((e) {
-        final m = Map<String, dynamic>.from(e as Map);
-        return LessonSpec(
-          id: m['id']?.toString() ?? "LS_hydrated",
-          subjectId: m['subjectId']?.toString() ?? '',
-          teacherIds: ((m['teacherIds'] as List?) ?? const [])
-              .map((x) => x.toString())
-              .toList(),
-          classIds: ((m['classIds'] as List?) ?? const [])
-              .map((x) => x.toString())
-              .toList(),
-          classDivisionId: m['classDivisionId']?.toString(),
-          countPerWeek: (m['countPerWeek'] as num?)?.toInt() ?? 1,
-          length: m['length']?.toString() ?? 'single',
-          requiredClassroomId: m['requiredClassroomId']?.toString(),
-          isPinned: m['isPinned'] == true,
-          fixedDay: (m['fixedDay'] as num?)?.toInt(),
-          fixedPeriod: (m['fixedPeriod'] as num?)?.toInt(),
-          roomTypeId: (m['roomTypeId'] as num?)?.toInt(),
-          relationshipType: (m['relationshipType'] as num?)?.toInt() ?? 0,
-          relationshipGroupKey: m['relationshipGroupKey']?.toString(),
-        );
-      }));
+      for (final c in classes) {
+        c.divisions.addAll(divisions.where((d) => d.classId == c.id));
+      }
 
-    hydrated = true;
-    notifyListeners();
+      teachers
+        ..clear()
+        ..addAll((((snap['teachers'] as List?) ?? const []))
+            .whereType<Map<String, dynamic>>()
+            .map((m) {
+          final rawOff =
+              Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
+          return TeacherItem(
+            id: m['id']?.toString(),
+            firstName: m['firstName']?.toString() ?? '',
+            lastName: m['lastName']?.toString() ?? '',
+            abbr: m['abbr']?.toString() ?? '',
+            maxGapsPerDay: (m['maxGapsPerDay'] as num?)?.toInt(),
+            maxConsecutivePeriods: (m['maxConsecutivePeriods'] as num?)?.toInt(),
+            timeOff: rawOff.map((k, v) {
+              final idx = (v as num?)?.toInt();
+              final state = (idx != null &&
+                      idx >= 0 &&
+                      idx < TimeOffState.values.length)
+                  ? TimeOffState.values[idx]
+                  : TimeOffState.available;
+              return MapEntry(k, state);
+            }),
+          );
+        }));
+
+      classrooms
+        ..clear()
+        ..addAll((((snap['classrooms'] as List?) ?? const []))
+            .whereType<Map<String, dynamic>>()
+            .map((m) {
+          return ClassroomItem(
+              id: m['id']?.toString(),
+              name: m['name']?.toString() ?? '',
+              roomType: m['roomType']?.toString() ?? 'standard');
+        }));
+
+      lessons
+        ..clear()
+        ..addAll((((snap['lessons'] as List?) ?? const []))
+            .whereType<Map<String, dynamic>>()
+            .map((m) {
+          return LessonSpec(
+            id: m['id']?.toString() ?? "LS_hydrated",
+            subjectId: m['subjectId']?.toString() ?? '',
+            teacherIds: ((m['teacherIds'] as List?) ?? const [])
+                .map((x) => x.toString())
+                .toList(),
+            classIds: ((m['classIds'] as List?) ?? const [])
+                .map((x) => x.toString())
+                .toList(),
+            classDivisionId: m['classDivisionId']?.toString(),
+            countPerWeek: (m['countPerWeek'] as num?)?.toInt() ?? 1,
+            length: m['length']?.toString() ?? 'single',
+            requiredClassroomId: m['requiredClassroomId']?.toString(),
+            isPinned: m['isPinned'] == true,
+            fixedDay: (m['fixedDay'] as num?)?.toInt(),
+            fixedPeriod: (m['fixedPeriod'] as num?)?.toInt(),
+            roomTypeId: (m['roomTypeId'] as num?)?.toInt(),
+            relationshipType: (m['relationshipType'] as num?)?.toInt() ?? 0,
+            relationshipGroupKey: m['relationshipGroupKey']?.toString(),
+          );
+        }));
+
+      hydrated = true;
+      notifyListeners();
+      debugPrint('--- HYDRATE FINISHED (SUCCESS) ---');
+    });
   }
 
   Future<void> _persist() async {
-    final json = {
-      'schoolName': schoolName,
-      'workingDays': workingDays,
-      'bellTimes': bellTimes,
-      'scheduleEntries': scheduleEntries.map((e) => e.toJson()).toList(),
-      'subjects': subjects
-          .map((s) => {
-                'id': s.id,
-                'name': s.name,
-                'abbr': s.abbr,
-                'color': s.color,
-                'relationshipGroupKey': s.relationshipGroupKey,
-              })
-          .toList(),
-      'classes': classes
-          .map((c) => {'id': c.id, 'name': c.name, 'abbr': c.abbr})
-          .toList(),
-      'divisions': divisions
-          .map((d) => {
-                'id': d.id,
-                'classId': d.classId,
-                'name': d.name,
-                'code': d.code
-              })
-          .toList(),
-      'teachers': teachers
-          .map((t) => {
-                'id': t.id,
-                'firstName': t.firstName,
-                'lastName': t.lastName,
-                'abbr': t.abbr,
-                'maxGapsPerDay': t.maxGapsPerDay,
-                'maxConsecutivePeriods': t.maxConsecutivePeriods,
-                'timeOff': t.timeOff.map((k, v) => MapEntry(k, v.index)),
-              })
-          .toList(),
-      'classrooms': classrooms
-          .map((r) => {'id': r.id, 'name': r.name, 'roomType': r.roomType})
-          .toList(),
-      'lessons': lessons
-          .map((l) => {
-                'id': l.id,
-                'subjectId': l.subjectId,
-                'teacherIds': l.teacherIds,
-                'classIds': l.classIds,
-                'classDivisionId': l.classDivisionId,
-                'countPerWeek': l.countPerWeek,
-                'length': l.length,
-                'requiredClassroomId': l.requiredClassroomId,
-                'isPinned': l.isPinned,
-                'fixedDay': l.fixedDay,
-                'fixedPeriod': l.fixedPeriod,
-                'roomTypeId': l.roomTypeId,
-                'relationshipType': l.relationshipType,
-                'relationshipGroupKey': l.relationshipGroupKey,
-              })
-          .toList(),
-    };
+    await _lock.synchronized(() async {
+      final json = {
+        'schoolName': schoolName,
+        'workingDays': workingDays,
+        'bellTimes': bellTimes,
+        'scheduleEntries': scheduleEntries.map((e) => e.toJson()).toList(),
+        'subjects': subjects
+            .map((s) => {
+                  'id': s.id,
+                  'name': s.name,
+                  'abbr': s.abbr,
+                  'color': s.color,
+                  'relationshipGroupKey': s.relationshipGroupKey,
+                })
+            .toList(),
+        'classes': classes
+            .map((c) => {'id': c.id, 'name': c.name, 'abbr': c.abbr})
+            .toList(),
+        'divisions': divisions
+            .map((d) => {
+                  'id': d.id,
+                  'classId': d.classId,
+                  'name': d.name,
+                  'code': d.code
+                })
+            .toList(),
+        'teachers': teachers
+            .map((t) => {
+                  'id': t.id,
+                  'firstName': t.firstName,
+                  'lastName': t.lastName,
+                  'abbr': t.abbr,
+                  'maxGapsPerDay': t.maxGapsPerDay,
+                  'maxConsecutivePeriods': t.maxConsecutivePeriods,
+                  'timeOff': t.timeOff.map((k, v) => MapEntry(k, v.index)),
+                })
+            .toList(),
+        'classrooms': classrooms
+            .map((r) => {'id': r.id, 'name': r.name, 'roomType': r.roomType})
+            .toList(),
+        'lessons': lessons
+            .map((l) => {
+                  'id': l.id,
+                  'subjectId': l.subjectId,
+                  'teacherIds': l.teacherIds,
+                  'classIds': l.classIds,
+                  'classDivisionId': l.classDivisionId,
+                  'countPerWeek': l.countPerWeek,
+                  'length': l.length,
+                  'requiredClassroomId': l.requiredClassroomId,
+                  'isPinned': l.isPinned,
+                  'fixedDay': l.fixedDay,
+                  'fixedPeriod': l.fixedPeriod,
+                  'roomTypeId': l.roomTypeId,
+                  'relationshipType': l.relationshipType,
+                  'relationshipGroupKey': l.relationshipGroupKey,
+                })
+            .toList(),
+      };
 
-    final db = _db;
-    if (db != null) {
-      await db.savePlannerSnapshot(json);
-    }
+      final db = _db;
+      if (db != null) {
+        await db.savePlannerSnapshot(json);
+      }
+    });
   }
 
   Future<void> _touch() async {
@@ -563,27 +586,29 @@ class PlannerState extends ChangeNotifier {
     required int day,
     required int period,
   }) async {
-    final idx = lessons.indexWhere((l) => l.id == lessonId);
-    if (idx < 0) return;
-    final old = lessons[idx];
-    lessons[idx] = LessonSpec(
-      id: old.id,
-      subjectId: old.subjectId,
-      teacherIds: old.teacherIds,
-      classIds: old.classIds,
-      classDivisionId: old.classDivisionId,
-      countPerWeek: old.countPerWeek,
-      length: old.length,
-      requiredClassroomId: old.requiredClassroomId,
-      isPinned: true,
-      fixedDay: day,
-      fixedPeriod: period,
-      roomTypeId: old.roomTypeId,
-      relationshipType: old.relationshipType,
-      relationshipGroupKey: old.relationshipGroupKey,
-    );
-    await _persist();
-    notifyListeners();
+    await _lock.synchronized(() async {
+      final idx = lessons.indexWhere((l) => l.id == lessonId);
+      if (idx < 0) return;
+      final old = lessons[idx];
+      lessons[idx] = LessonSpec(
+        id: old.id,
+        subjectId: old.subjectId,
+        teacherIds: old.teacherIds,
+        classIds: old.classIds,
+        classDivisionId: old.classDivisionId,
+        countPerWeek: old.countPerWeek,
+        length: old.length,
+        requiredClassroomId: old.requiredClassroomId,
+        isPinned: true,
+        fixedDay: day,
+        fixedPeriod: period,
+        roomTypeId: old.roomTypeId,
+        relationshipType: old.relationshipType,
+        relationshipGroupKey: old.relationshipGroupKey,
+      );
+      await _persist();
+      notifyListeners();
+    });
   }
 
   bool get hasMinimumData =>

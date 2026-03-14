@@ -1,0 +1,23 @@
+Analyzing flutter_app...                                        
+
+  error • The named parameter 'helperText' isn't defined • lib/features/admin/lessons_builder_screen.dart:53:15 • undefined_named_parameter
+   info • 'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion • lib/features/admin/setup/subject_setup_screen.dart:87:185 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/features/admin/tabs/subjects_tab.dart:159:45 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/admin/tabs/subjects_tab.dart:181:44 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/admin/tabs/subjects_tab.dart:197:44 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/admin/tabs/teachers_tab.dart:119:44 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/admin/tabs/teachers_tab.dart:129:44 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/features/admin/timetable_dashboard_screen.dart:21:23 • use_build_context_synchronously
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:78:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:84:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:90:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:96:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:105:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:111:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:117:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:123:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:132:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:138:54 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument • lib/features/timetable/presentation/screens/timetable_demo_screen.dart:144:54 • missing_required_argument
+
+19 issues found. (ran in 7.8s)

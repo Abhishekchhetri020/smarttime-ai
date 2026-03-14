@@ -17,6 +17,13 @@ class _SubjectsTabState extends State<SubjectsTab> {
   final _abbr = TextEditingController();
   final _groupKey = TextEditingController();
 
+  bool get _isSubjectFormValid {
+    final hasBaseFields = _name.text.trim().isNotEmpty && _abbr.text.trim().isNotEmpty;
+    if (!hasBaseFields) return false;
+    if (_isElectiveGroup) return _groupKey.text.trim().isNotEmpty;
+    return true;
+  }
+
   bool _isElectiveGroup = false;
   bool _isPinned = false;
   int? _fixedDay;
@@ -38,11 +45,21 @@ class _SubjectsTabState extends State<SubjectsTab> {
     return ListView(
       children: [
         TextField(
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Subject name')),
+          controller: _name,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            labelText: 'Subject name',
+            helperText: 'Required',
+          ),
+        ),
         TextField(
-            controller: _abbr,
-            decoration: const InputDecoration(labelText: 'Abbreviation')),
+          controller: _abbr,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            labelText: 'Abbreviation',
+            helperText: 'Required',
+          ),
+        ),
         const SizedBox(height: 6),
         SwitchListTile(
           title: const Text('Group / Elective'),
@@ -54,8 +71,11 @@ class _SubjectsTabState extends State<SubjectsTab> {
         if (_isElectiveGroup)
           TextField(
             controller: _groupKey,
+            onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
-                labelText: 'relationshipGroupKey (e.g. LANG_GRP_10A)'),
+              labelText: 'relationshipGroupKey (e.g. LANG_GRP_10A)',
+              helperText: 'Required when Group / Elective is enabled',
+            ),
           ),
         const SizedBox(height: 6),
         SwitchListTile(
@@ -119,67 +139,67 @@ class _SubjectsTabState extends State<SubjectsTab> {
         Align(
           alignment: Alignment.centerLeft,
           child: ElevatedButton(
-            onPressed: () async {
-              if (_name.text.trim().isEmpty || _abbr.text.trim().isEmpty)
-                return;
-              final sid = _abbr.text.trim();
-              try {
-                await context.read<PlannerState>().addSubject(
-                      SubjectItem(
-                        id: sid,
-                        name: _name.text.trim(),
-                        abbr: _abbr.text.trim(),
-                        color: 0xFF0B3D91,
-                        relationshipGroupKey:
-                            _isElectiveGroup ? _groupKey.text.trim() : null,
-                      ),
-                    );
+            onPressed: _isSubjectFormValid
+                ? () async {
+                    final sid = _abbr.text.trim();
+                    try {
+                      await context.read<PlannerState>().addSubject(
+                            SubjectItem(
+                              id: sid,
+                              name: _name.text.trim(),
+                              abbr: _abbr.text.trim(),
+                              color: 0xFF0B3D91,
+                              relationshipGroupKey:
+                                  _isElectiveGroup ? _groupKey.text.trim() : null,
+                            ),
+                          );
 
-                // create an optional pinned/joint seed lesson template if user selected classes
-                if (_jointClassIds.isNotEmpty) {
-                  final plannerRead = context.read<PlannerState>();
-                  final defaultTeacher = plannerRead.teachers.isNotEmpty
-                      ? plannerRead.teachers.first.id
-                      : null;
-                  if (defaultTeacher != null) {
-                    plannerRead.addLesson(
-                      subjectId: sid,
-                      teacherIds: [defaultTeacher],
-                      classIds: _jointClassIds.toList(),
-                      countPerWeek: 1,
-                      length: 'single',
-                      isPinned: _isPinned,
-                      fixedDay: _fixedDay,
-                      fixedPeriod: _fixedPeriod,
-                      relationshipType: 0,
-                      relationshipGroupKey:
-                          _isElectiveGroup ? _groupKey.text.trim() : null,
-                    );
+                      // create an optional pinned/joint seed lesson template if user selected classes
+                      if (_jointClassIds.isNotEmpty) {
+                        final plannerRead = context.read<PlannerState>();
+                        final defaultTeacher = plannerRead.teachers.isNotEmpty
+                            ? plannerRead.teachers.first.id
+                            : null;
+                        if (defaultTeacher != null) {
+                          plannerRead.addLesson(
+                            subjectId: sid,
+                            teacherIds: [defaultTeacher],
+                            classIds: _jointClassIds.toList(),
+                            countPerWeek: 1,
+                            length: 'single',
+                            isPinned: _isPinned,
+                            fixedDay: _fixedDay,
+                            fixedPeriod: _fixedPeriod,
+                            relationshipType: 0,
+                            relationshipGroupKey:
+                                _isElectiveGroup ? _groupKey.text.trim() : null,
+                          );
+                        }
+                      }
+
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Subject saved successfully')),
+                      );
+
+                      _name.clear();
+                      _abbr.clear();
+                      _groupKey.clear();
+                      setState(() {
+                        _isElectiveGroup = false;
+                        _isPinned = false;
+                        _fixedDay = null;
+                        _fixedPeriod = null;
+                        _jointClassIds.clear();
+                      });
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('SQLite error: $e')),
+                      );
+                    }
                   }
-                }
-
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Subject saved successfully')),
-                );
-
-                _name.clear();
-                _abbr.clear();
-                _groupKey.clear();
-                setState(() {
-                  _isElectiveGroup = false;
-                  _isPinned = false;
-                  _fixedDay = null;
-                  _fixedPeriod = null;
-                  _jointClassIds.clear();
-                });
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('SQLite error: $e')),
-                );
-              }
-            },
+                : null,
             child: const Text('Add Subject'),
           ),
         ),

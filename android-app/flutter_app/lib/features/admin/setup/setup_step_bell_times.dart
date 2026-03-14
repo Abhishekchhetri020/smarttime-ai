@@ -176,7 +176,13 @@ class _ScheduleEntryDialogState extends State<_ScheduleEntryDialog> {
     final endMins = _end.hour * 60 + _end.minute;
     if (label.isEmpty || endMins <= startMins) return;
     Navigator.of(context).pop(
-      ScheduleEntry(label: label, start: _start, end: _end, type: _type),
+      ScheduleEntry(
+        id: widget.initial?.id ?? 'P${DateTime.now().millisecondsSinceEpoch}',
+        label: label,
+        start: _start,
+        end: _end,
+        type: _type,
+      ),
     );
   }
 

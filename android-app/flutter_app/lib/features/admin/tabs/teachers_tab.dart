@@ -18,6 +18,9 @@ class _TeachersTabState extends State<TeachersTab> {
   final _last = TextEditingController();
   final _abbr = TextEditingController();
 
+  bool get _isTeacherFormValid =>
+      _first.text.trim().isNotEmpty && _abbr.text.trim().isNotEmpty;
+
   int _maxGaps = 2;
   int _maxConsecutive = 3;
   final Map<String, TimeOffState> _timeOffDraft = {};
@@ -36,14 +39,26 @@ class _TeachersTabState extends State<TeachersTab> {
     return ListView(
       children: [
         TextField(
-            controller: _first,
-            decoration: const InputDecoration(labelText: 'First name')),
+          controller: _first,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            labelText: 'First name',
+            helperText: 'Required',
+          ),
+        ),
         TextField(
-            controller: _last,
-            decoration: const InputDecoration(labelText: 'Last name')),
+          controller: _last,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(labelText: 'Last name'),
+        ),
         TextField(
-            controller: _abbr,
-            decoration: const InputDecoration(labelText: 'Abbreviation')),
+          controller: _abbr,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            labelText: 'Abbreviation',
+            helperText: 'Required',
+          ),
+        ),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -87,36 +102,36 @@ class _TeachersTabState extends State<TeachersTab> {
         Align(
           alignment: Alignment.centerLeft,
           child: ElevatedButton(
-            onPressed: () async {
-              if (_first.text.trim().isEmpty || _abbr.text.trim().isEmpty)
-                return;
-              try {
-                await context.read<PlannerState>().addTeacher(
-                      TeacherItem(
-                        firstName: _first.text.trim(),
-                        lastName: _last.text.trim(),
-                        abbr: _abbr.text.trim(),
-                        maxGapsPerDay: _maxGaps,
-                        maxConsecutivePeriods: _maxConsecutive,
-                        timeOff: Map<String, TimeOffState>.from(_timeOffDraft),
-                      ),
-                    );
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Teacher saved successfully')),
-                );
-                _first.clear();
-                _last.clear();
-                _abbr.clear();
-                _timeOffDraft.clear();
-                setState(() {});
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('SQLite error: $e')),
-                );
-              }
-            },
+            onPressed: _isTeacherFormValid
+                ? () async {
+                    try {
+                      await context.read<PlannerState>().addTeacher(
+                            TeacherItem(
+                              firstName: _first.text.trim(),
+                              lastName: _last.text.trim(),
+                              abbr: _abbr.text.trim(),
+                              maxGapsPerDay: _maxGaps,
+                              maxConsecutivePeriods: _maxConsecutive,
+                              timeOff: Map<String, TimeOffState>.from(_timeOffDraft),
+                            ),
+                          );
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Teacher saved successfully')),
+                      );
+                      _first.clear();
+                      _last.clear();
+                      _abbr.clear();
+                      _timeOffDraft.clear();
+                      setState(() {});
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('SQLite error: $e')),
+                      );
+                    }
+                  }
+                : null,
             child: const Text('Add Teacher'),
           ),
         ),

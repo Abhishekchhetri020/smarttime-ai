@@ -45,6 +45,7 @@ class UniversalTimetableGrid extends StatelessWidget {
     required this.periods,
     required this.cells,
     this.onMoveCell,
+    this.onValidateMove,
   });
 
   final ViewMode viewMode;
@@ -54,6 +55,7 @@ class UniversalTimetableGrid extends StatelessWidget {
   /// Key format: `rowIndex|periodIndex`
   final Map<String, TimetableCellData> cells;
   final Future<String?> Function(String lessonId, int row, int col)? onMoveCell;
+  final bool Function(String lessonId, int row, int col)? onValidateMove;
 
   static const double _headerH = 56;
   static const double _rowLabelW = 110;
@@ -137,6 +139,7 @@ class UniversalTimetableGrid extends StatelessWidget {
                 col: c,
                 data: data,
                 onMoveCell: onMoveCell,
+                onValidateMove: onValidateMove,
               ),
             ),
           );
@@ -167,12 +170,14 @@ class TimetableDropCell extends StatefulWidget {
     required this.col,
     required this.data,
     required this.onMoveCell,
+    this.onValidateMove,
   });
 
   final int row;
   final int col;
   final TimetableCellData? data;
   final Future<String?> Function(String lessonId, int row, int col)? onMoveCell;
+  final bool Function(String lessonId, int row, int col)? onValidateMove;
 
   @override
   State<TimetableDropCell> createState() => _TimetableDropCellState();
@@ -197,20 +202,30 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
       },
       builder: (context, candidateData, rejectedData) {
         if (widget.data == null) {
+          final isHovering = candidateData.isNotEmpty;
+          Color bgColor = Colors.transparent;
+          Color borderColor = Colors.transparent;
+
+          if (isHovering) {
+            final lessonId = candidateData.first;
+            final isValid = widget.onValidateMove?.call(lessonId!, widget.row, widget.col) ?? true;
+            
+            if (isValid) {
+              bgColor = const Color(0xFF7B906F).withValues(alpha: 0.3); // Mother Sage Soft Green
+              borderColor = const Color(0xFF7B906F);
+            } else {
+              bgColor = const Color(0xFF8B3A3A).withValues(alpha: 0.3); // Mother Espresso Soft Red
+              borderColor = const Color(0xFF8B3A3A);
+            }
+          }
+
           return AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             decoration: BoxDecoration(
-              color: candidateData.isNotEmpty
-                  ? Theme.of(context)
-                      .colorScheme
-                      .tertiaryContainer
-                      .withValues(alpha: 0.85)
-                  : Colors.transparent,
+              color: bgColor,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: candidateData.isNotEmpty
-                    ? Theme.of(context).colorScheme.tertiary
-                    : Colors.transparent,
+                color: borderColor,
                 width: 1.5,
               ),
             ),
