@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../controllers/solver_controller.dart';
 import '../../timetable_display.dart';
+import '../../../../core/theme/app_theme.dart';
 
-enum ExportOption { pdf, csv, print }
+enum ExportOption { pdf, excel, csv, print }
 
 class TimetableGridView extends StatelessWidget {
   const TimetableGridView({
@@ -39,11 +40,39 @@ class TimetableGridView extends StatelessWidget {
               onSelected: onExportSelected,
               itemBuilder: (context) => const [
                 PopupMenuItem(
-                    value: ExportOption.pdf, child: Text('Save as PDF')),
+                    value: ExportOption.pdf,
+                    child: ListTile(
+                      leading: Icon(Icons.picture_as_pdf),
+                      title: Text('Export as PDF'),
+                      subtitle: Text('Class / Teacher / Room views'),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                    )),
+                PopupMenuItem(
+                    value: ExportOption.excel,
+                    child: ListTile(
+                      leading: Icon(Icons.table_chart),
+                      title: Text('Export as Excel'),
+                      subtitle: Text('Sheets per class, teacher, room'),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                    )),
                 PopupMenuItem(
                     value: ExportOption.csv,
-                    child: Text('Save as Excel (CSV)')),
-                PopupMenuItem(value: ExportOption.print, child: Text('Print')),
+                    child: ListTile(
+                      leading: Icon(Icons.description_outlined),
+                      title: Text('Export as CSV'),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                    )),
+                PopupMenuItem(
+                    value: ExportOption.print,
+                    child: ListTile(
+                      leading: Icon(Icons.print),
+                      title: Text('Print'),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                    )),
               ],
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -118,14 +147,14 @@ class TimetableGridView extends StatelessWidget {
 
   static Color subjectColor(String subjectId) {
     final colors = [
-      const Color(0xFF4F46E5),
-      const Color(0xFF059669),
-      const Color(0xFFD97706),
-      const Color(0xFFDB2777),
-      const Color(0xFF0284C7),
-      const Color(0xFF7C3AED),
-      const Color(0xFFDC2626),
-      const Color(0xFF0891B2),
+      AppTheme.indigo,
+      AppTheme.successGreen,
+      AppTheme.warningOrange,
+      AppTheme.accentAmber.withOpacity(0.9),
+      Colors.cyan.shade600,
+      AppTheme.indigoDark,
+      AppTheme.errorRed,
+      AppTheme.slate800,
     ];
     final idx = subjectId.hashCode.abs() % colors.length;
     return colors[idx];

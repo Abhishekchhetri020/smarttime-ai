@@ -8,6 +8,7 @@ void main() {
     final db = AppDatabase(NativeDatabase.memory());
 
     final p1 = PlannerState(db);
+    p1.draftName = 'Test';
     p1.addClass(ClassItem(id: 'C1', name: 'Class 1', abbr: 'C1'));
     p1.addTeacher(TeacherItem(id: 'T1', firstName: 'A', lastName: 'B', abbr: 'T1'));
     p1.addSubject(SubjectItem(id: 'S1', name: 'Math', abbr: 'MATH', color: 0xFF0B3D91));
@@ -24,10 +25,13 @@ void main() {
       relationshipGroupKey: 'G1',
     );
 
+    // wait for debounce
     await Future<void>.delayed(const Duration(milliseconds: 50));
+    // force save
+    await p1.saveToDatabase();
 
-    final p2 = PlannerState(db);
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final p2 = PlannerState(db, dbId: p1.dbId);
+    await p2.refreshFromDatabase();
 
     expect(p2.lessons.isNotEmpty, true);
     expect(p2.lessons.first.isPinned, true);

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'dart:async';
+
 import '../../../../core/solver/dart_solver_payload_mapper.dart';
 import '../../../../core/solver/solver_engine.dart';
 import '../../../../core/solver/solver_models.dart';
@@ -7,6 +9,7 @@ import '../../../admin/planner_state.dart';
 import '../../data/conflict_service.dart';
 import '../../data/native_solver_client.dart';
 import '../../data/solver_payload_mapper.dart';
+import '../../data/solver_progress_stream.dart';
 
 class TimetableAssignment {
   final String lessonId;
@@ -66,6 +69,11 @@ class SolverController extends ChangeNotifier {
   SolverResult? lastResult;
   List<SolverVariant> variants = const [];
   SolverProgress? currentProgress;
+
+  // ── Native solver progress stream ──
+  final _progressStream = SolverProgressStream();
+  NativeSolverProgress? nativeProgress;
+  StreamSubscription<NativeSolverProgress>? _nativeProgressSub;
 
   /// Primary solver: Pure-Dart engine (Isolate-based, with variants).
   Future<void> runDartSolver(
@@ -161,14 +169,32 @@ class SolverController extends ChangeNotifier {
   Future<void> run(PlannerState planner) async {
     isLoading = true;
     error = null;
-    status = null;
+    status = 'Initializing native solver...';
     failureHints = const [];
     assignments.clear();
+    nativeProgress = null;
     notifyListeners();
+
+    // Subscribe to the EventChannel progress stream before invoking the solver.
+    _nativeProgressSub?.cancel();
+    _nativeProgressSub = _progressStream.listen(
+      (progress) {
+        nativeProgress = progress;
+        status = progress.displayMessage;
+        notifyListeners();
+      },
+      onDone: () {
+        _nativeProgressSub = null;
+      },
+      onError: (_) {
+        // Progress stream errors are non-fatal; solver result still arrives via MethodChannel.
+        _nativeProgressSub = null;
+      },
+    );
 
     try {
       final payload = await mapper.fromCanonicalState(planner);
-      
+
       final sw = Stopwatch()..start();
       final res = await client.solve(payload);
       sw.stop();
@@ -211,9 +237,19 @@ class SolverController extends ChangeNotifier {
     } catch (e) {
       error = e.toString();
     } finally {
+      _nativeProgressSub?.cancel();
+      _nativeProgressSub = null;
+      nativeProgress = null;
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _nativeProgressSub?.cancel();
+    _progressStream.dispose();
+    super.dispose();
   }
 
   Future<bool> canManualMove({

@@ -13,23 +13,25 @@ class TimetableDashboardScreen extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final importer = BulkImportService();
-      final lessonsFile = await importer.pickLessonsMasterCsv();
-      if (lessonsFile == null) {
+      final workbookFile = await importer.pickImportWorkbook();
+      if (workbookFile == null) {
         messenger.showSnackBar(const SnackBar(content: Text('Import cancelled.')));
         return;
       }
-      final constraintsFile = await importer.pickTeachersConstraintsCsv();
+      if (!context.mounted) return;
       final planner = context.read<PlannerState>();
       final db = planner.db;
       if (db == null) {
         messenger.showSnackBar(const SnackBar(content: Text('Database not ready. Try again.')));
         return;
       }
-      final summary = await importer.importMasterCsvData(
+      final summary = await importer.importMasterWorkbookData(
         db,
-        lessonsFile: lessonsFile,
-        teachersFile: constraintsFile,
+        planner.dbId,
+        workbookFile: workbookFile,
       );
+      await planner.refreshFromDatabase();
+      if (!context.mounted) return;
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -38,6 +40,7 @@ class TimetableDashboardScreen extends StatelessWidget {
         ),
       );
     } catch (e) {
+      if (!context.mounted) return;
       messenger.showSnackBar(SnackBar(content: Text('Import failed: $e')));
     }
   }
@@ -45,6 +48,14 @@ class TimetableDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final planner = context.watch<PlannerState>();
+
+    if (!planner.hydrated) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return Scaffold(
       body: CustomScrollView(
@@ -85,7 +96,7 @@ class TimetableDashboardScreen extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
+                            color: Colors.white.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: const Icon(
@@ -104,7 +115,7 @@ class TimetableDashboardScreen extends StatelessWidget {
                                 'Timetable Generator',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.white.withValues(alpha: 0.85),
+                                  color: Colors.white.withOpacity(0.85),
                                   fontWeight: FontWeight.w500,
                                   letterSpacing: 0.5,
                                 ),
@@ -114,7 +125,7 @@ class TimetableDashboardScreen extends StatelessWidget {
                                 'AI-Powered Scheduling',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.white.withValues(alpha: 0.6),
+                                  color: Colors.white.withOpacity(0.6),
                                   fontWeight: FontWeight.w400,
                                 ),
                               ),
@@ -146,7 +157,10 @@ class TimetableDashboardScreen extends StatelessWidget {
                 onCreate: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => const TimetableSetupShell(),
+                      builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                        value: planner,
+                        child: const TimetableSetupShell(),
+                      ),
                     ),
                   );
                 },
@@ -173,7 +187,10 @@ class TimetableDashboardScreen extends StatelessWidget {
                     onCreate: () {
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => const TimetableSetupShell(),
+                          builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                            value: planner,
+                            child: const TimetableSetupShell(),
+                          ),
                         ),
                       );
                     },
@@ -259,10 +276,10 @@ class _StatChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.15)),
+          border: Border.all(color: color.withOpacity(0.15)),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.06),
+              color: color.withOpacity(0.06),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -286,7 +303,7 @@ class _StatChip extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
-                color: AppTheme.espresso.withValues(alpha: 0.6),
+                color: AppTheme.espresso.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -317,12 +334,12 @@ class _HeroActionCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.motherSage.withValues(alpha: 0.08),
-            AppTheme.accentAmber.withValues(alpha: 0.05),
+            AppTheme.motherSage.withOpacity(0.08),
+            AppTheme.accentAmber.withOpacity(0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.motherSage.withValues(alpha: 0.15)),
+        border: Border.all(color: AppTheme.motherSage.withOpacity(0.15)),
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -333,7 +350,7 @@ class _HeroActionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.motherSage.withValues(alpha: 0.12),
+                  color: AppTheme.motherSage.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -471,14 +488,14 @@ class _ActionTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: color.withValues(alpha: 0.12)),
+              border: Border.all(color: color.withOpacity(0.12)),
             ),
             child: Column(
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, size: 22, color: color),
@@ -490,7 +507,7 @@ class _ActionTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.espresso.withValues(alpha: 0.8),
+                    color: AppTheme.espresso.withOpacity(0.8),
                     height: 1.3,
                   ),
                 ),
@@ -515,13 +532,13 @@ class _StatusCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: hasData
-            ? AppTheme.successGreen.withValues(alpha: 0.06)
-            : AppTheme.accentAmber.withValues(alpha: 0.08),
+            ? AppTheme.successGreen.withOpacity(0.06)
+            : AppTheme.accentAmber.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: hasData
-              ? AppTheme.successGreen.withValues(alpha: 0.2)
-              : AppTheme.accentAmber.withValues(alpha: 0.2),
+              ? AppTheme.successGreen.withOpacity(0.2)
+              : AppTheme.accentAmber.withOpacity(0.2),
         ),
       ),
       padding: const EdgeInsets.all(16),

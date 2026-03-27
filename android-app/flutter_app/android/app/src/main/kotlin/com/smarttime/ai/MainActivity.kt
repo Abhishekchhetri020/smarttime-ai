@@ -2,6 +2,7 @@ package com.smarttime.ai
 
 import com.smarttime.ai.solver.SmartCspSolver
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,8 +15,22 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
     // does not cancel other channel calls.
     private val solverScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    @Volatile
+    private var progressSink: EventChannel.EventSink? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // ── EventChannel: Solver Progress Stream ──
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "smarttime/solver_progress")
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    progressSink = events
+                }
+                override fun onCancel(arguments: Any?) {
+                    progressSink = null
+                }
+            })
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.smarttime.ai/engine")
             .setMethodCallHandler { call, result ->
@@ -91,6 +106,22 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
                 // the solver runs on Dispatchers.Default.
                 solverScope.launch {
                     try {
+                    // Progress callback: streams incremental updates to Flutter via EventChannel.
+                    // The callback fires on the solver's Default thread, so we post to Main for the sink.
+                    val progressCallback = SmartCspSolver.ProgressCallback { progress ->
+                        val sink = progressSink ?: return@ProgressCallback
+                        val payload = mapOf(
+                            "nodesVisited" to progress.nodesVisited,
+                            "assignedLessons" to progress.assignedLessons,
+                            "totalLessons" to progress.totalLessons,
+                            "backtracks" to progress.backtracks,
+                        )
+                        // EventSink.success() must be called on the main thread.
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            sink.success(payload)
+                        }
+                    }
+
                     val solveResult = withContext(Dispatchers.Default) {
                         solver.solve(
                             lessons = lessons,
@@ -99,8 +130,12 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
                             days = days,
                             periodsPerDay = periodsPerDay,
                             timeoutMs = timeoutMs,
+                            progressCallback = progressCallback,
                         )
                     }
+
+                    // Signal end-of-stream to Flutter listeners.
+                    progressSink?.endOfStream()
 
                     result.success(
                         mapOf(
@@ -131,6 +166,13 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
                                     "attemptedSlots" to it.attemptedSlots,
                                 )
                             },
+                            "softPenaltyBreakdown" to solveResult.softPenaltyBreakdown.map {
+                                mapOf(
+                                    "type" to it.type,
+                                    "penalty" to it.penalty,
+                                    "weight" to it.weight,
+                                )
+                            },
                             "diagnostics" to mapOf(
                                 "solverVersion" to solveResult.diagnostics.solverVersion,
                                 "unscheduledReasonCounts" to solveResult.diagnostics.unscheduledReasonCounts,
@@ -149,6 +191,7 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
                         ),
                     )
                     } catch (e: Exception) {
+                        progressSink?.endOfStream()
                         result.error("offline_solver_error", e.message, null)
                     }
                 }
@@ -205,7 +248,24 @@ class MainActivity : io.flutter.embedding.android.FlutterActivity() {
         val teacherNoLastPeriodMaxPerWeek = intMap(raw["teacherNoLastPeriodMaxPerWeek"] as? Map<*, *>)
         val softWeights = intMap(raw["softWeights"] as? Map<*, *>)
 
+        // Parse teacherAvailability: Map<teacherId, List<{day: Int, period: Int}>>
+        // → Map<String, Set<SlotKey>>
+        // Flutter sends available slots as a list of {day, period} maps per teacher.
+        val teacherAvailability = LinkedHashMap<String, Set<SmartCspSolver.SlotKey>>()
+        val rawAvail = raw["teacherAvailability"] as? Map<*, *>
+        rawAvail?.forEach { (teacherId, slotList) ->
+            val key = teacherId?.toString() ?: return@forEach
+            val slots = (slotList as? List<*>)?.mapNotNull { item ->
+                val map = item as? Map<*, *> ?: return@mapNotNull null
+                val day = (map["day"] as? Number)?.toInt() ?: return@mapNotNull null
+                val period = (map["period"] as? Number)?.toInt() ?: return@mapNotNull null
+                SmartCspSolver.SlotKey(day, period)
+            }?.toSet() ?: emptySet()
+            teacherAvailability[key] = slots
+        }
+
         return SmartCspSolver.ConstraintConfig(
+            teacherAvailability = teacherAvailability,
             teacherMaxPeriodsPerDay = teacherMaxPeriodsPerDay,
             classMaxPeriodsPerDay = classMaxPeriodsPerDay,
             subjectDailyLimit = subjectDailyLimit,

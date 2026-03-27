@@ -20,6 +20,22 @@ class AnalyticsSnapshot {
   });
 }
 
+class TimetableMeta {
+  final int id;
+  final String name;
+  final String status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  TimetableMeta({
+    required this.id,
+    required this.name,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+}
+
 @DataClassName('SubjectRow')
 class Subjects extends Table {
   TextColumn get id => text()();
@@ -28,7 +44,7 @@ class Subjects extends Table {
   TextColumn get abbr => text()();
   TextColumn get groupId => text().nullable()();
   IntColumn get roomTypeId => integer().nullable()();
-  IntColumn get color => integer().withDefault(const Constant(0xFF0B3D91))();
+  IntColumn get color => integer().withDefault(const Constant(0xFF4F46E5))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -180,12 +196,9 @@ class SoftConstraintProfiles extends Table {
 }
 
 class AppState extends Table {
-  IntColumn get id => integer().withDefault(const Constant(1))();
+  IntColumn get id => integer().autoIncrement()();
   TextColumn get plannerJson => text()();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
-
-  @override
-  Set<Column> get primaryKey => {id};
 }
 
 LazyDatabase _openConnection() {
@@ -216,7 +229,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -319,28 +332,108 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
                 'ALTER TABLE teachers ADD COLUMN guid TEXT NULL');
           }
+          if (from < 12) {
+            // Already handled in previous schema bump
+          }
+          if (from < 13) {
+            await customStatement('''
+              CREATE TABLE app_state_new (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                planner_json TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+              )
+            ''');
+            
+            try {
+              // Drift stores DateTime as unix epoch seconds depending on settings,
+              // but we are using dart:convert to copy straight data across.
+              await customStatement('INSERT INTO app_state_new (id, planner_json, updated_at) SELECT id, planner_json, CAST(updated_at AS INTEGER) FROM app_state');
+            } catch (e) {
+              // Ignore failure if table was empty or not found
+            }
+            
+            await customStatement('DROP TABLE IF EXISTS app_state');
+            await customStatement('ALTER TABLE app_state_new RENAME TO app_state');
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
         },
       );
 
-  Future<Map<String, dynamic>?> loadPlannerSnapshot() async {
-    final row = await (select(appState)..where((t) => t.id.equals(1)))
+  Future<Map<String, dynamic>?> loadPlannerSnapshot(int dbId) async {
+    final row = await (select(appState)..where((t) => t.id.equals(dbId)))
         .getSingleOrNull();
     if (row == null) return null;
     return jsonDecode(row.plannerJson) as Map<String, dynamic>;
   }
 
-  Future<void> savePlannerSnapshot(Map<String, dynamic> data) async {
+  Future<int> savePlannerSnapshot(Map<String, dynamic> data, int dbId) async {
+    data['updatedAt'] = DateTime.now().toIso8601String();
     final payload = jsonEncode(data);
-    await into(appState).insertOnConflictUpdate(
-      AppStateCompanion(
-        id: const Value(1),
-        plannerJson: Value(payload),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+    
+    if (dbId == 0) {
+      if (!data.containsKey('createdAt')) {
+        data['createdAt'] = DateTime.now().toIso8601String();
+      }
+      return into(appState).insert(
+        AppStateCompanion.insert(
+          plannerJson: payload,
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    } else {
+      await (update(appState)..where((t) => t.id.equals(dbId))).write(
+        AppStateCompanion(
+          plannerJson: Value(payload),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+      return dbId;
+    }
+  }
+
+  Future<void> deleteTimetable(int id) async {
+    await (delete(appState)..where((t) => t.id.equals(id))).go();
+  }
+
+  Future<List<TimetableMeta>> loadAllTimetables() async {
+    final rows = await select(appState).get();
+    final list = <TimetableMeta>[];
+    
+    for (final row in rows) {
+      try {
+        final decoded = jsonDecode(row.plannerJson) as Map<String, dynamic>;
+        
+        // Extract fast metadata fields
+        final name = decoded['draftName'] ?? 'Untitled Timetable';
+        final status = decoded['status'] ?? 'draft';
+        final createdAtStr = decoded['createdAt'];
+        final updatedAtStr = decoded['updatedAt'];
+        
+        final createdAt = createdAtStr != null 
+          ? DateTime.tryParse(createdAtStr) ?? DateTime.now() 
+          : DateTime.now();
+          
+        final updatedAt = updatedAtStr != null 
+          ? DateTime.tryParse(updatedAtStr) ?? row.updatedAt 
+          : row.updatedAt;
+          
+        list.add(TimetableMeta(
+          id: row.id,
+          name: name.toString(),
+          status: status.toString(),
+          createdAt: createdAt,
+          updatedAt: updatedAt,
+        ));
+      } catch (e) {
+        // Skip malformed JSON entries
+      }
+    }
+    
+    // Sort by latest update first
+    list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return list;
   }
 
   Stream<AnalyticsSnapshot> watchAnalytics() {

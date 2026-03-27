@@ -1,11 +1,11 @@
 {
   "tightKnot200Teachers": {
-    "elapsedMs": 30244,
-    "iterations": 14871000,
-    "ips": 491700.83,
-    "hardConstraintZeroReached": false,
+    "elapsedMs": 30223,
+    "iterations": 1601,
+    "ips": 52.97,
+    "hardConstraintZeroReached": true,
     "status": "SEED_TIMEOUT",
-    "hardViolations": 42,
+    "hardViolations": 0,
     "ipsBarrier5MReached": false
   },
   "determinism": {

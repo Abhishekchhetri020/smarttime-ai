@@ -49,7 +49,7 @@ class _TimeOffPickerState extends State<TimeOffPicker> {
   Color _bg(TimeOffState s) => switch (s) {
         TimeOffState.available => const Color(0xFF16A34A),
         TimeOffState.unavailable => const Color(0xFFDC2626),
-        TimeOffState.conditional => const Color(0xFF2563EB),
+        TimeOffState.conditional => const Color(0xFF4F46E5),
       };
 
   IconData _icon(TimeOffState s) => switch (s) {
@@ -68,7 +68,7 @@ class _TimeOffPickerState extends State<TimeOffPicker> {
           children: [
             _Legend(label: 'Available', color: Color(0xFF16A34A), icon: Icons.check),
             _Legend(label: 'Unavailable', color: Color(0xFFDC2626), icon: Icons.close),
-            _Legend(label: 'Conditional', color: Color(0xFF2563EB), icon: Icons.question_mark),
+            _Legend(label: 'Conditional', color: Color(0xFF4F46E5), icon: Icons.question_mark),
           ],
         ),
         const SizedBox(height: 8),

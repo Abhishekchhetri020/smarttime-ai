@@ -1339,6 +1339,15 @@ class SmartCspSolver {
 
         val teacherStart = model.lessonTeacherStart[lessonIdx]
         val teacherCount = model.lessonTeacherCount[lessonIdx]
+
+        // BUG FIX: Added missing sparse teacher conflict check for lab-double second slot.
+        // canPlace() has this check but canPlaceSecond() was missing it, which could
+        // allow teacher double-bookings in the second period of lab-double lessons.
+        for (k in 0 until teacherCount) {
+            val teacher = model.lessonTeacherFlat[teacherStart + k]
+            if (hasSparseTeacherConflict(state, dayIdx, periodIdx, teacher)) return "teacher_conflict"
+        }
+
         var i = 0
         while (i + 3 < teacherCount) {
             var teacher = model.lessonTeacherFlat[teacherStart + i]
@@ -1391,11 +1400,8 @@ class SmartCspSolver {
         val subject = model.lessonSubject[lessonIdx]
         i = 0
 
-        for (k in 0 until classCount) {
-            val classId = model.lessonClassFlat[classStart + k]
-            if (hasSparseClassConflict(state, dayIdx, periodIdx, classId)) return "class_conflict"
-        }
-
+        // BUG FIX: Removed duplicate sparse class conflict check (copy-paste bug).
+        // The sparse check + unrolled bitmask loop below covers all cases.
         for (k in 0 until classCount) {
             val classId = model.lessonClassFlat[classStart + k]
             if (hasSparseClassConflict(state, dayIdx, periodIdx, classId)) return "class_conflict"

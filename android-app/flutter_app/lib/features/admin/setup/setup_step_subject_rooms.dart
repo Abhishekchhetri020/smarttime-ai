@@ -28,20 +28,24 @@ class _SetupStepSubjectRoomsState extends State<SetupStepSubjectRooms> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Subject & room requirements', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const Text('Subject & room requirements',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           initialValue: _subjectId,
-          decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Subject'),
+          decoration: const InputDecoration(
+              border: OutlineInputBorder(), labelText: 'Subject'),
           items: planner.subjects
-              .map((s) => DropdownMenuItem(value: s.id, child: Text('${s.name} (${s.abbr})')))
+              .map((s) => DropdownMenuItem(
+                  value: s.id, child: Text('${s.name} (${s.abbr})')))
               .toList(),
           onChanged: (v) => setState(() => _subjectId = v),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<int>(
           initialValue: _roomType,
-          decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Required room type'),
+          decoration: const InputDecoration(
+              border: OutlineInputBorder(), labelText: 'Required room type'),
           items: const [
             DropdownMenuItem(value: 0, child: Text('Standard Classroom')),
             DropdownMenuItem(value: 1, child: Text('Lab')),
@@ -57,7 +61,9 @@ class _SetupStepSubjectRoomsState extends State<SetupStepSubjectRooms> {
         if (_groupToggle)
           TextField(
             controller: _group,
-            decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'relationshipGroupKey'),
+            decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'relationshipGroupKey'),
           ),
       ],
     );

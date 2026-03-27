@@ -1,42 +1,53 @@
-// SmartTime AI Design System — "Mother Sage" Professional Theme
+// SmartTime AI Design System — "Midnight Indigo" Professional Theme
 //
-// Primary:  #7B906F (Mother Sage green)
-// Surface:  #F4EBD9 (Warm almond)
-// Text:     #4A3F35 (Espresso brown)
+// Primary:  #4F46E5 (Indigo 600)
+// Surface:  #F8FAFC (Slate 50 — cool white)
+// Text:     #1E293B (Slate 800)
+// Accent:   #F59E0B (Amber 500)
 // Font:     Inter (Google Fonts — clean, modern, highly readable)
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   AppTheme._();
 
   // ── Palette ──
-  static const Color motherSage = Color(0xFF7B906F);
-  static const Color motherAlmond = Color(0xFFF4EBD9);
-  static const Color espresso = Color(0xFF4A3F35);
-  static const Color cream = Color(0xFFFAF7F2);
-  static const Color sageLight = Color(0xFFE8EDE5);
-  static const Color sageDark = Color(0xFF5A6B50);
-  static const Color accentAmber = Color(0xFFD4A84B);
-  static const Color errorRed = Color(0xFFD14343);
-  static const Color successGreen = Color(0xFF2E7D32);
+  static const Color indigo = Color(0xFF4F46E5);
+  static const Color indigoLight = Color(0xFFEEF2FF);
+  static const Color indigoDark = Color(0xFF3730A3);
+  static const Color slate50 = Color(0xFFF8FAFC);
+  static const Color slate100 = Color(0xFFF1F5F9);
+  static const Color slate200 = Color(0xFFE2E8F0);
+  static const Color slate800 = Color(0xFF1E293B);
+  static const Color slate500 = Color(0xFF64748B);
+  static const Color accentAmber = Color(0xFFF59E0B);
+  static const Color errorRed = Color(0xFFEF4444);
+  static const Color successGreen = Color(0xFF10B981);
+  static const Color warningOrange = Color(0xFFF97316);
+
+  // Legacy aliases used across the codebase — mapped to new palette
+  static const Color motherSage = indigo;
+  static const Color motherAlmond = slate50;
+  static const Color espresso = slate800;
+  static const Color cream = slate50;
+  static const Color sageDark = indigoDark;
+  static const Color sageLight = indigoLight;
 
   // ── Light Theme ──
   static ThemeData light() {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: motherSage,
+      seedColor: indigo,
       brightness: Brightness.light,
-      primary: motherSage,
+      primary: indigo,
       onPrimary: Colors.white,
-      primaryContainer: sageLight,
-      onPrimaryContainer: espresso,
+      primaryContainer: indigoLight,
+      onPrimaryContainer: indigoDark,
       secondary: accentAmber,
       onSecondary: Colors.white,
-      secondaryContainer: const Color(0xFFFFF3D6),
-      onSecondaryContainer: espresso,
-      surface: cream,
-      onSurface: espresso,
+      secondaryContainer: const Color(0xFFFFF7ED),
+      onSecondaryContainer: const Color(0xFF78350F),
+      surface: slate50,
+      onSurface: slate800,
       error: errorRed,
       onError: Colors.white,
     );
@@ -47,16 +58,16 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       textTheme: textTheme,
-      scaffoldBackgroundColor: cream,
+      scaffoldBackgroundColor: slate50,
 
       // ── AppBar ──
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 1,
-        backgroundColor: motherSage,
+        backgroundColor: indigo,
         foregroundColor: Colors.white,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.inter(
+        titleTextStyle: const TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: Colors.white,
@@ -69,7 +80,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: motherSage.withValues(alpha: 0.12)),
+          side: BorderSide(color: slate200),
         ),
         color: Colors.white,
         surfaceTintColor: Colors.transparent,
@@ -79,14 +90,14 @@ class AppTheme {
       // ── Elevated Buttons ──
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: motherSage,
+          backgroundColor: indigo,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.inter(
+          textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
@@ -97,13 +108,13 @@ class AppTheme {
       // ── Filled Buttons ──
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: motherSage,
+          backgroundColor: indigo,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.inter(
+          textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
@@ -114,13 +125,13 @@ class AppTheme {
       // ── Outlined Buttons ──
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: motherSage,
-          side: BorderSide(color: motherSage.withValues(alpha: 0.5)),
+          foregroundColor: indigo,
+          side: BorderSide(color: indigo.withValues(alpha: 0.5)),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.inter(
+          textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
@@ -135,32 +146,32 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: motherSage.withValues(alpha: 0.3)),
+          borderSide: BorderSide(color: slate200),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: motherSage.withValues(alpha: 0.2)),
+          borderSide: BorderSide(color: slate200),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: motherSage, width: 1.5),
+          borderSide: const BorderSide(color: indigo, width: 1.5),
         ),
-        labelStyle: GoogleFonts.inter(
-          color: espresso.withValues(alpha: 0.7),
+        labelStyle: TextStyle(
+          color: slate500,
           fontWeight: FontWeight.w500,
         ),
       ),
 
       // ── Tab Bar ──
       tabBarTheme: TabBarThemeData(
-        labelColor: motherSage,
-        unselectedLabelColor: espresso.withValues(alpha: 0.5),
-        indicatorColor: motherSage,
-        labelStyle: GoogleFonts.inter(
+        labelColor: indigo,
+        unselectedLabelColor: slate500,
+        indicatorColor: indigo,
+        labelStyle: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: GoogleFonts.inter(
+        unselectedLabelStyle: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
@@ -168,7 +179,7 @@ class AppTheme {
 
       // ── FAB ──
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: motherSage,
+        backgroundColor: indigo,
         foregroundColor: Colors.white,
         elevation: 3,
         shape: RoundedRectangleBorder(
@@ -178,8 +189,8 @@ class AppTheme {
 
       // ── SnackBar ──
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: espresso,
-        contentTextStyle: GoogleFonts.inter(
+        backgroundColor: slate800,
+        contentTextStyle: const TextStyle(
           color: Colors.white,
           fontSize: 14,
         ),
@@ -191,7 +202,7 @@ class AppTheme {
 
       // ── Divider ──
       dividerTheme: DividerThemeData(
-        color: motherSage.withValues(alpha: 0.12),
+        color: slate200,
         thickness: 1,
       ),
 
@@ -207,73 +218,73 @@ class AppTheme {
 
   static TextTheme _buildTextTheme(ColorScheme scheme) {
     return TextTheme(
-      displayLarge: GoogleFonts.inter(
+      displayLarge: TextStyle(
         fontSize: 32,
         fontWeight: FontWeight.w700,
         letterSpacing: -1.0,
         color: scheme.onSurface,
       ),
-      headlineLarge: GoogleFonts.inter(
+      headlineLarge: TextStyle(
         fontSize: 28,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.5,
         color: scheme.onSurface,
       ),
-      headlineMedium: GoogleFonts.inter(
+      headlineMedium: TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.w600,
         letterSpacing: -0.3,
         color: scheme.onSurface,
       ),
-      headlineSmall: GoogleFonts.inter(
+      headlineSmall: TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         letterSpacing: -0.2,
         color: scheme.onSurface,
       ),
-      titleLarge: GoogleFonts.inter(
+      titleLarge: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,
       ),
-      titleMedium: GoogleFonts.inter(
+      titleMedium: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,
       ),
-      titleSmall: GoogleFonts.inter(
+      titleSmall: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,
       ),
-      bodyLarge: GoogleFonts.inter(
+      bodyLarge: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: scheme.onSurface,
       ),
-      bodyMedium: GoogleFonts.inter(
+      bodyMedium: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         color: scheme.onSurface,
       ),
-      bodySmall: GoogleFonts.inter(
+      bodySmall: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w400,
         color: scheme.onSurface.withValues(alpha: 0.7),
       ),
-      labelLarge: GoogleFonts.inter(
+      labelLarge: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.2,
         color: scheme.onSurface,
       ),
-      labelMedium: GoogleFonts.inter(
+      labelMedium: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w500,
         letterSpacing: 0.2,
         color: scheme.onSurface,
       ),
-      labelSmall: GoogleFonts.inter(
+      labelSmall: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w500,
         letterSpacing: 0.3,

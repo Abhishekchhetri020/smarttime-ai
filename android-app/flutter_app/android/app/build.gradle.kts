@@ -61,6 +61,11 @@ android {
             }
         }
     }
+    testOptions {
+        unitTests.all {
+            it.maxHeapSize = "4096m"
+        }
+    }
 }
 
 dependencies {

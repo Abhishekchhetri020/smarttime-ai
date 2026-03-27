@@ -102,50 +102,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
     final importer = BulkImportService();
     try {
-      final lessonsFile = await importer.pickLessonsMasterCsv();
-      if (lessonsFile == null) {
-        setState(() => _status = 'Bulk CSV import cancelled.');
+      final workbookFile = await importer.pickImportWorkbook();
+      if (workbookFile == null) {
+        setState(() => _status = 'Bulk Excel import cancelled.');
         return;
       }
       if (!mounted) return;
-      final pickConstraints = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Optional Constraints'),
-          content: const Text(
-              'Lessons loaded. Select Teachers_Constraints.csv or Skip?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Skip'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Select File'),
-            ),
-          ],
-        ),
-      );
-      final teachersFile = (pickConstraints ?? false)
-          ? await importer.pickTeachersConstraintsCsv()
-          : null;
-      final summary = await importer.importMasterCsvData(
+      
+      final summary = await importer.importMasterWorkbookData(
         db,
-        lessonsFile: lessonsFile,
-        teachersFile: teachersFile,
+        planner.dbId,
+        workbookFile: workbookFile,
       );
       await planner.refreshFromDatabase();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Imported ${summary.lessons} Lessons, ${summary.teachers} Teachers, and ${summary.rooms} Rooms to Database.'),
+                'Imported ${summary.lessons} Lessons, ${summary.teachers} Teachers, and ${summary.rooms} Rooms from Excel.'),
           ),
         );
       }
-      setState(() => _status = 'Bulk CSV import complete');
+      setState(() => _status = 'Bulk Excel import complete');
     } catch (e) {
-      setState(() => _status = 'Bulk CSV import failed: $e');
+      setState(() => _status = 'Bulk Excel import failed: $e');
     }
   }
 
@@ -158,7 +138,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
     setState(() { _busy = true; _status = 'Generating Excel...'; });
     try {
-      await ExcelExportService().exportAndShare(db);
+      await ExcelExportService().exportAndShare(db, planner.dbId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Excel timetable exported')),
@@ -182,7 +162,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     setState(() { _busy = true; _status = 'Generating PDF...'; });
     try {
       final cockpitService = TimetablePdfService();
-      await cockpitService.printCockpitMasterPdf(db);
+      await cockpitService.printCockpitMasterPdf(db, planner.dbId);
       setState(() => _status = 'PDF export complete');
     } catch (e) {
       setState(() => _status = 'PDF export failed: $e');
@@ -328,7 +308,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         const SnackBar(content: Text('Schedule Saved Successfully')),
       );
       await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => CockpitScreen(db: db)),
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+            value: planner,
+            child: CockpitScreen(db: db, dbId: planner.dbId),
+          ),
+        ),
       );
 
       final cards = cardCompanions.length;
@@ -390,12 +375,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => Scaffold(
-                            appBar: AppBar(title: const Text('Setup Wizard')),
-                            body: const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: SingleChildScrollView(
-                                  child: SetupWizardScreen()),
+                          builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                            value: planner,
+                            child: Scaffold(
+                              appBar: AppBar(title: const Text('Setup Wizard')),
+                              body: const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SingleChildScrollView(
+                                    child: SetupWizardScreen()),
+                              ),
                             ),
                           ),
                         ),
@@ -536,7 +524,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => const SolverDebugScreen(),
+                            builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                              value: planner,
+                              child: const SolverDebugScreen(),
+                            ),
                           ),
                         );
                       },
@@ -552,7 +543,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       if (db == null) return;
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => CockpitScreen(db: db),
+                          builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                            value: planner,
+                            child: CockpitScreen(db: db, dbId: planner.dbId),
+                          ),
                         ),
                       );
                     },

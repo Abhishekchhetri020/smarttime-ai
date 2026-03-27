@@ -1,6 +1,8 @@
-// Excel Export Service — generates .xlsx files with teacher-wise and class-wise sheets.
+// Excel Export Service — generates .xlsx files with teacher-wise, class-wise,
+// and room-wise sheets.
 //
-// Uses the `excel` Dart package. All data comes from the Cards table in SQLite.
+// Uses the `excel` Dart package. Data can come from either the Cards table
+// in SQLite, or directly from solver results (List<TimetableAssignment>).
 
 import 'dart:io';
 import 'dart:typed_data';
@@ -9,6 +11,7 @@ import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../features/timetable/presentation/controllers/solver_controller.dart';
 import '../../features/timetable/timetable_display.dart';
 import '../database.dart';
 
@@ -22,8 +25,8 @@ class ExcelExportService {
   static const _altRowBgHex = 'F5F5F0';
 
   /// Build and share a complete .xlsx timetable workbook.
-  Future<void> exportAndShare(AppDatabase db) async {
-    final bytes = await buildWorkbook(db);
+  Future<void> exportAndShare(AppDatabase db, int dbId) async {
+    final bytes = await buildWorkbook(db, dbId);
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/SmartTime_Timetable.xlsx');
     await file.writeAsBytes(bytes, flush: true);
@@ -35,13 +38,13 @@ class ExcelExportService {
   }
 
   /// Build a complete .xlsx workbook and return raw bytes.
-  Future<Uint8List> buildWorkbook(AppDatabase db) async {
+  Future<Uint8List> buildWorkbook(AppDatabase db, int dbId) async {
     final cards = await db.select(db.cards).get();
     final lessons = await db.select(db.lessons).get();
     final subjects = await db.select(db.subjects).get();
     final teachers = await db.select(db.teachers).get();
     final classes = await db.select(db.classes).get();
-    final plannerSnapshot = await db.loadPlannerSnapshot();
+    final plannerSnapshot = await db.loadPlannerSnapshot(dbId);
 
     final lessonById = {for (final l in lessons) l.id: l};
     final catalog = TimetableDisplayCatalog.fromDatabase(
@@ -113,6 +116,39 @@ class ExcelExportService {
       );
     }
 
+    // ── Room-wise sheets ──
+    final roomIds = cards
+        .map((c) => c.roomId)
+        .where((id) => id != null && id.trim().isNotEmpty)
+        .map((id) => id!)
+        .toSet()
+        .toList()
+      ..sort();
+    for (final roomId in roomIds) {
+      final roomCards = cards
+          .where((c) => c.roomId == roomId)
+          .toList();
+      if (roomCards.isEmpty) continue;
+
+      final roomLabel = catalog.roomLabel(roomId) ?? roomId;
+      final sheetName = _sanitizeSheetName('R_$roomLabel');
+      _buildEntitySheet(
+        excel: excel,
+        sheetName: sheetName,
+        title: 'Room: $roomLabel',
+        cards: roomCards,
+        lessonById: lessonById,
+        catalog: catalog,
+        slots: slots,
+        dayCount: dayCount,
+        secondaryFn: (lesson) {
+          final cls = catalog.joinClassLabels(lesson.classIds);
+          final tch = catalog.joinTeacherLabels(lesson.teacherIds);
+          return [cls, tch].where((s) => s.trim().isNotEmpty).join(' | ');
+        },
+      );
+    }
+
     // Remove default "Sheet1" that Excel creates
     if (excel.sheets.containsKey('Sheet1')) {
       excel.delete('Sheet1');
@@ -121,6 +157,160 @@ class ExcelExportService {
     final encoded = excel.encode();
     if (encoded == null) throw StateError('Failed to encode Excel workbook');
     return Uint8List.fromList(encoded);
+  }
+
+  /// Build a workbook directly from solver results (no DB required).
+  Future<Uint8List> buildFromAssignments({
+    required List<TimetableAssignment> assignments,
+    required int days,
+    required int periodsPerDay,
+    required TimetableDisplayCatalog catalog,
+  }) async {
+    // Build simple slot descriptors.
+    final slots = List.generate(
+      periodsPerDay,
+      (i) => TimetableSlotDescriptor(
+        id: 'period_${i + 1}',
+        label: 'P${i + 1}',
+        periodIndex: i,
+      ),
+      growable: false,
+    );
+
+    // Convert solver assignments to CardRow/LessonRow for reuse of existing sheet builders.
+    final cards = <CardRow>[];
+    final lessonById = <String, LessonRow>{};
+    for (final a in assignments) {
+      cards.add(CardRow(
+        id: a.lessonId,
+        lessonId: a.lessonId,
+        dayIndex: a.day - 1,
+        periodIndex: a.period - 1,
+        roomId: a.roomId.isEmpty ? null : a.roomId,
+      ));
+      lessonById.putIfAbsent(
+        a.lessonId,
+        () => LessonRow(
+          id: a.lessonId,
+          classIds: a.classIds,
+          teacherIds: a.teacherIds,
+          subjectId: a.subjectId,
+          periodsPerWeek: 1,
+          isPinned: false,
+          relationshipType: 0,
+        ),
+      );
+    }
+
+    final excel = Excel.createExcel();
+
+    // ── Master Overview ──
+    _buildMasterSheet(excel, cards, lessonById, catalog, slots, days);
+
+    // ── Class-wise sheets ──
+    final classIds = assignments.expand((a) => a.classIds).toSet().toList()..sort();
+    for (final classId in classIds) {
+      final classCards = cards.where((c) {
+        final lesson = lessonById[c.lessonId];
+        return lesson != null && lesson.classIds.contains(classId);
+      }).toList();
+      if (classCards.isEmpty) continue;
+      final classLabel = catalog.classLabel(classId);
+      _buildEntitySheet(
+        excel: excel,
+        sheetName: _sanitizeSheetName('C_$classLabel'),
+        title: 'Class: $classLabel',
+        cards: classCards,
+        lessonById: lessonById,
+        catalog: catalog,
+        slots: slots,
+        dayCount: days,
+        secondaryFn: (lesson) => catalog.joinTeacherLabels(lesson.teacherIds),
+      );
+    }
+
+    // ── Teacher-wise sheets ──
+    final teacherIds = assignments.expand((a) => a.teacherIds).toSet().toList()..sort();
+    for (final teacherId in teacherIds) {
+      final teacherCards = cards.where((c) {
+        final lesson = lessonById[c.lessonId];
+        return lesson != null && lesson.teacherIds.contains(teacherId);
+      }).toList();
+      if (teacherCards.isEmpty) continue;
+      final teacherLabel = catalog.teacherLabel(teacherId);
+      _buildEntitySheet(
+        excel: excel,
+        sheetName: _sanitizeSheetName('T_$teacherLabel'),
+        title: 'Teacher: $teacherLabel',
+        cards: teacherCards,
+        lessonById: lessonById,
+        catalog: catalog,
+        slots: slots,
+        dayCount: days,
+        secondaryFn: (lesson) => catalog.joinClassLabels(lesson.classIds),
+      );
+    }
+
+    // ── Room-wise sheets ──
+    final roomIds = assignments
+        .map((a) => a.roomId)
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    for (final roomId in roomIds) {
+      final roomCards = cards
+          .where((c) => c.roomId == roomId)
+          .toList();
+      if (roomCards.isEmpty) continue;
+      final roomLabel = catalog.roomLabel(roomId) ?? roomId;
+      _buildEntitySheet(
+        excel: excel,
+        sheetName: _sanitizeSheetName('R_$roomLabel'),
+        title: 'Room: $roomLabel',
+        cards: roomCards,
+        lessonById: lessonById,
+        catalog: catalog,
+        slots: slots,
+        dayCount: days,
+        secondaryFn: (lesson) {
+          final cls = catalog.joinClassLabels(lesson.classIds);
+          final tch = catalog.joinTeacherLabels(lesson.teacherIds);
+          return [cls, tch].where((s) => s.trim().isNotEmpty).join(' | ');
+        },
+      );
+    }
+
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final encoded = excel.encode();
+    if (encoded == null) throw StateError('Failed to encode Excel workbook');
+    return Uint8List.fromList(encoded);
+  }
+
+  /// Export from solver results and share.
+  Future<void> exportAndShareFromAssignments({
+    required List<TimetableAssignment> assignments,
+    required int days,
+    required int periodsPerDay,
+    required TimetableDisplayCatalog catalog,
+  }) async {
+    final bytes = await buildFromAssignments(
+      assignments: assignments,
+      days: days,
+      periodsPerDay: periodsPerDay,
+      catalog: catalog,
+    );
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/SmartTime_Timetable.xlsx');
+    await file.writeAsBytes(bytes, flush: true);
+
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')],
+      text: 'SmartTime AI Timetable Export',
+    );
   }
 
   void _buildMasterSheet(
@@ -368,5 +558,108 @@ class ExcelExportService {
     if (clean.length > 31) clean = clean.substring(0, 31);
     if (clean.isEmpty) clean = 'Sheet';
     return clean;
+  }
+
+  /// Build and share a unified pre-filled .xlsx Setup Template workbook.
+  Future<void> exportMasterDataToTemplate(AppDatabase db, int dbId) async {
+    final excel = Excel.createExcel();
+
+    final plannerSnapshot = (await db.loadPlannerSnapshot(dbId))!;
+    
+    // Use the processed planner snapshot which has the correct structure for export
+    final teachers = plannerSnapshot['teachers'] as List<dynamic>;
+    final classes = plannerSnapshot['classes'] as List<dynamic>;
+    final subjects = plannerSnapshot['subjects'] as List<dynamic>;
+    final rooms = plannerSnapshot['classrooms'] as List<dynamic>;
+    final lessons = plannerSnapshot['lessons'] as List<dynamic>;
+
+    // ── Pre-fill Teachers Sheet ──
+    final tSheet = excel['Teachers_Constraints'];
+    tSheet.appendRow([
+      TextCellValue('teacher_name'),
+      TextCellValue('teacher_abbr'),
+      TextCellValue('off_days'),
+      TextCellValue('off_slots'),
+      TextCellValue('max_periods_per_day'),
+      TextCellValue('max_gaps_per_day')
+    ]);
+    for (final t in teachers) {
+      final tMap = t as Map<String, dynamic>;
+      final timeOff = tMap['timeOff'] as Map<String, dynamic>? ?? {};
+      final offSlotsStr = timeOff.entries
+          .where((e) => e.value != 0) // not available
+          .map((e) => e.key)
+          .join(',');
+      
+      final firstName = tMap['firstName'] as String? ?? '';
+      final lastName = tMap['lastName'] as String? ?? '';
+      final fullName = firstName + (lastName.isNotEmpty ? ' $lastName' : '');
+          
+      tSheet.appendRow([
+        TextCellValue(fullName),
+        TextCellValue(tMap['abbr'] as String? ?? ''),
+        TextCellValue(''), // off_days left blank for explicit slots
+        TextCellValue(offSlotsStr),
+        TextCellValue('${tMap['maxPeriodsPerDay'] ?? ""}'),
+        TextCellValue('${tMap['maxGapsPerDay'] ?? ""}')
+      ]);
+    }
+
+    // ── Pre-fill Lessons Sheet ──
+    final lSheet = excel['Lessons_Master'];
+    lSheet.appendRow([
+      TextCellValue('lesson_id'),
+      TextCellValue('class_name'),
+      TextCellValue('subject_name'),
+      TextCellValue('teacher_name'),
+      TextCellValue('weekly_lessons'),
+      TextCellValue('lesson_length'),
+      TextCellValue('preferred_room')
+    ]);
+
+    final subjectById = {for (final s in subjects) s['id'] as String: s};
+    final teacherById = {for (final t in teachers) t['id'] as String: t};
+    final classById = {for (final c in classes) c['id'] as String: c};
+    final roomById = {for (final r in rooms) r['id'] as String: r};
+
+    for (final l in lessons) {
+      final lMap = l as Map<String, dynamic>;
+      final subj = subjectById[lMap['subjectId']];
+      
+      final classIds = (lMap['classIds'] as List<dynamic>?) ?? [];
+      final rCls = classIds.map((c) => classById[c]?['name'] ?? '').join(',');
+      
+      final teacherIds = (lMap['teacherIds'] as List<dynamic>?) ?? [];
+      final rTeacher = teacherIds.map((t) => teacherById[t]?['firstName'] ?? '').join(',');
+      
+      final reqRoom = lMap['requiredClassroomId'] as String?;
+      final rRoom = reqRoom != null ? (roomById[reqRoom]?['name'] ?? '') : '';
+      
+      lSheet.appendRow([
+        TextCellValue(lMap['id'] as String? ?? ''),
+        TextCellValue(rCls),
+        TextCellValue(subj?['name'] as String? ?? ''),
+        TextCellValue(rTeacher),
+        TextCellValue('${lMap['countPerWeek'] ?? ""}'),
+        TextCellValue(lMap['length'] as String? ?? ''),
+        TextCellValue(rRoom)
+      ]);
+    }
+
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final encoded = excel.encode();
+    if (encoded == null) throw StateError('Failed to encode Excel Template');
+
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/SmartTime_Setup_Template.xlsx');
+    await file.writeAsBytes(encoded, flush: true);
+
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')],
+      text: 'SmartTime AI Unified Setup Template',
+    );
   }
 }

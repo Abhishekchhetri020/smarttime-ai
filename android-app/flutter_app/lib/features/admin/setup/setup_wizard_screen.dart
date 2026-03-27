@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/services/bulk_import_service.dart';
+import '../../../core/services/excel_export_service.dart';
 import '../planner_state.dart';
 import 'setup_step_class_divisions.dart';
 import 'setup_step_school.dart';
@@ -87,13 +88,29 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
           children: [
             OutlinedButton.icon(
               onPressed: () async {
-                final files = await importer.writeMasterCsvTemplates();
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text(
-                          'Templates saved: ${files.map((e) => e.path).join(' | ')}')),
-                );
+                final db = context.read<PlannerState>().db;
+                final dbId = context.read<PlannerState>().dbId;
+                final scaffold = ScaffoldMessenger.of(context);
+
+                if (db != null) {
+                  scaffold.showSnackBar(const SnackBar(
+                      content: Text('Generating unified Setup Template...')));
+                  try {
+                    await ExcelExportService()
+                        .exportMasterDataToTemplate(db, dbId);
+                    if (!context.mounted) return;
+                    scaffold.showSnackBar(
+                      const SnackBar(
+                          content: Text('Unified Setup Template saved.')),
+                    );
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    scaffold.showSnackBar(
+                      SnackBar(
+                          content: Text('Failed to generate template: $e')),
+                    );
+                  }
+                }
               },
               icon: const Icon(Icons.download),
               label: const Text('Download Template'),
@@ -103,31 +120,13 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                 final db = planner.db;
                 if (db == null) return;
                 try {
-                  final lessonsFile = await importer.pickLessonsMasterCsv();
-                  if (lessonsFile == null || !context.mounted) return;
-                  final pickConstraints = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Optional Constraints'),
-                      content: const Text(
-                          'Lessons loaded. Select Teachers_Constraints.csv or Skip?'),
-                      actions: [
-                        TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Skip')),
-                        ElevatedButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Select File')),
-                      ],
-                    ),
-                  );
-                  final teachersFile = (pickConstraints ?? false)
-                      ? await importer.pickTeachersConstraintsCsv()
-                      : null;
-                  final summary = await importer.importMasterCsvData(
+                  final workbookFile = await importer.pickImportWorkbook();
+                  if (workbookFile == null || !context.mounted) return;
+
+                  final summary = await importer.importMasterWorkbookData(
                     db,
-                    lessonsFile: lessonsFile,
-                    teachersFile: teachersFile,
+                    planner.dbId,
+                    workbookFile: workbookFile,
                   );
                   await planner.refreshFromDatabase();
                   if (!context.mounted) return;
@@ -145,7 +144,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                 }
               },
               icon: const Icon(Icons.upload_file),
-              label: const Text('Import Master CSVs'),
+              label: const Text('Import Excel Template'),
             ),
           ],
         ),

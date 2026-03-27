@@ -47,7 +47,7 @@ class $SubjectsTable extends Subjects
       'color', aliasedName, false,
       type: DriftSqlType.int,
       requiredDuringInsert: false,
-      defaultValue: const Constant(0xFF0B3D91));
+      defaultValue: const Constant(0xFF4F46E5));
   @override
   List<GeneratedColumn> get $columns =>
       [id, guid, name, abbr, groupId, roomTypeId, color];

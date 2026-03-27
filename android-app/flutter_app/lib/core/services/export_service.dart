@@ -173,7 +173,7 @@ class ExportService {
                     abbr: s['abbr']?.toString() ?? '',
                     groupId: Value(s['groupId']?.toString()),
                     roomTypeId: Value((s['roomTypeId'] as num?)?.toInt()),
-                    color: Value((s['color'] as num?)?.toInt() ?? 0xFF0B3D91),
+                    color: Value((s['color'] as num?)?.toInt() ?? 0xFF4F46E5),
                   ),
                 )
                 .toList(growable: false),

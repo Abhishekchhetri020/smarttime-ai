@@ -14,82 +14,129 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'backtrack_solver.dart';
 import 'constraint_checker.dart';
-import 'greedy_seed.dart';
-import 'local_search.dart';
+import 'engine_constraints.dart';
+import 'iterative_forward_search.dart';
+import 'recursive_swap_solver.dart';
 import 'solver_models.dart';
+import 'tabu_search_optimizer.dart';
 
 /// Run the solver synchronously (for use inside an Isolate).
 SolverResult _solveSync(
   SolverPayload payload,
-  void Function(SolverProgress)? onProgress,
-) {
+  void Function(SolverProgress)? onProgress, [
+  List<EngineConstraint>? customConstraints,
+]) {
   final sw = Stopwatch()..start();
-  final checker = ConstraintChecker(payload);
+  final checker = ConstraintChecker(payload, constraints: customConstraints);
   final variants = <SolverVariant>[];
 
   for (int v = 0; v < payload.variantCount; v++) {
     onProgress?.call(SolverProgress(
-      phase: 'greedy',
+      phase: 'ifs',
       percent: 0.0,
       message: 'Starting variant ${v + 1} of ${payload.variantCount}',
       currentVariant: v,
     ));
 
-    // Phase 1: Greedy Seed
-    final greedy = GreedySeed(
+    // Phase 1: Iterative Forward Search (UniTime-style)
+    final ifsSolver = IterativeForwardSearch(
       payload: payload,
       checker: checker,
       onProgress: onProgress,
     );
-    final seedResult = greedy.run();
+    final ifsResult = ifsSolver.run();
 
     onProgress?.call(SolverProgress(
-      phase: 'backtrack',
+      phase: 'swap',
       percent: 0.0,
-      message: 'Greedy placed ${seedResult.assignments.length}/${payload.lessons.length} lessons. Backtracking ${seedResult.unscheduledIds.length} remaining...',
+      message: 'IFS placed ${ifsResult.assignments.length}/${payload.lessons.length}. Recursive swapping ${ifsResult.unscheduledIds.length} remaining...',
       currentVariant: v,
     ));
 
-    // Phase 2: Backtracking (only if there are unscheduled lessons)
+    // Phase 2: Recursive Swap Solver (FET-style)
     List<SolverAssignment> assignments;
     List<String> unscheduled;
 
-    if (seedResult.unscheduledIds.isNotEmpty) {
-      final backtracker = BacktrackSolver(
+    if (ifsResult.unscheduledIds.isNotEmpty) {
+      final swapSolver = RecursiveSwapSolver(
         payload: payload,
         checker: checker,
         onProgress: onProgress,
       );
-      final btResult = backtracker.run(
-        seedResult.assignments,
-        seedResult.unscheduledIds,
+      final swapResult = swapSolver.run(
+        ifsResult.assignments,
+        ifsResult.unscheduledIds,
       );
-      assignments = btResult.assignments;
-      unscheduled = btResult.unscheduledIds;
+      assignments = swapResult.assignments;
+      unscheduled = swapResult.unscheduledIds;
     } else {
-      assignments = seedResult.assignments;
+      assignments = ifsResult.assignments;
       unscheduled = const [];
     }
 
     onProgress?.call(SolverProgress(
       phase: 'optimize',
       percent: 0.0,
-      message: 'Scheduled ${assignments.length}/${payload.lessons.length}. Optimizing soft constraints...',
+      message: 'Scheduled ${assignments.length}/${payload.lessons.length}. Optimizing with Tabu Search...',
       currentVariant: v,
     ));
 
-    // Phase 3: Local Search Optimization
-    final optimizer = LocalSearch(
+    // Phase 3: Tabu Search Optimization (Timefold-style)
+    final optimizer = TabuSearchOptimizer(
       payload: payload,
       checker: checker,
       onProgress: onProgress,
     );
     final optimized = optimizer.run(assignments, unscheduled, v);
 
-    // Score final solution
-    final variant = checker.scoreSolution(optimized.assignments, unscheduled, v);
+    // ── VALIDATION FENCE (two-pass) ──
+    // Pass 1: Atomic check — remove each assignment, verify against
+    //         all others, re-add. Catches per-entity violations
+    //         (max-consecutive, max-per-day) without ordering bias.
+    final atomicState = SolverState.fromAssignments(payload, optimized.assignments);
+    final pass1Invalid = <String>{};
+
+    for (final a in optimized.assignments) {
+      final lesson = atomicState.lessonById[a.lessonId];
+      if (lesson == null) { pass1Invalid.add(a.lessonId); continue; }
+
+      atomicState.remove(a.lessonId);
+      final code = checker.checkHardFast(
+        atomicState, lesson, SolverSlot(a.day, a.period), a.roomId);
+      if (code != 0) {
+        pass1Invalid.add(a.lessonId);
+      } else {
+        atomicState.place(a);
+      }
+    }
+
+    // Pass 2: Incremental rebuild — adds surviving assignments one-by-one.
+    //         This catches any pairwise conflicts (double-bookings) that
+    //         the atomic pass couldn't detect.
+    final rebuildState = SolverState(payload);
+    final validAssignments = <SolverAssignment>[];
+    final allInvalid = <String>{...pass1Invalid};
+
+    for (final a in optimized.assignments) {
+      if (pass1Invalid.contains(a.lessonId)) continue;
+      final lesson = rebuildState.lessonById[a.lessonId];
+      if (lesson == null) continue;
+
+      final code = checker.checkHardFast(
+        rebuildState, lesson, SolverSlot(a.day, a.period), a.roomId);
+      if (code == 0) {
+        rebuildState.place(a);
+        validAssignments.add(a);
+      } else {
+        allInvalid.add(a.lessonId);
+      }
+    }
+
+    final postUnscheduled = [...unscheduled, ...allInvalid];
+
+    // Score final validated solution
+    final variant = checker.scoreSolution(validAssignments, postUnscheduled, v);
     variants.add(variant);
 
     // Timeout check for total run
@@ -184,7 +231,8 @@ class SolverEngine {
   static SolverResult solveSync(
     SolverPayload payload, {
     void Function(SolverProgress)? onProgress,
+    List<EngineConstraint>? constraints,
   }) {
-    return _solveSync(payload, onProgress);
+    return _solveSync(payload, onProgress, constraints);
   }
 }

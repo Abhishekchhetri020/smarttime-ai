@@ -148,7 +148,7 @@ class _SubjectsTabState extends State<SubjectsTab> {
                               id: sid,
                               name: _name.text.trim(),
                               abbr: _abbr.text.trim(),
-                              color: 0xFF0B3D91,
+                              color: 0xFF4F46E5,
                               relationshipGroupKey:
                                   _isElectiveGroup ? _groupKey.text.trim() : null,
                             ),

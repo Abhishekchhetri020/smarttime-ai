@@ -21,7 +21,7 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
   ViewMode _viewMode = ViewMode.classView;
   String? _selectedId; // ID for the current view pivot (teacherId or classId)
 
-  final Color motherSage = const Color(0xFF7B906F);
+  final Color motherSage = const Color(0xFF4F46E5);
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +191,7 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
           primary: subject,
           secondary: secondary,
           tertiary: tertiary,
-          accent: Color(planner.subjects.firstWhere((s) => s.id == lesson.subjectId, orElse: () => SubjectItem(name: 'Unknown', abbr: 'UNK', color: 0xFF2B5EC8)).color),
+          accent: Color(planner.subjects.firstWhere((s) => s.id == lesson.subjectId, orElse: () => SubjectItem(name: 'Unknown', abbr: 'UNK', color: 0xFF4F46E5)).color),
         );
       }
     }
@@ -216,7 +216,7 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
 
 Future<Uint8List> generateTimetablePdf(PlannerState planner) async {
   final pdf = pw.Document();
-  final motherSageColor = PdfColor.fromInt(0xFF7B906F);
+  final motherSageColor = PdfColor.fromInt(0xFF4F46E5);
 
   pdf.addPage(
     pw.MultiPage(

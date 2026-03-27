@@ -119,4 +119,94 @@ class TimetableService {
       return const MoveLessonSuccess();
     });
   }
+
+  /// Detect all conflicts at a target slot for a given lesson.
+  /// Returns a list of human-readable collision descriptions.
+  Future<List<String>> detectConflicts(
+    AppDatabase db,
+    String lessonId,
+    int dayIndex,
+    int periodIndex,
+  ) async {
+    final conflicts = <String>[];
+
+    final lesson = await (db.select(db.lessons)
+          ..where((t) => t.id.equals(lessonId)))
+        .getSingleOrNull();
+    if (lesson == null) return conflicts;
+
+    final slotCards = await (db.select(db.cards)
+          ..where((t) => t.dayIndex.equals(dayIndex))
+          ..where((t) => t.periodIndex.equals(periodIndex))
+          ..where((t) => t.lessonId.isNotValue(lessonId)))
+        .get();
+    if (slotCards.isEmpty) return conflicts;
+
+    final otherLessonIds = slotCards.map((e) => e.lessonId).toList();
+    final otherLessons = await (db.select(db.lessons)
+          ..where((t) => t.id.isIn(otherLessonIds)))
+        .get();
+    final byId = {for (final l in otherLessons) l.id: l};
+
+    final subjectNames = {
+      for (final s in await db.select(db.subjects).get())
+        s.id: (s.abbr.isNotEmpty ? s.abbr : s.name),
+    };
+    final classNames = {
+      for (final c in await db.select(db.classes).get())
+        c.id: (c.abbr.isNotEmpty ? c.abbr : c.name),
+    };
+
+    for (final c in slotCards) {
+      final other = byId[c.lessonId];
+      if (other == null) continue;
+      final subj = subjectNames[other.subjectId] ?? other.subjectId;
+      final cls = other.classIds.map((id) => classNames[id] ?? id).join(', ');
+      conflicts.add('$subj ($cls)');
+    }
+
+    return conflicts;
+  }
+
+  /// Force-move: removes all colliding cards at the target slot, then places.
+  Future<void> moveLessonForced(
+    AppDatabase db,
+    String lessonId,
+    int dayIndex,
+    int periodIndex,
+  ) async {
+    await db.transaction(() async {
+      // Delete colliding cards
+      await (db.delete(db.cards)
+            ..where((t) => t.dayIndex.equals(dayIndex))
+            ..where((t) => t.periodIndex.equals(periodIndex))
+            ..where((t) => t.lessonId.isNotValue(lessonId)))
+          .go();
+
+      // Move the lesson card
+      final existingCard = await (db.select(db.cards)
+            ..where((t) => t.lessonId.equals(lessonId)))
+          .getSingleOrNull();
+      if (existingCard != null) {
+        await db.update(db.cards).replace(existingCard.copyWith(
+            dayIndex: dayIndex, periodIndex: periodIndex));
+      }
+    });
+  }
+
+  /// Ignore-move: places the lesson at the target slot regardless of conflicts.
+  Future<void> moveLessonIgnoreConflicts(
+    AppDatabase db,
+    String lessonId,
+    int dayIndex,
+    int periodIndex,
+  ) async {
+    final existingCard = await (db.select(db.cards)
+          ..where((t) => t.lessonId.equals(lessonId)))
+        .getSingleOrNull();
+    if (existingCard != null) {
+      await db.update(db.cards).replace(existingCard.copyWith(
+          dayIndex: dayIndex, periodIndex: periodIndex));
+    }
+  }
 }

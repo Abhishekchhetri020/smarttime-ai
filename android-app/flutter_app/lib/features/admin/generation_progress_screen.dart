@@ -1,13 +1,16 @@
 import 'dart:math';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/database.dart';
 import '../../core/theme/app_theme.dart';
 import '../timetable/data/conflict_service.dart';
 import '../timetable/data/native_solver_client.dart';
 import '../timetable/data/solver_payload_mapper.dart';
 import '../timetable/presentation/controllers/solver_controller.dart';
+import '../timetable/presentation/screens/cockpit_screen.dart';
 import 'planner_state.dart';
 
 class GenerationProgressScreen extends StatefulWidget {
@@ -57,6 +60,79 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
     super.dispose();
   }
 
+  Future<void> _syncPlannerToDatabase(PlannerState planner) async {
+    final db = planner.db;
+    if (db == null) return;
+
+    // Subjects
+    for (final s in planner.subjects) {
+      await db.into(db.subjects).insertOnConflictUpdate(
+        SubjectsCompanion.insert(
+          id: s.id,
+          guid: Value(s.id),
+          name: s.name,
+          abbr: s.abbr,
+          color: Value(s.color),
+          groupId: Value(s.relationshipGroupKey),
+        ),
+      );
+    }
+
+    // Teachers
+    for (final t in planner.teachers) {
+      await db.into(db.teachers).insertOnConflictUpdate(
+        TeachersCompanion.insert(
+          id: t.id,
+          guid: Value(t.id),
+          name: t.fullName,
+          abbreviation: t.abbr,
+          maxGapsPerDay: Value(t.maxGapsPerDay),
+        ),
+      );
+    }
+
+    // Classes & Divisions
+    for (final c in planner.classes) {
+      await db.into(db.classes).insertOnConflictUpdate(
+        ClassesCompanion.insert(
+          id: c.id,
+          guid: Value(c.id),
+          name: c.name,
+          abbr: c.abbr,
+        ),
+      );
+      for (final d in c.divisions) {
+        await db.into(db.divisions).insertOnConflictUpdate(
+          DivisionsCompanion.insert(
+            id: d.id,
+            classId: c.id,
+            name: d.name,
+          ),
+        );
+      }
+    }
+
+    // Lessons
+    for (final l in planner.lessons) {
+      await db.into(db.lessons).insertOnConflictUpdate(
+        LessonsCompanion.insert(
+          id: l.id,
+          subjectId: l.subjectId,
+          periodsPerWeek: Value(l.countPerWeek),
+          teacherIds: Value(l.teacherIds),
+          classIds: Value(l.classIds),
+          classDivisionId: Value(l.classDivisionId),
+          isPinned: Value(l.isPinned),
+          fixedDay: Value(l.fixedDay),
+          fixedPeriod: Value(l.fixedPeriod),
+          roomTypeId: Value(l.roomTypeId),
+          relationshipType: Value(l.relationshipType),
+          relationshipGroupKey: Value(l.relationshipGroupKey),
+        ),
+      );
+    }
+  }
+
   Future<void> _run() async {
     final planner = context.read<PlannerState>();
     setState(() {
@@ -84,12 +160,23 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
     });
     _ringController.animateTo(0.3, curve: Curves.easeOut);
 
+    // Sync Draft to Relational Tables first (required for Cards DB inserts and Cockpit view)
+    await _syncPlannerToDatabase(planner);
+
     // Run the Dart solver
     await _solver.runDartSolver(planner);
     if (!mounted) return;
 
     final rawError = _solver.error;
     if (rawError != null && rawError.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to generate timetable. Check the error below.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
       setState(() {
         _cleanError = _friendlyError(rawError);
         _completed = false;
@@ -98,16 +185,58 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
       return;
     }
 
-    // Phase 3: Optimizing
+    // Phase 3: Optimizing — persist results to DB
     setState(() {
       _phase = _SolverPhase.optimizing;
       _progress = 0.85;
     });
     await _ringController.animateTo(0.85, curve: Curves.easeOut);
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    // ── PERSIST solver assignments to the cards DB table ──
+    final db = planner.db;
+    if (db != null && _solver.assignments.isNotEmpty) {
+      try {
+        // Clear old cards first
+        await db.delete(db.cards).go();
+
+        // Build a map from lesson ID to the planner lesson
+        final lessonMap = <String, dynamic>{};
+        for (final l in planner.lessons) {
+          for (int k = 0; k < l.countPerWeek; k++) {
+            lessonMap['${l.id}_$k'] = l;
+          }
+        }
+
+        for (final a in _solver.assignments) {
+          final lastUnderscore = a.lessonId.lastIndexOf('_');
+          final originalId = lastUnderscore != -1 ? a.lessonId.substring(0, lastUnderscore) : a.lessonId;
+          
+          await db.into(db.cards).insert(
+            CardsCompanion.insert(
+              id: '${originalId}_${a.day}_${a.period}',
+              lessonId: originalId,
+              dayIndex: a.day,     // solver slots are already 0-indexed
+              periodIndex: a.period,
+              roomId: Value(a.roomId.isEmpty ? null : a.roomId),
+            ),
+          );
+        }
+        debugPrint('--- PERSISTED ${_solver.assignments.length} cards to DB ---');
+      } catch (e, st) {
+        debugPrint('--- DB PERSIST ERROR: $e ---\n$st');
+        if (mounted) {
+          setState(() {
+            _cleanError = 'Database error while saving schedule. Check logs.';
+            _completed = false;
+          });
+        }
+        return;
+      }
+    }
     if (!mounted) return;
 
     // Done!
+    planner.markTimetableGenerated();
     setState(() {
       _phase = _SolverPhase.done;
       _progress = 1.0;
@@ -119,6 +248,15 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
 
   String _friendlyError(String raw) {
     final lower = raw.toLowerCase();
+    
+    // Custom constraint intercepts based on Card Relationships logic
+    if (lower.contains('consecutive limit exceeded') || lower.contains('maxconsecutive')) {
+      return 'Constraint Violation: A class or teacher exceeded their maximum consecutive periods limit. Check your Global Constraints or add more breaks.';
+    }
+    if (lower.contains('dailylimit') || lower.contains('distribution')) {
+      return 'Constraint Violation: Subject daily limits were breached. Check if "Card distribution over the week" rules are too strict for the available days.';
+    }
+    
     if (lower.contains('double booking') ||
         lower.contains('fatal') ||
         lower.contains('halt') ||
@@ -219,7 +357,7 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
                   key: ValueKey('desc_${_phase.name}'),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.espresso.withValues(alpha: 0.6),
+                        color: AppTheme.espresso.withOpacity(0.6),
                       ),
                 ),
               ),
@@ -235,9 +373,9 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppTheme.errorRed.withValues(alpha: 0.06),
+                    color: AppTheme.errorRed.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.2)),
+                    border: Border.all(color: AppTheme.errorRed.withOpacity(0.2)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,9 +427,9 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppTheme.successGreen.withValues(alpha: 0.06),
+                    color: AppTheme.successGreen.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.2)),
+                    border: Border.all(color: AppTheme.successGreen.withOpacity(0.2)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -326,7 +464,14 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: () {
+                            final planner = context.read<PlannerState>();
+                            final db = planner.db;
+                            if (db == null) return;
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(builder: (_) => CockpitScreen(db: db, dbId: planner.dbId)),
+                            );
+                          },
                           icon: const Icon(Icons.dashboard_customize_rounded, size: 18),
                           label: const Text('View Timetable'),
                         ),
@@ -381,7 +526,7 @@ class _PhaseStepIndicator extends StatelessWidget {
               height: 2,
               color: currentPhase.index > phases[i].index
                   ? AppTheme.motherSage
-                  : AppTheme.espresso.withValues(alpha: 0.15),
+                  : AppTheme.espresso.withOpacity(0.15),
             ),
         ],
       ],
@@ -410,7 +555,7 @@ class _PhaseStep extends StatelessWidget {
             ? AppTheme.successGreen
             : isActive
                 ? AppTheme.motherSage
-                : AppTheme.espresso.withValues(alpha: 0.3);
+                : AppTheme.espresso.withOpacity(0.3);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -421,7 +566,7 @@ class _PhaseStep extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: isComplete || isActive
-                ? color.withValues(alpha: 0.12)
+                ? color.withOpacity(0.12)
                 : Colors.transparent,
             border: Border.all(color: color, width: 2),
           ),
@@ -475,7 +620,7 @@ class _ProgressRingPainter extends CustomPainter {
 
     // Background ring
     final bgPaint = Paint()
-      ..color = color.withValues(alpha: 0.08)
+      ..color = color.withOpacity(0.08)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 10
       ..strokeCap = StrokeCap.round;
@@ -484,7 +629,7 @@ class _ProgressRingPainter extends CustomPainter {
     // Pulse glow (only while working)
     if (pulseValue > 0) {
       final glowPaint = Paint()
-        ..color = color.withValues(alpha: 0.06 * pulseValue)
+        ..color = color.withOpacity(0.06 * pulseValue)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 20
         ..strokeCap = StrokeCap.round;

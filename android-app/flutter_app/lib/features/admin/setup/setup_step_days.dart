@@ -19,7 +19,8 @@ class SetupStepDays extends StatelessWidget {
           initialValue: planner.workingDays,
           items: List.generate(
             7,
-            (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1} day(s)')),
+            (i) =>
+                DropdownMenuItem(value: i + 1, child: Text('${i + 1} day(s)')),
           ),
           onChanged: (v) {
             if (v != null) context.read<PlannerState>().setWorkingDays(v);

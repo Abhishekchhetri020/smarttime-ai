@@ -27,7 +27,7 @@ void main() {
           'isPinned': false,
         }
       ]
-    });
+    }, 0);
 
     final snap = await db.watchAnalytics().first;
     expect(snap.totalAssignedLessons, 1);

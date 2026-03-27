@@ -19,7 +19,8 @@ class _SetupStepBellTimesState extends State<SetupStepBellTimes> {
       builder: (_) => const _ScheduleEntryDialog(),
     );
     if (created == null) return;
-    final next = List<ScheduleEntry>.from(planner.scheduleEntries)..add(created);
+    final next = List<ScheduleEntry>.from(planner.scheduleEntries)
+      ..add(created);
     planner.setScheduleEntries(next);
   }
 
@@ -79,12 +80,14 @@ class _SetupStepBellTimesState extends State<SetupStepBellTimes> {
               _moveEntry(context, oldIndex, newIndex),
           itemBuilder: (context, index) {
             final item = entries[index];
-            final canDelete =
-                !(item.type == ScheduleEntryType.period &&
-                    entries.where((e) => e.type == ScheduleEntryType.period).length <=
-                        1);
+            final canDelete = !(item.type == ScheduleEntryType.period &&
+                entries
+                        .where((e) => e.type == ScheduleEntryType.period)
+                        .length <=
+                    1);
             return Card(
-              key: ValueKey('schedule-entry-$index-${item.label}-${item.timeRange}'),
+              key: ValueKey(
+                  'schedule-entry-$index-${item.label}-${item.timeRange}'),
               child: ListTile(
                 title: Text(item.label),
                 subtitle: Text('${item.type.label} • ${item.timeRange}'),
@@ -100,9 +103,8 @@ class _SetupStepBellTimesState extends State<SetupStepBellTimes> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: canDelete
-                          ? () => _deleteEntry(context, index)
-                          : null,
+                      onPressed:
+                          canDelete ? () => _deleteEntry(context, index) : null,
                     ),
                   ],
                 ),

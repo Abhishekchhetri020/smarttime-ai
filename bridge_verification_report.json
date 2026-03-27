@@ -1,0 +1,214 @@
+{
+  "summary": {
+    "total": 41,
+    "passed": 41,
+    "failed": 0
+  },
+  "checks": [
+    {
+      "name": "  Constraint 'classMaxConsecutivePeriods'",
+      "status": "PASS",
+      "detail": "Dart sends: Y, Kotlin parses: Y"
+    },
+    {
+      "name": "  Constraint 'classMaxPeriodsPerDay'",
+      "status": "PASS",
+      "detail": "Dart sends: Y, Kotlin parses: Y"
+    },
+    {
+      "name": "  Constraint 'softWeights'",
+      "status": "PASS",
+      "detail": "Dart sends: Y, Kotlin parses: Y"
+    },
+    {
+      "name": "  Constraint 'subjectDailyLimit'",
+      "status": "PASS",
+      "detail": "Dart sends: Y, Kotlin parses: Y"
+    },
+    {
+      "name": "  Constraint 'teacherAvailability'",
+      "status": "PASS",
+      "detail": "Dart sends: Y, Kotlin parses: Y"
+    },
+    {
+      "name": "  Constraint 'teacherMaxConsecutivePeriods'",
+      "status": "PASS",
+      "detail": "Dart sends: Y, Kotlin parses: Y"
+    },
+    {
+      "name": "  Constraint 'teacherMaxPeriodsPerDay'",
+      "status": "PASS",
+      "detail": "Dart sends: Y, Kotlin parses: Y"
+    },
+    {
+      "name": "  Constraint 'teacherNoLastPeriodMaxPerWeek'",
+      "status": "PASS",
+      "detail": "Dart sends: Y, Kotlin parses: Y"
+    },
+    {
+      "name": "  teacherAvailability \u2192 SlotKey conversion",
+      "status": "PASS",
+      "detail": "parseConstraints builds Set<SlotKey> from {day, period} maps"
+    },
+    {
+      "name": "  Kotlin EventChannel registered",
+      "status": "PASS",
+      "detail": "Channel: smarttime/solver_progress"
+    },
+    {
+      "name": "  Dart EventChannel listener",
+      "status": "PASS",
+      "detail": "Channel: smarttime/solver_progress"
+    },
+    {
+      "name": "  Channel names match",
+      "status": "PASS",
+      "detail": "Kotlin: smarttime/solver_progress, Dart: smarttime/solver_progress"
+    },
+    {
+      "name": "  Progress field 'assignedLessons'",
+      "status": "PASS",
+      "detail": "Kotlin sends: Y, Dart reads: Y"
+    },
+    {
+      "name": "  Progress field 'backtracks'",
+      "status": "PASS",
+      "detail": "Kotlin sends: Y, Dart reads: Y"
+    },
+    {
+      "name": "  Progress field 'nodesVisited'",
+      "status": "PASS",
+      "detail": "Kotlin sends: Y, Dart reads: Y"
+    },
+    {
+      "name": "  Progress field 'totalLessons'",
+      "status": "PASS",
+      "detail": "Kotlin sends: Y, Dart reads: Y"
+    },
+    {
+      "name": "  EventSink.success() on main thread",
+      "status": "PASS",
+      "detail": "Required for Flutter EventChannel contract"
+    },
+    {
+      "name": "  endOfStream() called on completion",
+      "status": "PASS",
+      "detail": "Signals Flutter that stream is done"
+    },
+    {
+      "name": "  progressCallback passed to solver.solve()",
+      "status": "PASS",
+      "detail": "Wire from EventChannel \u2192 solver"
+    },
+    {
+      "name": "  SolverController subscribes before solve",
+      "status": "PASS",
+      "detail": "Subscribe in run() before client.solve()"
+    },
+    {
+      "name": "  SolverController cleanup in finally",
+      "status": "PASS",
+      "detail": "Prevents leaked subscriptions"
+    },
+    {
+      "name": "  Result key 'assignments' serialized",
+      "status": "PASS",
+      "detail": "Present in Kotlin result map"
+    },
+    {
+      "name": "  Result key 'diagnostics' serialized",
+      "status": "PASS",
+      "detail": "Present in Kotlin result map"
+    },
+    {
+      "name": "  Result key 'hardViolations' serialized",
+      "status": "PASS",
+      "detail": "Present in Kotlin result map"
+    },
+    {
+      "name": "  Result key 'score' serialized",
+      "status": "PASS",
+      "detail": "Present in Kotlin result map"
+    },
+    {
+      "name": "  Result key 'softPenaltyBreakdown' serialized",
+      "status": "PASS",
+      "detail": "Present in Kotlin result map"
+    },
+    {
+      "name": "  Result key 'status' serialized",
+      "status": "PASS",
+      "detail": "Present in Kotlin result map"
+    },
+    {
+      "name": "  SoftPenalty fields match data class",
+      "status": "PASS",
+      "detail": "type, penalty, weight mapped correctly"
+    },
+    {
+      "name": "  Assignment fields complete",
+      "status": "PASS",
+      "detail": "All 11 fields present"
+    },
+    {
+      "name": "  Solver runs on Dispatchers.Default",
+      "status": "PASS",
+      "detail": "Prevents UI jank during heavy computation"
+    },
+    {
+      "name": "  Result delivered on Main thread",
+      "status": "PASS",
+      "detail": "solverScope uses Dispatchers.Main"
+    },
+    {
+      "name": "  @Volatile progressSink",
+      "status": "PASS",
+      "detail": "Thread-safe cross-coroutine access"
+    },
+    {
+      "name": "  SupervisorJob in solverScope",
+      "status": "PASS",
+      "detail": "One channel failure doesn't cancel others"
+    },
+    {
+      "name": "  NativeSolverProgress model has progressFraction",
+      "status": "PASS",
+      "detail": "0.0\u21921.0 for UI progress bar"
+    },
+    {
+      "name": "  NativeSolverProgress has displayMessage",
+      "status": "PASS",
+      "detail": "Human-readable for status text"
+    },
+    {
+      "name": "  SolverController exposes nativeProgress field",
+      "status": "PASS",
+      "detail": "UI widgets can read progress"
+    },
+    {
+      "name": "  SolverController.dispose() cleans up stream",
+      "status": "PASS",
+      "detail": "Prevents memory leaks"
+    },
+    {
+      "name": "  Medium school benchmark test exists",
+      "status": "PASS",
+      "detail": "50 teachers, 25 classes, 250 lessons"
+    },
+    {
+      "name": "  Benchmark uses progressCallback",
+      "status": "PASS",
+      "detail": "Validates EventChannel contract at Kotlin level"
+    },
+    {
+      "name": "  Benchmark writes JSON output",
+      "status": "PASS",
+      "detail": "Machine-readable results for CI"
+    },
+    {
+      "name": "  Benchmark asserts progress events received",
+      "status": "PASS",
+      "detail": "Ensures callback was actually invoked"
+    }
+  ]
+}

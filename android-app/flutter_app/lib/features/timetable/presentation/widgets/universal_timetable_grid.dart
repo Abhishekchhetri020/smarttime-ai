@@ -188,8 +188,10 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
 
   @override
   Widget build(BuildContext context) {
+    final hasData = widget.data != null;
+
     return DragTarget<String>(
-      onWillAcceptWithDetails: (details) => widget.data == null,
+      onWillAcceptWithDetails: (details) => true, // Accept on both empty & occupied cells
       onAcceptWithDetails: (details) async {
         final move = widget.onMoveCell;
         if (move == null) return;
@@ -201,8 +203,10 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
         }
       },
       builder: (context, candidateData, rejectedData) {
-        if (widget.data == null) {
-          final isHovering = candidateData.isNotEmpty;
+        final isHovering = candidateData.isNotEmpty;
+        
+        if (!hasData) {
+          // Empty cell
           Color bgColor = Colors.transparent;
           Color borderColor = Colors.transparent;
 
@@ -211,10 +215,10 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
             final isValid = widget.onValidateMove?.call(lessonId!, widget.row, widget.col) ?? true;
             
             if (isValid) {
-              bgColor = const Color(0xFF7B906F).withValues(alpha: 0.3); // Mother Sage Soft Green
-              borderColor = const Color(0xFF7B906F);
+              bgColor = const Color(0xFF4F46E5).withOpacity(0.3);
+              borderColor = const Color(0xFF4F46E5);
             } else {
-              bgColor = const Color(0xFF8B3A3A).withValues(alpha: 0.3); // Mother Espresso Soft Red
+              bgColor = const Color(0xFF8B3A3A).withOpacity(0.3);
               borderColor = const Color(0xFF8B3A3A);
             }
           }
@@ -232,22 +236,46 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
             child: const SizedBox.expand(),
           );
         }
-        return LongPressDraggable<String>(
-          data: widget.data!.id,
-          onDragStarted: () => setState(() => _dragging = true),
-          onDragEnd: (_) => setState(() => _dragging = false),
-          onDraggableCanceled: (_, __) => setState(() => _dragging = false),
-          feedback: Material(
-            color: Colors.transparent,
-            child: SizedBox(
-              width: 140,
-              height: 86,
-              child: TimetableCell(data: widget.data!, isDragging: true),
+
+        // Cell with data — draggable + accepts drops (for collision handling)
+        return Stack(
+          children: [
+            LongPressDraggable<String>(
+              data: widget.data!.id,
+              onDragStarted: () => setState(() => _dragging = true),
+              onDragEnd: (_) => setState(() => _dragging = false),
+              onDraggableCanceled: (_, __) => setState(() => _dragging = false),
+              feedback: Material(
+                color: Colors.transparent,
+                child: SizedBox(
+                  width: 140,
+                  height: 86,
+                  child: TimetableCell(data: widget.data!, isDragging: true),
+                ),
+              ),
+              childWhenDragging:
+                  Opacity(opacity: 0.20, child: TimetableCell(data: widget.data!)),
+              child: TimetableCell(data: widget.data!, isDragging: _dragging),
             ),
-          ),
-          childWhenDragging:
-              Opacity(opacity: 0.20, child: TimetableCell(data: widget.data!)),
-          child: TimetableCell(data: widget.data!, isDragging: _dragging),
+            // Collision hover overlay
+            if (isHovering)
+              Positioned.fill(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFEF4444),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.swap_horiz, color: Color(0xFFEF4444), size: 24),
+                  ),
+                ),
+              ),
+          ],
         );
       },
     );
@@ -262,7 +290,7 @@ class TimetableCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = data.accent ?? const Color(0xFF2B5EC8);
+    final accent = data.accent ?? const Color(0xFF4F46E5);
 
     return AnimatedScale(
       scale: isDragging ? 1.04 : 1.0,
@@ -277,7 +305,7 @@ class TimetableCell extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.90),
+              color: accent.withOpacity(0.90),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.black12),
             ),
@@ -308,7 +336,7 @@ class TimetableCell extends StatelessWidget {
                         softWrap: true,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.92),
+                          color: Colors.white.withOpacity(0.92),
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
                           height: 1.15,
@@ -324,7 +352,7 @@ class TimetableCell extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.82),
+                        color: Colors.white.withOpacity(0.82),
                         fontSize: 9.5,
                         fontWeight: FontWeight.w500,
                         height: 1.1,

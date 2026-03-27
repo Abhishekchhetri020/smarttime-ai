@@ -8,10 +8,12 @@ class SetupStepTeacherAvailability extends StatefulWidget {
   const SetupStepTeacherAvailability({super.key});
 
   @override
-  State<SetupStepTeacherAvailability> createState() => _SetupStepTeacherAvailabilityState();
+  State<SetupStepTeacherAvailability> createState() =>
+      _SetupStepTeacherAvailabilityState();
 }
 
-class _SetupStepTeacherAvailabilityState extends State<SetupStepTeacherAvailability> {
+class _SetupStepTeacherAvailabilityState
+    extends State<SetupStepTeacherAvailability> {
   String? _teacherId;
   Map<String, TimeOffState> _draft = {};
 
@@ -22,18 +24,24 @@ class _SetupStepTeacherAvailabilityState extends State<SetupStepTeacherAvailabil
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Teacher availability', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const Text('Teacher availability',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           initialValue: _teacherId,
-          decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Teacher'),
+          decoration: const InputDecoration(
+              border: OutlineInputBorder(), labelText: 'Teacher'),
           items: planner.teachers
-              .map((t) => DropdownMenuItem(value: t.id, child: Text('${t.fullName} (${t.abbr})')))
+              .map((t) => DropdownMenuItem(
+                  value: t.id, child: Text('${t.fullName} (${t.abbr})')))
               .toList(),
           onChanged: (v) {
             setState(() {
               _teacherId = v;
-              final t = planner.teachers.where((e) => e.id == v).cast<TeacherItem?>().firstWhere(
+              final t = planner.teachers
+                  .where((e) => e.id == v)
+                  .cast<TeacherItem?>()
+                  .firstWhere(
                     (x) => x != null,
                     orElse: () => null,
                   );

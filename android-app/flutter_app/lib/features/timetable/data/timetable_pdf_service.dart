@@ -34,13 +34,14 @@ class TimetablePdfService {
     return compute(_buildMasterPdfBytes, input);
   }
 
-  Future<Uint8List> buildCockpitMasterPdf(AppDatabase db) async {
+  /// Build a complete multi-perspective PDF grid
+  Future<Uint8List> buildWorkbookPdf(AppDatabase db, int dbId) async {
     final cards = await db.select(db.cards).get();
     final lessons = await db.select(db.lessons).get();
     final subjects = await db.select(db.subjects).get();
     final teachers = await db.select(db.teachers).get();
     final classes = await db.select(db.classes).get();
-    final plannerSnapshot = await db.loadPlannerSnapshot();
+    final plannerSnapshot = await db.loadPlannerSnapshot(dbId);
 
     final lessonById = {for (final lesson in lessons) lesson.id: lesson};
     final catalog = TimetableDisplayCatalog.fromDatabase(
@@ -59,11 +60,30 @@ class TimetablePdfService {
                 1)
             .clamp(1, 6);
 
+    // Resolve school name from planner snapshot.
+    final resolvedSchoolName = plannerSnapshot?['schoolName']?.toString() ??
+        '';
+
     final classIds = classes.map((item) => item.id).toList()..sort();
     final teacherIds = teachers.map((item) => item.id).toList()..sort();
 
+    // Collect unique room IDs from cards.
+    final roomIds = cards
+        .map((c) => c.roomId)
+        .where((id) => id != null && id.trim().isNotEmpty)
+        .map((id) => id!)
+        .toSet()
+        .toList()
+      ..sort();
+
+    final generatedAt = DateTime.now();
+    final timestamp =
+        '${generatedAt.year}-${generatedAt.month.toString().padLeft(2, '0')}-${generatedAt.day.toString().padLeft(2, '0')} '
+        '${generatedAt.hour.toString().padLeft(2, '0')}:${generatedAt.minute.toString().padLeft(2, '0')}';
+
     final doc = pw.Document();
 
+    // ── Class-wise pages ──
     for (final classId in classIds) {
       final pageCards = cards.where((card) {
         final lesson = lessonById[card.lessonId];
@@ -72,7 +92,8 @@ class TimetablePdfService {
       doc.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
-          build: (_) => _buildGridPage(
+          build: (_) => _buildBrandedGridPage(
+            schoolName: resolvedSchoolName,
             title: 'Class Timetable: ${catalog.classLabel(classId)}',
             cards: pageCards,
             lessonById: lessonById,
@@ -80,11 +101,13 @@ class TimetablePdfService {
             days: dayCount,
             slots: slots,
             secondaryMode: _PdfSecondaryMode.teacher,
+            timestamp: timestamp,
           ),
         ),
       );
     }
 
+    // ── Teacher-wise pages ──
     for (final teacherId in teacherIds) {
       final pageCards = cards.where((card) {
         final lesson = lessonById[card.lessonId];
@@ -93,7 +116,8 @@ class TimetablePdfService {
       doc.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
-          build: (_) => _buildGridPage(
+          build: (_) => _buildBrandedGridPage(
+            schoolName: resolvedSchoolName,
             title: 'Teacher Timetable: ${catalog.teacherLabel(teacherId)}',
             cards: pageCards,
             lessonById: lessonById,
@@ -101,6 +125,32 @@ class TimetablePdfService {
             days: dayCount,
             slots: slots,
             secondaryMode: _PdfSecondaryMode.classroom,
+            timestamp: timestamp,
+          ),
+        ),
+      );
+    }
+
+    // ── Room-wise pages ──
+    for (final roomId in roomIds) {
+      final pageCards = cards
+          .where((card) => card.roomId == roomId)
+          .toList(growable: false);
+      if (pageCards.isEmpty) continue;
+      final roomLabel = catalog.roomLabel(roomId) ?? roomId;
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4.landscape,
+          build: (_) => _buildBrandedGridPage(
+            schoolName: resolvedSchoolName,
+            title: 'Room Timetable: $roomLabel',
+            cards: pageCards,
+            lessonById: lessonById,
+            catalog: catalog,
+            days: dayCount,
+            slots: slots,
+            secondaryMode: _PdfSecondaryMode.classAndTeacher,
+            timestamp: timestamp,
           ),
         ),
       );
@@ -109,8 +159,128 @@ class TimetablePdfService {
     return doc.save();
   }
 
-  Future<void> printCockpitMasterPdf(AppDatabase db) async {
-    final bytes = await buildCockpitMasterPdf(db);
+  /// Build a PDF directly from solver results (no DB required).
+  Future<Uint8List> buildFromAssignments({
+    required List<TimetableAssignment> assignments,
+    required int days,
+    required int periodsPerDay,
+    required TimetableDisplayCatalog catalog,
+    String schoolName = '',
+  }) async {
+    final generatedAt = DateTime.now();
+    final timestamp =
+        '${generatedAt.year}-${generatedAt.month.toString().padLeft(2, '0')}-${generatedAt.day.toString().padLeft(2, '0')} '
+        '${generatedAt.hour.toString().padLeft(2, '0')}:${generatedAt.minute.toString().padLeft(2, '0')}';
+
+    // Build simple slot descriptors (no breaks, just P1..Pn).
+    final slots = List.generate(
+      periodsPerDay,
+      (i) => TimetableSlotDescriptor(
+        id: 'period_${i + 1}',
+        label: 'P${i + 1}',
+        periodIndex: i,
+      ),
+      growable: false,
+    );
+
+    // Convert assignments to a card-like + lesson-like format the grid builder expects.
+    final cards = <CardRow>[];
+    final lessonById = <String, LessonRow>{};
+    for (final a in assignments) {
+      cards.add(_assignmentToCard(a));
+      lessonById.putIfAbsent(a.lessonId, () => _assignmentToLesson(a));
+    }
+
+    // Collect entity IDs.
+    final classIds = assignments.expand((a) => a.classIds).toSet().toList()..sort();
+    final teacherIds = assignments.expand((a) => a.teacherIds).toSet().toList()..sort();
+    final roomIds = assignments
+        .map((a) => a.roomId)
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+
+    final doc = pw.Document();
+
+    // ── Class-wise pages ──
+    for (final classId in classIds) {
+      final pageCards = cards.where((c) {
+        final lesson = lessonById[c.lessonId];
+        return lesson != null && lesson.classIds.contains(classId);
+      }).toList(growable: false);
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4.landscape,
+          build: (_) => _buildBrandedGridPage(
+            schoolName: schoolName,
+            title: 'Class Timetable: ${catalog.classLabel(classId)}',
+            cards: pageCards,
+            lessonById: lessonById,
+            catalog: catalog,
+            days: days,
+            slots: slots,
+            secondaryMode: _PdfSecondaryMode.teacher,
+            timestamp: timestamp,
+          ),
+        ),
+      );
+    }
+
+    // ── Teacher-wise pages ──
+    for (final teacherId in teacherIds) {
+      final pageCards = cards.where((c) {
+        final lesson = lessonById[c.lessonId];
+        return lesson != null && lesson.teacherIds.contains(teacherId);
+      }).toList(growable: false);
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4.landscape,
+          build: (_) => _buildBrandedGridPage(
+            schoolName: schoolName,
+            title: 'Teacher Timetable: ${catalog.teacherLabel(teacherId)}',
+            cards: pageCards,
+            lessonById: lessonById,
+            catalog: catalog,
+            days: days,
+            slots: slots,
+            secondaryMode: _PdfSecondaryMode.classroom,
+            timestamp: timestamp,
+          ),
+        ),
+      );
+    }
+
+    // ── Room-wise pages ──
+    for (final roomId in roomIds) {
+      final pageCards = cards
+          .where((c) => c.roomId == roomId)
+          .toList(growable: false);
+      if (pageCards.isEmpty) continue;
+      final roomLabel = catalog.roomLabel(roomId) ?? roomId;
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4.landscape,
+          build: (_) => _buildBrandedGridPage(
+            schoolName: schoolName,
+            title: 'Room Timetable: $roomLabel',
+            cards: pageCards,
+            lessonById: lessonById,
+            catalog: catalog,
+            days: days,
+            slots: slots,
+            secondaryMode: _PdfSecondaryMode.classAndTeacher,
+            timestamp: timestamp,
+          ),
+        ),
+      );
+    }
+
+    return doc.save();
+  }
+
+  Future<void> printCockpitMasterPdf(AppDatabase db, int dbId, {String? schoolName}) async {
+    final bytes = await buildWorkbookPdf(db, dbId);
     await Printing.layoutPdf(
       onLayout: (_) async => bytes,
       name: 'smarttime_master_report.pdf',
@@ -126,7 +296,7 @@ class TimetablePdfService {
   }
 }
 
-enum _PdfSecondaryMode { teacher, classroom }
+enum _PdfSecondaryMode { teacher, classroom, classAndTeacher }
 
 pw.Widget _buildGridPage({
   required String title,
@@ -154,9 +324,14 @@ pw.Widget _buildGridPage({
     if (rowIndex == null || dayIndex < 0 || dayIndex >= days) continue;
 
     final subject = catalog.subjectLabel(lesson.subjectId);
-    final secondary = secondaryMode == _PdfSecondaryMode.teacher
-        ? catalog.joinTeacherLabels(lesson.teacherIds)
-        : catalog.joinClassLabels(lesson.classIds);
+    final secondary = switch (secondaryMode) {
+      _PdfSecondaryMode.teacher => catalog.joinTeacherLabels(lesson.teacherIds),
+      _PdfSecondaryMode.classroom => catalog.joinClassLabels(lesson.classIds),
+      _PdfSecondaryMode.classAndTeacher => [
+          catalog.joinClassLabels(lesson.classIds),
+          catalog.joinTeacherLabels(lesson.teacherIds),
+        ].where((s) => s.trim().isNotEmpty).join(' | '),
+    };
 
     grid[rowIndex][dayIndex] =
         pdfCellText(subject: subject, secondary: secondary);
@@ -235,6 +410,97 @@ pw.Widget _buildGridPage({
         ],
       ),
     ],
+  );
+}
+
+/// Wraps _buildGridPage with a school name banner and timestamp footer.
+pw.Widget _buildBrandedGridPage({
+  required String schoolName,
+  required String title,
+  required List<CardRow> cards,
+  required Map<String, LessonRow> lessonById,
+  required TimetableDisplayCatalog catalog,
+  required int days,
+  required List<TimetableSlotDescriptor> slots,
+  required _PdfSecondaryMode secondaryMode,
+  required String timestamp,
+}) {
+  return pw.Column(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      // School name banner (only if name is provided).
+      if (schoolName.isNotEmpty)
+        pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: pw.BoxDecoration(
+            color: const PdfColor(0.31, 0.27, 0.21), // #4F4536 dark sage
+            borderRadius: pw.BorderRadius.circular(4),
+          ),
+          child: pw.Text(
+            schoolName,
+            style: pw.TextStyle(
+              fontSize: 16,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+          ),
+        ),
+      if (schoolName.isNotEmpty) pw.SizedBox(height: 6),
+
+      // The main grid.
+      pw.Expanded(
+        child: _buildGridPage(
+          title: title,
+          cards: cards,
+          lessonById: lessonById,
+          catalog: catalog,
+          days: days,
+          slots: slots,
+          secondaryMode: secondaryMode,
+        ),
+      ),
+
+      // Timestamp footer.
+      pw.SizedBox(height: 6),
+      pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(
+            'Generated by SmartTime AI',
+            style: pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
+          ),
+          pw.Text(
+            timestamp,
+            style: pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+/// Convert a [TimetableAssignment] into a [CardRow] for the grid builder.
+CardRow _assignmentToCard(TimetableAssignment a) {
+  return CardRow(
+    id: a.lessonId,
+    lessonId: a.lessonId,
+    dayIndex: a.day - 1,
+    periodIndex: a.period - 1,
+    roomId: a.roomId,
+  );
+}
+
+/// Convert a [TimetableAssignment] into a [LessonRow] stub for the grid builder.
+LessonRow _assignmentToLesson(TimetableAssignment a) {
+  return LessonRow(
+    id: a.lessonId,
+    classIds: a.classIds,
+    teacherIds: a.teacherIds,
+    subjectId: a.subjectId,
+    periodsPerWeek: 1,
+    isPinned: false,
+    relationshipType: 0,
   );
 }
 

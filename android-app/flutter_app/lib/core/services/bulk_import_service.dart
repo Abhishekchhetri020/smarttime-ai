@@ -680,53 +680,45 @@ class BulkImportService {
     return [lessons, teachers];
   }
 
-  Future<PlatformFile?> pickLessonsMasterCsv() async {
+  Future<PlatformFile?> pickImportWorkbook() async {
     final picked = await FilePicker.platform.pickFiles(
       allowMultiple: false,
       type: FileType.custom,
-      allowedExtensions: ['csv', 'xlsx'],
+      allowedExtensions: ['xlsx'],
       withData: true,
     );
     if (picked == null || picked.files.isEmpty) return null;
-    final file = picked.files.first;
-    if (!file.name.toLowerCase().contains('lessons_master')) {
-      throw StateError(
-          'Please select Lessons_Master.csv or Lessons_Master.xlsx');
-    }
-    return file;
+    return picked.files.first;
   }
 
-  Future<PlatformFile?> pickTeachersConstraintsCsv() async {
-    final picked = await FilePicker.platform.pickFiles(
-      allowMultiple: false,
-      type: FileType.custom,
-      allowedExtensions: ['csv', 'xlsx'],
-      withData: true,
-    );
-    if (picked == null || picked.files.isEmpty) return null;
-    final file = picked.files.first;
-    if (!file.name.toLowerCase().contains('teachers_constraints')) {
-      throw StateError(
-          'Please select Teachers_Constraints.csv or Teachers_Constraints.xlsx');
-    }
-    return file;
-  }
-
-  Future<MasterImportSummary> importMasterCsvData(
-    AppDatabase db, {
-    required PlatformFile lessonsFile,
-    PlatformFile? teachersFile,
+  Future<MasterImportSummary> importMasterWorkbookData(
+    AppDatabase db,
+    int dbId, {
+    required PlatformFile workbookFile,
   }) async {
-    final lessonsRows = _parseStructuredRows(
-      await _bytesForPlatformFile(lessonsFile),
-      lessonsFile.name,
+    final bytes = await _bytesForPlatformFile(workbookFile);
+    final excel = Excel.decodeBytes(bytes);
+
+    // Default to extracting the two standard sheets
+    List<Map<String, String>> lessonsRows = [];
+    List<Map<String, String>> teachersRows = [];
+
+    // Fallbacks if renamed slightly
+    final lessonSheetName = excel.tables.keys.firstWhere(
+      (k) => k.toLowerCase().contains('lesson'),
+      orElse: () => excel.tables.keys.first,
     );
-    final teachersRows = teachersFile == null
-        ? const <Map<String, String>>[]
-        : _parseStructuredRows(
-            await _bytesForPlatformFile(teachersFile),
-            teachersFile.name,
-          );
+    final teacherSheetName = excel.tables.keys.firstWhere(
+      (k) => k.toLowerCase().contains('teacher'),
+      orElse: () => excel.tables.keys.last,
+    );
+
+    if (excel.tables.containsKey(lessonSheetName)) {
+      lessonsRows = _parseExcelSheet(excel.tables[lessonSheetName]!);
+    }
+    if (excel.tables.containsKey(teacherSheetName)) {
+      teachersRows = _parseExcelSheet(excel.tables[teacherSheetName]!);
+    }
 
     final teacherByName = <String, TeacherImportDto>{};
     for (final row in teachersRows) {
@@ -866,7 +858,7 @@ class BulkImportService {
                   'id': s.id,
                   'name': s.name,
                   'abbr': s.abbr,
-                  'color': 0xFF0B3D91,
+                  'color': 0xFF4F46E5,
                   'relationshipGroupKey': null
                 })
             .toList(),
@@ -890,7 +882,7 @@ class BulkImportService {
             .toList(),
         'lessons': plannerLessons,
       };
-      await db.savePlannerSnapshot(plannerSnap);
+      await db.savePlannerSnapshot(plannerSnap, dbId);
 
       final dbLessons = await db.select(db.lessons).get();
       final dbTeachers = await db.select(db.teachers).get();
@@ -985,5 +977,26 @@ class BulkImportService {
         });
       }
     });
+  }
+
+  List<Map<String, String>> _parseExcelSheet(Sheet sheet) {
+    final rows = <Map<String, String>>[];
+    if (sheet.maxRows < 2) return rows;
+
+    final headerRow = sheet.row(0);
+    final headers = headerRow.map((c) => c?.value?.toString().trim().toLowerCase() ?? '').toList();
+
+    for (int i = 1; i < sheet.maxRows; i++) {
+      final row = sheet.row(i);
+      final map = <String, String>{};
+      for (int c = 0; c < headers.length && c < row.length; c++) {
+        final key = headers[c];
+        if (key.isNotEmpty) {
+          map[key] = row[c]?.value?.toString().trim() ?? '';
+        }
+      }
+      rows.add(map);
+    }
+    return rows;
   }
 }

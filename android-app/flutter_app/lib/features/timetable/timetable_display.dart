@@ -219,10 +219,14 @@ String _joinResolved(Iterable<String> values) {
 
 String _humanizeToken(String token) {
   if (token.isEmpty) return token;
+  // If it's literally just a roman numeral like "IV" or "XI"
   final upper = token.toUpperCase();
   if (RegExp(r'^[IVXLCDM]+$').hasMatch(upper)) return upper;
-  if (RegExp(r'^[A-Z0-9]+$').hasMatch(token) && token.length <= 3) return token;
-  if (RegExp(r'^\d+[A-Z]?$').hasMatch(upper)) return upper;
+  
+  // If it has digits, keep it upper (like "1A", "C2")
+  if (RegExp(r'\d').hasMatch(token)) return upper;
+
+  // Otherwise treat as a normal word: Capitalize first, lowercase rest
   final lower = token.toLowerCase();
   return '${lower[0].toUpperCase()}${lower.substring(1)}';
 }

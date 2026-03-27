@@ -43,7 +43,8 @@ class _SetupStepSchoolState extends State<SetupStepSchool> {
             labelText: 'School name',
             border: OutlineInputBorder(),
           ),
-          onChanged: (value) => context.read<PlannerState>().setSchoolName(value),
+          onChanged: (value) =>
+              context.read<PlannerState>().setSchoolName(value),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<int>(
@@ -53,7 +54,10 @@ class _SetupStepSchoolState extends State<SetupStepSchool> {
             border: OutlineInputBorder(),
             labelText: 'Days per week',
           ),
-          items: [for (int d = 1; d <= 7; d++) DropdownMenuItem(value: d, child: Text('$d'))],
+          items: [
+            for (int d = 1; d <= 7; d++)
+              DropdownMenuItem(value: d, child: Text('$d'))
+          ],
           onChanged: (v) {
             if (v != null) context.read<PlannerState>().setWorkingDays(v);
           },
@@ -66,7 +70,10 @@ class _SetupStepSchoolState extends State<SetupStepSchool> {
             border: OutlineInputBorder(),
             labelText: 'Periods per day',
           ),
-          items: [for (int p = 4; p <= 12; p++) DropdownMenuItem(value: p, child: Text('$p'))],
+          items: [
+            for (int p = 4; p <= 12; p++)
+              DropdownMenuItem(value: p, child: Text('$p'))
+          ],
           onChanged: (v) {
             if (v == null) return;
             final current = List<String>.from(planner.bellTimes);

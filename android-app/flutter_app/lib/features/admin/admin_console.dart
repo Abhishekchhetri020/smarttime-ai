@@ -113,7 +113,7 @@ class _AdminConsoleState extends State<AdminConsole> {
                     SubjectItem(
                       name: _subjectName.text.trim(),
                       abbr: _subjectAbbr.text.trim(),
-                      color: 0xFF0B3D91,
+                      color: 0xFF4F46E5,
                     ),
                   );
               setState(() => _status = 'Subject saved');

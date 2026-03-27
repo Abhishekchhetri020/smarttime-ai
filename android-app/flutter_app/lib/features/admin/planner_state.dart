@@ -14,6 +14,7 @@ class SubjectItem {
   final String abbr;
   final int color;
   final String? relationshipGroupKey;
+  final Map<String, TimeOffState> timeOff;
 
   String get abbreviation => abbr;
 
@@ -23,7 +24,26 @@ class SubjectItem {
     required this.abbr,
     required this.color,
     this.relationshipGroupKey,
-  }) : id = id ?? abbr;
+    Map<String, TimeOffState>? timeOff,
+  }) : id = id ?? abbr,
+       timeOff = timeOff ?? {};
+
+  SubjectItem copyWith({
+    String? name,
+    String? abbr,
+    int? color,
+    String? relationshipGroupKey,
+    Map<String, TimeOffState>? timeOff,
+  }) {
+    return SubjectItem(
+      id: id,
+      name: name ?? this.name,
+      abbr: abbr ?? this.abbr,
+      color: color ?? this.color,
+      relationshipGroupKey: relationshipGroupKey ?? this.relationshipGroupKey,
+      timeOff: timeOff ?? this.timeOff,
+    );
+  }
 }
 
 class ClassDivisionItem {
@@ -44,17 +64,43 @@ class ClassItem {
   final String id;
   final String name;
   final String abbr;
+  final String? color;
   final List<ClassDivisionItem> divisions;
+  final Map<String, TimeOffState> timeOff;
+  final String? classTeacherId;
 
   String get abbreviation => abbr;
 
-  ClassItem(
-      {String? id,
-      required this.name,
-      required this.abbr,
-      List<ClassDivisionItem>? divisions})
-      : id = id ?? abbr,
-        divisions = divisions ?? [];
+  ClassItem({
+    String? id,
+    required this.name,
+    required this.abbr,
+    this.color,
+    List<ClassDivisionItem>? divisions,
+    Map<String, TimeOffState>? timeOff,
+    this.classTeacherId,
+  })  : id = id ?? abbr,
+        divisions = divisions ?? [],
+        timeOff = timeOff ?? {};
+
+  ClassItem copyWith({
+    String? name,
+    String? abbr,
+    String? color,
+    List<ClassDivisionItem>? divisions,
+    Map<String, TimeOffState>? timeOff,
+    String? classTeacherId,
+  }) {
+    return ClassItem(
+      id: id,
+      name: name ?? this.name,
+      abbr: abbr ?? this.abbr,
+      color: color ?? this.color,
+      divisions: divisions ?? this.divisions,
+      timeOff: timeOff ?? this.timeOff,
+      classTeacherId: classTeacherId ?? this.classTeacherId,
+    );
+  }
 }
 
 class TeacherItem {
@@ -62,9 +108,13 @@ class TeacherItem {
   final String firstName;
   final String lastName;
   final String abbr;
+  final String? color;
   final int? maxGapsPerDay;
   final int? maxConsecutivePeriods;
   final Map<String, TimeOffState> timeOff;
+  final String? email;
+  final String? phone;
+  final String? designation;
 
   String get abbreviation => abbr;
   String get fullName => '$firstName $lastName'.trim();
@@ -74,26 +124,41 @@ class TeacherItem {
     required this.firstName,
     required this.lastName,
     required this.abbr,
+    this.color,
     this.maxGapsPerDay,
     this.maxConsecutivePeriods,
     Map<String, TimeOffState>? timeOff,
+    this.email,
+    this.phone,
+    this.designation,
   })  : id = id ?? abbr,
         timeOff = timeOff ?? {};
 
   TeacherItem copyWith({
+    String? firstName,
+    String? lastName,
+    String? abbr,
+    String? color,
     int? maxGapsPerDay,
     int? maxConsecutivePeriods,
     Map<String, TimeOffState>? timeOff,
+    String? email,
+    String? phone,
+    String? designation,
   }) {
     return TeacherItem(
       id: id,
-      firstName: firstName,
-      lastName: lastName,
-      abbr: abbr,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      abbr: abbr ?? this.abbr,
+      color: color ?? this.color,
       maxGapsPerDay: maxGapsPerDay ?? this.maxGapsPerDay,
       maxConsecutivePeriods:
           maxConsecutivePeriods ?? this.maxConsecutivePeriods,
       timeOff: timeOff ?? this.timeOff,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      designation: designation ?? this.designation,
     );
   }
 }
@@ -102,11 +167,61 @@ class ClassroomItem {
   final String id;
   final String name;
   final String roomType;
+  final String abbr;
+  final String? buildingName;
+  final int? capacity;
+  final String? color;
+  final String? groupId;
+  final List<String> assignedTeacherIds;
+  final List<String> assignedClassIds;
+  final Map<String, TimeOffState> timeOff;
 
   String get type => roomType;
 
-  ClassroomItem({String? id, required this.name, this.roomType = 'standard'})
-      : id = id ?? name;
+  ClassroomItem({
+    String? id,
+    required this.name,
+    this.roomType = 'standard',
+    String? abbr,
+    this.buildingName,
+    this.capacity,
+    this.color,
+    this.groupId,
+    List<String>? assignedTeacherIds,
+    List<String>? assignedClassIds,
+    Map<String, TimeOffState>? timeOff,
+  })  : id = id ?? name,
+        abbr = abbr ?? name,
+        assignedTeacherIds = assignedTeacherIds ?? [],
+        assignedClassIds = assignedClassIds ?? [],
+        timeOff = timeOff ?? {};
+
+  ClassroomItem copyWith({
+    String? name,
+    String? roomType,
+    String? abbr,
+    String? buildingName,
+    int? capacity,
+    String? color,
+    String? groupId,
+    List<String>? assignedTeacherIds,
+    List<String>? assignedClassIds,
+    Map<String, TimeOffState>? timeOff,
+  }) {
+    return ClassroomItem(
+      id: id,
+      name: name ?? this.name,
+      roomType: roomType ?? this.roomType,
+      abbr: abbr ?? this.abbr,
+      buildingName: buildingName ?? this.buildingName,
+      capacity: capacity ?? this.capacity,
+      color: color ?? this.color,
+      groupId: groupId ?? this.groupId,
+      assignedTeacherIds: assignedTeacherIds ?? this.assignedTeacherIds,
+      assignedClassIds: assignedClassIds ?? this.assignedClassIds,
+      timeOff: timeOff ?? this.timeOff,
+    );
+  }
 }
 
 class LessonSpec {
@@ -143,16 +258,55 @@ class LessonSpec {
   });
 }
 
+class CardRelationship {
+  final String id;
+  final List<String> subjectIds;
+  final List<String> classIds;
+  final String condition;
+  final String importance;
+  final String note;
+  bool isActive;
+
+  CardRelationship({
+    required this.id,
+    required this.subjectIds,
+    required this.classIds,
+    required this.condition,
+    required this.importance,
+    this.note = '',
+    this.isActive = true,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'subjectIds': subjectIds,
+        'classIds': classIds,
+        'condition': condition,
+        'importance': importance,
+        'note': note,
+        'isActive': isActive,
+      };
+
+  factory CardRelationship.fromJson(Map<String, dynamic> json) => CardRelationship(
+        id: json['id'] as String,
+        subjectIds: List<String>.from(json['subjectIds'] ?? []),
+        classIds: List<String>.from(json['classIds'] ?? []),
+        condition: json['condition'] as String,
+        importance: json['importance'] as String,
+        note: json['note'] as String? ?? '',
+        isActive: json['isActive'] as bool? ?? true,
+      );
+}
+
 class PlannerState extends ChangeNotifier {
-  PlannerState([this._db]) {
-    if (_db != null) {
-      _hydrate();
-    } else {
-      hydrated = true;
-    }
-  }
+  PlannerState(this._db, {this.dbId = 0});
 
   final AppDatabase? _db;
+  int dbId;
+  String draftName = 'Untitled Timetable';
+  String status = 'draft';
+  DateTime createdAt = DateTime.now();
+
   AppDatabase? get db => _db;
   bool hydrated = false;
   final _lock = Lock();
@@ -163,6 +317,11 @@ class PlannerState extends ChangeNotifier {
   final List<TeacherItem> teachers = [];
   final List<ClassroomItem> classrooms = [];
   final List<LessonSpec> lessons = [];
+  final List<CardRelationship> cardRelationships = [];
+
+  String sessionName = '';
+  String? sessionStartDate;
+  String? sessionEndDate;
 
   String schoolName = '';
   int workingDays = 5;
@@ -179,8 +338,23 @@ class PlannerState extends ChangeNotifier {
 
   final List<ScheduleEntry> scheduleEntries = [];
 
+  // Solver optimization weights (user-configurable)
+  Map<String, int> softWeights = {
+    'teacher_gaps': 5,
+    'class_gaps': 5,
+    'subject_distribution': 3,
+    'teacher_room_stability': 1,
+  };
+
   void setSchoolName(String value) {
     schoolName = value.trim();
+    _touch();
+  }
+
+  void setSessionDetails({required String name, String? start, String? end}) {
+    sessionName = name.trim();
+    sessionStartDate = start;
+    sessionEndDate = end;
     _touch();
   }
 
@@ -193,9 +367,7 @@ class PlannerState extends ChangeNotifier {
     bellTimes
       ..clear()
       ..addAll(values.where((e) => e.trim().isNotEmpty).map((e) => e.trim()));
-    if (scheduleEntries.isEmpty) {
-      _syncScheduleEntriesFromBellTimes();
-    }
+    _syncScheduleEntriesFromBellTimes();
     _touch();
   }
 
@@ -240,9 +412,54 @@ class PlannerState extends ChangeNotifier {
     await _touch();
   }
 
+  void updateSubject(SubjectItem updated) {
+    final idx = subjects.indexWhere((s) => s.id == updated.id);
+    if (idx == -1) return;
+    subjects[idx] = updated;
+    notifyListeners();
+    _persist();
+  }
+
+  void updateSubjectConstraints(String subjectId, Map<String, TimeOffState> newTimeOff) {
+    final idx = subjects.indexWhere((s) => s.id == subjectId);
+    if (idx == -1) return;
+    subjects[idx] = subjects[idx].copyWith(timeOff: newTimeOff);
+    notifyListeners();
+    _persist();
+  }
+
   Future<void> addClass(ClassItem item) async {
-    classes.add(item);
+    final idx = classes.indexWhere((c) => c.id == item.id);
+    if (idx >= 0) {
+      classes[idx] = item;
+    } else {
+      classes.add(item);
+    }
     await _touch();
+  }
+
+  Future<void> updateClass(ClassItem updated) async {
+    final idx = classes.indexWhere((c) => c.id == updated.id);
+    if (idx < 0) return;
+    classes[idx] = updated;
+    await _touch();
+  }
+
+  Future<void> removeClass(String classId) async {
+    classes.removeWhere((c) => c.id == classId);
+    await _touch();
+  }
+
+  void updateClassConstraints(
+    String classId, {
+    Map<String, TimeOffState>? timeOff,
+  }) {
+    final i = classes.indexWhere((c) => c.id == classId);
+    if (i < 0) return;
+    classes[i] = classes[i].copyWith(
+      timeOff: timeOff,
+    );
+    _touch();
   }
 
   void addDivision(
@@ -257,7 +474,12 @@ class PlannerState extends ChangeNotifier {
   }
 
   Future<void> addTeacher(TeacherItem item) async {
-    teachers.add(item);
+    final idx = teachers.indexWhere((t) => t.id == item.id);
+    if (idx >= 0) {
+      teachers[idx] = item;
+    } else {
+      teachers.add(item);
+    }
     final db = _db;
     if (db != null) {
       await db.into(db.teachers).insertOnConflictUpdate(
@@ -270,6 +492,18 @@ class PlannerState extends ChangeNotifier {
             ),
           );
     }
+    await _touch();
+  }
+
+  Future<void> removeTeacher(String teacherId) async {
+    teachers.removeWhere((t) => t.id == teacherId);
+    await _touch();
+  }
+
+  Future<void> updateTeacher(TeacherItem updated) async {
+    final idx = teachers.indexWhere((t) => t.id == updated.id);
+    if (idx < 0) return;
+    teachers[idx] = updated;
     await _touch();
   }
 
@@ -289,12 +523,30 @@ class PlannerState extends ChangeNotifier {
     _touch();
   }
 
-  void addClassroom(ClassroomItem item) {
-    classrooms.add(item);
-    _touch();
+  Future<void> addClassroom(ClassroomItem item) async {
+    final idx = classrooms.indexWhere((r) => r.id == item.id);
+    if (idx >= 0) {
+      classrooms[idx] = item;
+    } else {
+      classrooms.add(item);
+    }
+    await _touch();
+  }
+
+  Future<void> removeClassroom(String roomId) async {
+    classrooms.removeWhere((r) => r.id == roomId);
+    await _touch();
+  }
+
+  Future<void> updateRoom(ClassroomItem updated) async {
+    final idx = classrooms.indexWhere((r) => r.id == updated.id);
+    if (idx < 0) return;
+    classrooms[idx] = updated;
+    await _touch();
   }
 
   void addLesson({
+    String? id,
     required String subjectId,
     String? teacherId,
     String? classId,
@@ -314,14 +566,12 @@ class PlannerState extends ChangeNotifier {
     final tIds = teacherIds ?? [if (teacherId != null) teacherId];
     final cIds = classIds ?? [if (classId != null) classId];
 
-    final lessonId =
-        "LS${lessons.length + 1}_${DateTime.now().millisecondsSinceEpoch}";
+    final lessonId = id ?? "LS${lessons.length + 1}_${DateTime.now().millisecondsSinceEpoch}";
 
-    lessons.add(
-      LessonSpec(
-        id: lessonId,
-        subjectId: subjectId,
-        teacherIds: tIds,
+    final spec = LessonSpec(
+      id: lessonId,
+      subjectId: subjectId,
+      teacherIds: tIds,
         classIds: cIds,
         classDivisionId: classDivisionId,
         countPerWeek: countPerWeek,
@@ -333,9 +583,52 @@ class PlannerState extends ChangeNotifier {
         roomTypeId: roomTypeId,
         relationshipType: relationshipType,
         relationshipGroupKey: relationshipGroupKey,
-      ),
-    );
+      );
+
+    if (id != null) {
+      final idx = lessons.indexWhere((l) => l.id == id);
+      if (idx >= 0) {
+        lessons[idx] = spec;
+        _touch();
+        return;
+      }
+    }
+    lessons.add(spec);
     _touch();
+  }
+
+  void removeLesson(String lessonId) {
+    lessons.removeWhere((l) => l.id == lessonId);
+    _touch();
+  }
+
+  // ── Soft weight management ──
+  void updateSoftWeight(String key, int value) {
+    softWeights[key] = value.clamp(0, 10);
+    _touch();
+  }
+  // ── Card Relationships ──
+  void addCardRelationship(CardRelationship rule) {
+    cardRelationships.add(rule);
+    _touch();
+  }
+
+  void updateCardRelationship(CardRelationship rule) {
+    final idx = cardRelationships.indexWhere((r) => r.id == rule.id);
+    if (idx >= 0) {
+      cardRelationships[idx] = rule;
+      _touch();
+    }
+  }
+
+  void removeCardRelationship(String id) {
+    cardRelationships.removeWhere((r) => r.id == id);
+    _touch();
+  }
+
+
+  Future<void> saveToDatabase() async {
+    await _persist();
   }
 
   Future<void> refreshFromDatabase() async {
@@ -347,7 +640,7 @@ class PlannerState extends ChangeNotifier {
     debugPrint('--- HYDRATE STARTED ---');
     await _lock.synchronized(() async {
       debugPrint('--- HYDRATE LOCK ACQUIRED ---');
-      final snap = await _db!.loadPlannerSnapshot();
+      final snap = await _db!.loadPlannerSnapshot(dbId);
       debugPrint('--- HYDRATE SNAPSHOT LOADED: ${snap != null} ---');
       if (snap == null) {
         hydrated = true;
@@ -355,8 +648,32 @@ class PlannerState extends ChangeNotifier {
         return;
       }
 
+      draftName = (snap['draftName'] as String?) ?? 'Untitled Timetable';
+      status = (snap['status'] as String?) ?? 'draft';
+      createdAt = DateTime.tryParse(snap['createdAt'] as String? ?? '') ?? DateTime.now();
+
+      sessionName = (snap['sessionName'] as String?) ?? sessionName;
+      sessionStartDate = snap['sessionStartDate'] as String?;
+      sessionEndDate = snap['sessionEndDate'] as String?;
       schoolName = (snap['schoolName'] as String?) ?? schoolName;
       workingDays = (snap['workingDays'] as int?) ?? workingDays;
+
+      // Restore soft weights
+      final rawWeights = snap['softWeights'] as Map?;
+      if (rawWeights != null) {
+        softWeights = Map<String, int>.from(
+          rawWeights.map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
+        );
+      }
+
+      // Restore card relationships
+      cardRelationships.clear();
+      final rawRelationships = (snap['cardRelationships'] as List?) ?? const [];
+      for (final r in rawRelationships) {
+        if (r is Map<String, dynamic>) {
+          cardRelationships.add(CardRelationship.fromJson(r));
+        }
+      }
 
       bellTimes
         ..clear()
@@ -391,12 +708,20 @@ class PlannerState extends ChangeNotifier {
         ..addAll((((snap['subjects'] as List?) ?? const []))
             .whereType<Map<String, dynamic>>()
             .map((m) {
+          final rawOff = Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
           return SubjectItem(
             id: m['id']?.toString(),
             name: m['name']?.toString() ?? '',
             abbr: m['abbr']?.toString() ?? '',
-            color: (m['color'] as num?)?.toInt() ?? 0xFF0B3D91,
+            color: (m['color'] as num?)?.toInt() ?? 0xFF4F46E5,
             relationshipGroupKey: m['relationshipGroupKey']?.toString(),
+            timeOff: rawOff.map((k, v) {
+              final idx = (v as num?)?.toInt();
+              final state = (idx != null && idx >= 0 && idx < TimeOffState.values.length)
+                  ? TimeOffState.values[idx]
+                  : TimeOffState.available;
+              return MapEntry(k, state);
+            }),
           );
         }));
 
@@ -405,10 +730,20 @@ class PlannerState extends ChangeNotifier {
         ..addAll((((snap['classes'] as List?) ?? const []))
             .whereType<Map<String, dynamic>>()
             .map((m) {
+          final rawOff = Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
           return ClassItem(
               id: m['id']?.toString(),
               name: m['name']?.toString() ?? '',
-              abbr: m['abbr']?.toString() ?? '');
+              abbr: m['abbr']?.toString() ?? '',
+              classTeacherId: m['classTeacherId']?.toString(),
+              timeOff: rawOff.map((k, v) {
+                final idx = (v as num?)?.toInt();
+                final state = (idx != null && idx >= 0 && idx < TimeOffState.values.length)
+                    ? TimeOffState.values[idx]
+                    : TimeOffState.available;
+                return MapEntry(k, state);
+              }),
+            );
         }));
 
       divisions
@@ -451,6 +786,9 @@ class PlannerState extends ChangeNotifier {
                   : TimeOffState.available;
               return MapEntry(k, state);
             }),
+            email: m['email']?.toString(),
+            phone: m['phone']?.toString(),
+            designation: m['designation']?.toString(),
           );
         }));
 
@@ -459,10 +797,26 @@ class PlannerState extends ChangeNotifier {
         ..addAll((((snap['classrooms'] as List?) ?? const []))
             .whereType<Map<String, dynamic>>()
             .map((m) {
+          final rawOff = Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
           return ClassroomItem(
               id: m['id']?.toString(),
               name: m['name']?.toString() ?? '',
-              roomType: m['roomType']?.toString() ?? 'standard');
+              roomType: m['roomType']?.toString() ?? 'standard',
+              abbr: m['abbr']?.toString(),
+              buildingName: m['buildingName']?.toString(),
+              capacity: (m['capacity'] as num?)?.toInt(),
+              color: m['color']?.toString(),
+              groupId: m['groupId']?.toString(),
+              assignedTeacherIds: ((m['assignedTeacherIds'] as List?) ?? const []).map((e) => e.toString()).toList(),
+              assignedClassIds: ((m['assignedClassIds'] as List?) ?? const []).map((e) => e.toString()).toList(),
+              timeOff: rawOff.map((k, v) {
+                final idx = (v as num?)?.toInt();
+                final state = (idx != null && idx >= 0 && idx < TimeOffState.values.length)
+                    ? TimeOffState.values[idx]
+                    : TimeOffState.available;
+                return MapEntry(k, state);
+              }),
+            );
         }));
 
       lessons
@@ -500,9 +854,17 @@ class PlannerState extends ChangeNotifier {
 
   Future<void> _persist() async {
     await _lock.synchronized(() async {
-      final json = {
+      final json = <String, dynamic>{
+        'draftName': draftName,
+        'status': status,
+        'createdAt': createdAt.toIso8601String(),
+        'sessionName': sessionName,
+        'sessionStartDate': sessionStartDate,
+        'sessionEndDate': sessionEndDate,
         'schoolName': schoolName,
         'workingDays': workingDays,
+        'softWeights': softWeights,
+        'cardRelationships': cardRelationships.map((r) => r.toJson()).toList(),
         'bellTimes': bellTimes,
         'scheduleEntries': scheduleEntries.map((e) => e.toJson()).toList(),
         'subjects': subjects
@@ -512,10 +874,18 @@ class PlannerState extends ChangeNotifier {
                   'abbr': s.abbr,
                   'color': s.color,
                   'relationshipGroupKey': s.relationshipGroupKey,
+                  'timeOff': s.timeOff.map((k, v) => MapEntry(k, v.index)),
                 })
             .toList(),
         'classes': classes
-            .map((c) => {'id': c.id, 'name': c.name, 'abbr': c.abbr})
+            .map((c) => {
+                  'id': c.id, 
+                  'name': c.name, 
+                  'abbr': c.abbr,
+                  'color': c.color,
+                  'classTeacherId': c.classTeacherId,
+                  'timeOff': c.timeOff.map((k, v) => MapEntry(k, v.index)),
+                })
             .toList(),
         'divisions': divisions
             .map((d) => {
@@ -531,13 +901,29 @@ class PlannerState extends ChangeNotifier {
                   'firstName': t.firstName,
                   'lastName': t.lastName,
                   'abbr': t.abbr,
+                  'color': t.color,
                   'maxGapsPerDay': t.maxGapsPerDay,
                   'maxConsecutivePeriods': t.maxConsecutivePeriods,
                   'timeOff': t.timeOff.map((k, v) => MapEntry(k, v.index)),
+                  'email': t.email,
+                  'phone': t.phone,
+                  'designation': t.designation,
                 })
             .toList(),
         'classrooms': classrooms
-            .map((r) => {'id': r.id, 'name': r.name, 'roomType': r.roomType})
+            .map((r) => {
+                  'id': r.id, 
+                  'name': r.name, 
+                  'roomType': r.roomType,
+                  'abbr': r.abbr,
+                  'buildingName': r.buildingName,
+                  'capacity': r.capacity,
+                  'color': r.color,
+                  'groupId': r.groupId,
+                  'assignedTeacherIds': r.assignedTeacherIds,
+                  'assignedClassIds': r.assignedClassIds,
+                  'timeOff': r.timeOff.map((k, v) => MapEntry(k, v.index)),
+                })
             .toList(),
         'lessons': lessons
             .map((l) => {
@@ -561,7 +947,7 @@ class PlannerState extends ChangeNotifier {
 
       final db = _db;
       if (db != null) {
-        await db.savePlannerSnapshot(json);
+        dbId = await db.savePlannerSnapshot(json, dbId);
       }
     });
   }
@@ -613,6 +999,15 @@ class PlannerState extends ChangeNotifier {
 
   bool get hasMinimumData =>
       subjects.isNotEmpty && classes.isNotEmpty && teachers.isNotEmpty;
+
+  /// Tracks whether a timetable has been generated in this session.
+  bool _hasGeneratedTimetable = false;
+  bool get hasGeneratedTimetable => _hasGeneratedTimetable;
+
+  void markTimetableGenerated() {
+    _hasGeneratedTimetable = true;
+    notifyListeners();
+  }
 
   Map<String, dynamic> toSolverPayload() {
     final solverLessons = <Map<String, dynamic>>[];
@@ -681,12 +1076,8 @@ class PlannerState extends ChangeNotifier {
       'constraints': {
         'teacherAvailability': teacherAvailability,
         'teacherMaxConsecutivePeriods': teacherMaxConsecutive,
-        'softWeights': {
-          'teacher_gaps': 5,
-          'class_gaps': 5,
-          'subject_distribution': 3,
-          'teacher_room_stability': 1,
-        }
+        'softWeights': softWeights,
+        'cardRelationships': cardRelationships.map((r) => r.toJson()).toList(),
       },
       'debug': {
         'lessonClassesRows': lessonClassesRows,
