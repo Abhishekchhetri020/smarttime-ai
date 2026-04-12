@@ -499,6 +499,8 @@ class RecursiveSwapSolver {
       return lesson.requiredRoomId!;
     }
 
+    if (payload.rooms.isEmpty) return '';
+
     final slotsToCheck = <SolverSlot>[slot];
     if (lesson.isDouble) {
       slotsToCheck.add(SolverSlot(slot.day, slot.period + 1));
@@ -515,7 +517,7 @@ class RecursiveSwapSolver {
       if (!allUsed.contains(room.id)) return room.id;
     }
 
-    return 'AUTO_ROOM_${slot.day}_${slot.period}';
+    return '';
   }
 }
 

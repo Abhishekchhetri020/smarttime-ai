@@ -846,6 +846,11 @@ class PlannerState extends ChangeNotifier {
           );
         }));
 
+      // Restore generation state from DB: if any cards exist, a timetable was generated.
+      final existingCards = await _db!.select(_db!.cards).get();
+      _hasGeneratedTimetable = existingCards.isNotEmpty;
+      _scheduledLessonCount = existingCards.length;
+
       hydrated = true;
       notifyListeners();
       debugPrint('--- HYDRATE FINISHED (SUCCESS) ---');
@@ -1004,8 +1009,16 @@ class PlannerState extends ChangeNotifier {
   bool _hasGeneratedTimetable = false;
   bool get hasGeneratedTimetable => _hasGeneratedTimetable;
 
-  void markTimetableGenerated() {
+  DateTime? _lastGeneratedAt;
+  DateTime? get lastGeneratedAt => _lastGeneratedAt;
+
+  int _scheduledLessonCount = 0;
+  int get scheduledLessonCount => _scheduledLessonCount;
+
+  void markTimetableGenerated({int scheduledCount = 0}) {
     _hasGeneratedTimetable = true;
+    _lastGeneratedAt = DateTime.now();
+    _scheduledLessonCount = scheduledCount;
     notifyListeners();
   }
 

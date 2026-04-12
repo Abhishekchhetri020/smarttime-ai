@@ -1009,6 +1009,9 @@ class _AddUserDialogState extends State<_AddUserDialog> {
   bool _showAdditional = false;
   bool _saving = false;
   final _formKey = GlobalKey<FormState>();
+  // Tracks the last value the auto-generator produced so we know if the user
+  // has manually overridden it.
+  String _lastAutoAbbr = '';
 
   @override
   void initState() {
@@ -1017,6 +1020,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
       final t = widget.existing!;
       _nameCtrl.text = t.fullName;
       _shortNameCtrl.text = t.abbr;
+      _lastAutoAbbr = t.abbr;
       _emailCtrl.text = t.email ?? '';
       _phoneCtrl.text = t.phone ?? '';
       _designationCtrl.text = t.designation ?? '';
@@ -1034,9 +1038,13 @@ class _AddUserDialogState extends State<_AddUserDialog> {
   }
 
   void _onNameChanged(String v) {
-    if (_shortNameCtrl.text.isEmpty ||
-        _shortNameCtrl.text == _autoAbbr('', '')) {
-      _shortNameCtrl.text = _autoAbbrFull(v);
+    // Only auto-fill if the field is empty OR still shows the previously
+    // auto-generated value (i.e. the user has not manually typed anything).
+    final current = _shortNameCtrl.text;
+    if (current.isEmpty || current == _lastAutoAbbr) {
+      final generated = _autoAbbrFull(v);
+      _shortNameCtrl.text = generated;
+      _lastAutoAbbr = generated;
     }
   }
 

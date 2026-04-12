@@ -20,6 +20,7 @@ void main() {
   ) async {
     const cell = TimetableCellData(
       id: 'L1',
+      cardId: 'card1',
       primary: 'Advanced Mathematics',
       secondary: 'Mr. Benedict Prakash Dsouza and Mrs. Saloni Fernandes',
       tertiary: 'Senior Wing',

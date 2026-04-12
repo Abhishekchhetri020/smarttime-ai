@@ -631,6 +631,13 @@ class _PreGenerationReviewCard extends StatelessWidget {
             const SizedBox(height: 12),
           ],
           const SizedBox(height: 8),
+          // ── Validation Status ──────────────────────────────────
+          _ValidationStatusCard(
+            canGenerate: canGenerate,
+            missing: missing,
+            planner: planner,
+          ),
+          const SizedBox(height: 8),
           // ── Warnings & Errors ─────────────────────────────────
           _WarningsSection(planner: planner),
           const SizedBox(height: 8),
@@ -652,6 +659,9 @@ class _PreGenerationReviewCard extends StatelessWidget {
             ),
           ),
           if (planner.hasGeneratedTimetable) ...[
+            const SizedBox(height: 16),
+            // ── Your Timetable stats card ──────────────────────
+            _YourTimetableCard(planner: planner),
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
@@ -683,6 +693,216 @@ class _PreGenerationReviewCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ── Validation Status Card ──────────────────────────────────────────────────
+
+class _ValidationStatusCard extends StatelessWidget {
+  const _ValidationStatusCard({
+    required this.canGenerate,
+    required this.missing,
+    required this.planner,
+  });
+
+  final bool canGenerate;
+  final List<String> missing;
+  final PlannerState planner;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final allPassed = canGenerate && missing.isEmpty;
+    final color = allPassed ? const Color(0xFF059669) : const Color(0xFFD97706);
+    final bgColor = allPassed
+        ? const Color(0xFFECFDF5)
+        : const Color(0xFFFFFBEB);
+    final borderColor = allPassed
+        ? const Color(0xFFBBF7D0)
+        : const Color(0xFFFDE68A);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            allPassed ? Icons.check_circle_rounded : Icons.info_rounded,
+            color: color,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  allPassed
+                      ? 'All validations passed successfully!'
+                      : 'Setup incomplete',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  allPassed
+                      ? 'Your timetable configuration looks good and is ready for generation.'
+                      : 'Complete the required steps above to enable generation.',
+                  style: theme.textTheme.bodySmall?.copyWith(color: color),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Your Timetable Stats Card ───────────────────────────────────────────────
+
+class _YourTimetableCard extends StatelessWidget {
+  const _YourTimetableCard({required this.planner});
+  final PlannerState planner;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final totalLessons = planner.lessons.fold<int>(
+        0, (sum, l) => sum + l.countPerWeek);
+    final scheduled = planner.scheduledLessonCount;
+    final pct = totalLessons > 0
+        ? ((scheduled / totalLessons) * 100).clamp(0, 100).round()
+        : 0;
+    final allScheduled = pct == 100;
+    final generatedAt = planner.lastGeneratedAt;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: allScheduled
+            ? const Color(0xFFECFDF5)
+            : const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: allScheduled
+              ? const Color(0xFFBBF7D0)
+              : const Color(0xFFFED7AA),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                allScheduled
+                    ? Icons.check_circle_rounded
+                    : Icons.schedule_rounded,
+                color: allScheduled
+                    ? const Color(0xFF059669)
+                    : const Color(0xFFD97706),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Your Timetable',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          if (generatedAt != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Auto Generated  •  ${_formatDt(generatedAt)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _StatChip(
+                icon: Icons.check_circle_outline_rounded,
+                value: '$scheduled',
+                label: 'Lessons Scheduled',
+                color: const Color(0xFF059669),
+              ),
+              const SizedBox(width: 12),
+              _StatChip(
+                icon: Icons.bar_chart_rounded,
+                value: '$pct%',
+                label: allScheduled
+                    ? 'All Lessons Scheduled'
+                    : 'Lessons Scheduled',
+                color: allScheduled
+                    ? const Color(0xFF059669)
+                    : const Color(0xFFD97706),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDt(DateTime dt) {
+    final months = [
+      'Jan','Feb','Mar','Apr','May','Jun',
+      'Jul','Aug','Sep','Oct','Nov','Dec'
+    ];
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}  $h:$m';
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(height: 4),
+            Text(value,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold, color: color)),
+            Text(label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant)),
+          ],
+        ),
       ),
     );
   }

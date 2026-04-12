@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/database.dart';
 import '../../../../core/services/excel_export_service.dart';
@@ -36,13 +37,57 @@ class _CockpitScreenState extends State<CockpitScreen> {
   String? _selectedClassId;
   String? _selectedRoomId;
 
-  // Lock tracking (in-memory)
+  // Lock tracking — hydrated from DB `cards.isLocked` column
   final Set<String> _lockedCardIds = {};
+
+  // Display options — persisted with SharedPreferences
+  bool _showTeacherShortNames = false;
+  bool _showClassShortNames = false;
+  bool _showSubjectShortNames = false;
+  bool _showRoomShortNames = false;
 
   // Bottom bar
   bool _bottomExpanded = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadLockedIdsFromDb();
+    _loadDisplayPrefs();
+  }
+
+  Future<void> _loadLockedIdsFromDb() async {
+    final cards = await widget.db.select(widget.db.cards).get();
+    final locked = cards.where((c) => c.isLocked).map((c) => c.id).toSet();
+    if (mounted) setState(() => _lockedCardIds.addAll(locked));
+  }
+
+  Future<void> _loadDisplayPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _showTeacherShortNames = prefs.getBool('disp_teacher_short') ?? false;
+      _showClassShortNames = prefs.getBool('disp_class_short') ?? false;
+      _showSubjectShortNames = prefs.getBool('disp_subject_short') ?? false;
+      _showRoomShortNames = prefs.getBool('disp_room_short') ?? false;
+    });
+  }
+
+  Future<void> _saveDisplayPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('disp_teacher_short', _showTeacherShortNames);
+    await prefs.setBool('disp_class_short', _showClassShortNames);
+    await prefs.setBool('disp_subject_short', _showSubjectShortNames);
+    await prefs.setBool('disp_room_short', _showRoomShortNames);
+  }
+
   // ── Data stream ──────────────────────────────────────────────────────────
+
+  static const _allDays = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  List<String> _activeDays(int workingDays) {
+    return _allDays.sublist(0, workingDays.clamp(1, 7));
+  }
 
   Stream<_CockpitVm> _vmStream() {
     return widget.db.select(widget.db.cards).watch().asyncMap((cards) async {
@@ -59,65 +104,138 @@ class _CockpitScreenState extends State<CockpitScreen> {
         classes: classes,
         plannerSnapshot: plannerSnap,
       );
-      final periods = buildTimetableSlots(
+
+      // Build base period slots (for a single day)
+      final basePeriods = buildTimetableSlots(
         plannerSnapshot: plannerSnap,
         usedPeriodIndexes: cards.map((card) => card.periodIndex),
-      )
-          .map(
-            (slot) => PeriodSlot(
-              id: slot.id,
-              label: slot.label,
-              isBreak: slot.isBreak,
-              periodIndex: slot.periodIndex,
-            ),
-          )
-          .toList(growable: false);
-      final periodColumnByPeriodIndex = <int, int>{};
-      for (var i = 0; i < periods.length; i++) {
-        final p = periods[i];
-        final idx = p.periodIndex;
-        if (idx != null) {
-          periodColumnByPeriodIndex[idx] = i;
+      );
+
+      final workingDays = (plannerSnap?['workingDays'] as int?) ?? 6;
+      final dayLabels = _activeDays(workingDays);
+
+      // Build flattened columns: Day0-P0, Day0-P1, ..., Day0-Break, ..., Day1-P0, ...
+      final allPeriods = <PeriodSlot>[];
+      final dayGroups = <DayGroup>[];
+      // Maps (dayIndex, basePeriodIndex) → column index in allPeriods
+      final colMap = <String, int>{};
+
+      for (var d = 0; d < workingDays; d++) {
+        final startCol = allPeriods.length;
+        for (var s = 0; s < basePeriods.length; s++) {
+          final bp = basePeriods[s];
+          final colIdx = allPeriods.length;
+          allPeriods.add(PeriodSlot(
+            id: '${bp.id}_d$d',
+            label: bp.label,
+            isBreak: bp.isBreak,
+            periodIndex: bp.periodIndex,
+            dayIndex: d,
+          ));
+          if (!bp.isBreak && bp.periodIndex != null) {
+            colMap['$d:${bp.periodIndex}'] = colIdx;
+          }
         }
+        dayGroups.add(DayGroup(
+          label: dayLabels[d],
+          startCol: startCol,
+          colCount: basePeriods.length,
+        ));
       }
 
-      // Build grid cells
+      // Build entity rows and cells
+      final entityIds = <String>[];
+      final entityLabels = <String>[];
       final cells = <String, TimetableCellData>{};
-      final workingDays = (plannerSnap?['workingDays'] as int?) ?? 6;
 
-      for (final c in cards) {
-        final lesson = lessonById[c.lessonId];
-        if (lesson == null) continue;
-        if (_mode == ViewMode.teacher && _selectedTeacherId != null) {
-          if (!lesson.teacherIds.contains(_selectedTeacherId)) continue;
-        } else if (_mode == ViewMode.classView && _selectedClassId != null) {
-          if (!lesson.classIds.contains(_selectedClassId)) continue;
-        } else if (_mode == ViewMode.room && _selectedRoomId != null) {
-          if (c.roomId != _selectedRoomId) continue;
-        }
+      switch (_mode) {
+        case ViewMode.classView:
+          // Sort classes by name for consistent ordering
+          final sorted = classes.toList()..sort((a, b) => a.name.compareTo(b.name));
+          for (final cls in sorted) {
+            entityIds.add(cls.id);
+            entityLabels.add(catalog.classLabel(cls.id));
+          }
+          final entityRowByClassId = {for (var i = 0; i < entityIds.length; i++) entityIds[i]: i};
 
-        final row = c.dayIndex.clamp(0, workingDays - 1);
-        final col = periodColumnByPeriodIndex[c.periodIndex];
-        if (col == null) continue;
+          for (final c in cards) {
+            final lesson = lessonById[c.lessonId];
+            if (lesson == null) continue;
+            for (final classId in lesson.classIds) {
+              final row = entityRowByClassId[classId];
+              if (row == null) continue;
+              final col = colMap['${c.dayIndex}:${c.periodIndex}'];
+              if (col == null) continue;
+              cells[UniversalTimetableGrid.keyFor(row, col)] = TimetableCellData(
+                id: lesson.id,
+                cardId: c.id,
+                primary: catalog.subjectLabel(lesson.subjectId),
+                secondary: catalog.joinTeacherLabels(lesson.teacherIds),
+                tertiary: catalog.roomLabel(c.roomId),
+                accent: _subjectAccent(catalog.subjectColor(lesson.subjectId)),
+              );
+            }
+          }
 
-        final subject = catalog.subjectLabel(lesson.subjectId);
-        final teacherAbbr = catalog.joinTeacherLabels(lesson.teacherIds);
-        final classAbbr = catalog.joinClassLabels(lesson.classIds);
-        final secondary = switch (_mode) {
-          ViewMode.teacher => classAbbr,
-          ViewMode.classView => teacherAbbr,
-          ViewMode.room => [classAbbr, teacherAbbr]
-              .where((v) => v.trim().isNotEmpty)
-              .join(' / '),
-        };
+        case ViewMode.teacher:
+          final sorted = teachers.toList()..sort((a, b) => a.name.compareTo(b.name));
+          for (final t in sorted) {
+            entityIds.add(t.id);
+            entityLabels.add(catalog.teacherLabel(t.id));
+          }
+          final entityRowByTeacherId = {for (var i = 0; i < entityIds.length; i++) entityIds[i]: i};
 
-        cells[UniversalTimetableGrid.keyFor(row, col)] = TimetableCellData(
-          id: lesson.id,
-          primary: subject,
-          secondary: secondary,
-          tertiary: catalog.roomLabel(c.roomId),
-          accent: _subjectAccent(catalog.subjectColor(lesson.subjectId)),
-        );
+          for (final c in cards) {
+            final lesson = lessonById[c.lessonId];
+            if (lesson == null) continue;
+            for (final teacherId in lesson.teacherIds) {
+              final row = entityRowByTeacherId[teacherId];
+              if (row == null) continue;
+              final col = colMap['${c.dayIndex}:${c.periodIndex}'];
+              if (col == null) continue;
+              cells[UniversalTimetableGrid.keyFor(row, col)] = TimetableCellData(
+                id: lesson.id,
+                cardId: c.id,
+                primary: catalog.subjectLabel(lesson.subjectId),
+                secondary: catalog.joinClassLabels(lesson.classIds),
+                tertiary: catalog.roomLabel(c.roomId),
+                accent: _subjectAccent(catalog.subjectColor(lesson.subjectId)),
+              );
+            }
+          }
+
+        case ViewMode.room:
+          final roomsList = ((plannerSnap?['classrooms'] as List<dynamic>?) ?? [])
+              .whereType<Map>()
+              .map((r) => Map<String, dynamic>.from(r))
+              .toList()
+            ..sort((a, b) => (a['name'] as String? ?? '').compareTo(b['name'] as String? ?? ''));
+          for (final r in roomsList) {
+            final id = r['id'] as String? ?? '';
+            entityIds.add(id);
+            entityLabels.add(catalog.roomLabel(id) ?? id);
+          }
+          final entityRowByRoomId = {for (var i = 0; i < entityIds.length; i++) entityIds[i]: i};
+
+          for (final c in cards) {
+            if (c.roomId == null || c.roomId!.trim().isEmpty) continue;
+            final lesson = lessonById[c.lessonId];
+            if (lesson == null) continue;
+            final row = entityRowByRoomId[c.roomId];
+            if (row == null) continue;
+            final col = colMap['${c.dayIndex}:${c.periodIndex}'];
+            if (col == null) continue;
+            cells[UniversalTimetableGrid.keyFor(row, col)] = TimetableCellData(
+              id: lesson.id,
+              cardId: c.id,
+              primary: catalog.subjectLabel(lesson.subjectId),
+              secondary: [catalog.joinClassLabels(lesson.classIds), catalog.joinTeacherLabels(lesson.teacherIds)]
+                  .where((v) => v.trim().isNotEmpty)
+                  .join(' / '),
+              tertiary: null,
+              accent: _subjectAccent(catalog.subjectColor(lesson.subjectId)),
+            );
+          }
       }
 
       // Compute unscheduled lessons
@@ -145,12 +263,17 @@ class _CockpitScreenState extends State<CockpitScreen> {
 
       return _CockpitVm(
         cells: cells,
-        periods: periods,
+        periods: allPeriods,
+        dayGroups: dayGroups,
+        basePeriods: basePeriods.map((s) => PeriodSlot(
+          id: s.id, label: s.label, isBreak: s.isBreak, periodIndex: s.periodIndex,
+        )).toList(),
+        entityIds: entityIds,
+        entityLabels: entityLabels,
         teachers: teachers.toList(),
         classes: classes.toList(),
         subjects: subjects.toList(),
-        rooms:
-            (plannerSnap?['classrooms'] as List<dynamic>?) ?? [],
+        rooms: (plannerSnap?['classrooms'] as List<dynamic>?) ?? [],
         unscheduled: unscheduled,
         totalCards: cards.length,
         totalRequired: lessons.fold<int>(0, (s, l) => s + l.periodsPerWeek),
@@ -169,46 +292,46 @@ class _CockpitScreenState extends State<CockpitScreen> {
     return null;
   }
 
-  static const _allDays = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-  List<String> _activeDays(int workingDays) {
-    return _allDays.sublist(0, workingDays.clamp(1, 7));
-  }
-
   int? _periodIndexFromColumn(List<PeriodSlot> periods, int col) {
     if (col < 0 || col >= periods.length) return null;
     return periods[col].periodIndex;
+  }
+
+  int? _dayIndexFromColumn(List<PeriodSlot> periods, int col) {
+    if (col < 0 || col >= periods.length) return null;
+    return periods[col].dayIndex;
   }
 
   Future<String?> _moveLessonValidated(
       String lessonId, int row, int col, List<PeriodSlot> periods) async {
     final periodIndex = _periodIndexFromColumn(periods, col);
     if (periodIndex == null) return 'Cannot drop onto a break column.';
+    final dayIndex = _dayIndexFromColumn(periods, col);
+    if (dayIndex == null) return 'Invalid column.';
 
     // Detect conflicts first
     final conflicts = await _service.detectConflicts(
-        widget.db, lessonId, row, periodIndex);
+        widget.db, lessonId, dayIndex, periodIndex);
 
     if (conflicts.isNotEmpty && mounted) {
-      // Show collision dialog
-      final dayLabel = _allDays[row.clamp(0, 6)];
+      final dayLabel = _allDays[dayIndex.clamp(0, 6)];
       final choice = await _showCollisionDialog(conflicts, dayLabel, periodIndex + 1);
-      if (choice == null || choice == 'cancel') return null; // User cancelled
+      if (choice == null || choice == 'cancel') return null;
 
       if (choice == 'remove') {
         await _service.moveLessonForced(
-            widget.db, lessonId, row, periodIndex);
+            widget.db, lessonId, dayIndex, periodIndex);
         return null;
       } else if (choice == 'ignore') {
         await _service.moveLessonIgnoreConflicts(
-            widget.db, lessonId, row, periodIndex);
+            widget.db, lessonId, dayIndex, periodIndex);
         return null;
       }
     }
 
     // No conflicts — standard move
     final result = await _service.moveLessonValidated(
-        widget.db, lessonId, '$row:$periodIndex');
+        widget.db, lessonId, '$dayIndex:$periodIndex');
     return switch (result) {
       MoveLessonSuccess() => null,
       MoveLessonTeacherConflict(:final message) => message,
@@ -301,24 +424,19 @@ class _CockpitScreenState extends State<CockpitScreen> {
   void _showExportMenu() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (ctx) => _ExportSheet(
-        onSharePdf: () {
+      builder: (ctx) => _ExportPopup(
+        onExport: (format, category) async {
           Navigator.pop(ctx);
-          _pdfService
-              .buildWorkbookPdf(widget.db, widget.dbId)
-              .then((bytes) => _pdfService.sharePdf(bytes,
-                  filename: 'SmartTime_Timetable.pdf'));
-        },
-        onShareExcel: () {
-          Navigator.pop(ctx);
-          _excelService.exportAndShare(widget.db, widget.dbId);
-        },
-        onPrintPdf: () {
-          Navigator.pop(ctx);
-          _pdfService.printCockpitMasterPdf(widget.db, widget.dbId);
+          if (format == 'pdf') {
+            final bytes = await _pdfService.buildWorkbookPdf(widget.db, widget.dbId);
+            _pdfService.sharePdf(bytes, filename: 'SmartTime_${category.replaceAll(' ', '_')}.pdf');
+          } else {
+            _excelService.exportAndShare(widget.db, widget.dbId);
+          }
         },
       ),
     );
@@ -326,61 +444,65 @@ class _CockpitScreenState extends State<CockpitScreen> {
 
   // ── Clear schedule ───────────────────────────────────────────────────────
 
-  void _showClearMenu() {
-    showModalBottomSheet(
+  void _showClearMenu(BuildContext anchorContext) {
+    final RenderBox box = anchorContext.findRenderObject() as RenderBox;
+    final pos = box.localToGlobal(Offset.zero);
+    final left = pos.dx;
+    final top = pos.dy + box.size.height;
+
+    showDialog(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
+      barrierColor: Colors.transparent,
+      builder: (ctx) => Stack(
+        children: [
+          GestureDetector(onTap: () => Navigator.pop(ctx), child: const SizedBox.expand()),
+          Positioned(
+            left: left.clamp(0, MediaQuery.of(ctx).size.width - 280),
+            top: top,
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: 270,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Clear Schedule header
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                      child: Text('Clear Schedule',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.red.shade600)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: Text('Move lessons to unscheduled',
+                          style: TextStyle(fontSize: 12, color: Colors.red.shade300)),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.delete_outline),
+                      title: const Text('Clear Unlocked', style: TextStyle(fontSize: 14)),
+                      subtitle: const Text('Preserves locked & fixed', style: TextStyle(fontSize: 12)),
+                      onTap: () async { Navigator.pop(ctx); await _clearUnlocked(); },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.cleaning_services_outlined),
+                      title: const Text('Clear All + Unlock', style: TextStyle(fontSize: 14)),
+                      subtitle: const Text('Clears locks, preserves only fixed', style: TextStyle(fontSize: 12)),
+                      onTap: () async { Navigator.pop(ctx); await _clearAllAndUnlock(); },
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Clear Schedule',
-                      style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.red.shade700)),
-                  const SizedBox(height: 2),
-                  Text('Move lessons to unscheduled',
-                      style: TextStyle(
-                          fontSize: 13, color: Colors.red.shade400)),
-                ],
-              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: const Text('Clear Unlocked'),
-              subtitle:
-                  const Text('Preserves locked & fixed lessons'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await _clearUnlocked();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.cleaning_services_outlined),
-              title: const Text('Clear All + Unlock'),
-              subtitle: const Text('Clears locks, preserves only fixed'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await _clearAllAndUnlock();
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -408,6 +530,268 @@ class _CockpitScreenState extends State<CockpitScreen> {
         const SnackBar(content: Text('All lessons cleared & unlocked')),
       );
     }
+  }
+
+  // ── Card Action Sheet ─────────────────────────────────────────────────────
+
+  void _showCardActionSheet(String cardId, String lessonId) {
+    final isLocked = _lockedCardIds.contains(cardId);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(top: 10, bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Lock / Unlock
+            ListTile(
+              leading: Icon(
+                isLocked ? Icons.lock_open_rounded : Icons.lock_rounded,
+                color: isLocked ? Colors.orange : const Color(0xFF5B6CF7),
+              ),
+              title: Text(isLocked ? 'Unlock Card' : 'Lock Card'),
+              subtitle: Text(
+                isLocked
+                    ? 'Allow this card to be moved or regenerated'
+                    : 'Keep this card fixed during regeneration',
+              ),
+              onTap: () async {
+                Navigator.pop(ctx);
+                setState(() {
+                  if (isLocked) {
+                    _lockedCardIds.remove(cardId);
+                  } else {
+                    _lockedCardIds.add(cardId);
+                  }
+                });
+                // Persist to DB
+                await (widget.db.update(widget.db.cards)
+                      ..where((t) => t.id.equals(cardId)))
+                    .write(CardsCompanion(isLocked: Value(!isLocked)));
+              },
+            ),
+            // Pin (fix day/period in DB)
+            ListTile(
+              leading: const Icon(Icons.push_pin_rounded, color: Color(0xFF10B981)),
+              title: const Text('Pin to this slot'),
+              subtitle: const Text('Hard-fix this lesson to its current time slot'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                // Parse day/period from cardId: format lessonId_day_period
+                final parts = cardId.split('_');
+                if (parts.length >= 3) {
+                  final day = int.tryParse(parts[parts.length - 2]);
+                  final period = int.tryParse(parts[parts.length - 1]);
+                  if (day != null && period != null) {
+                    await (widget.db.update(widget.db.lessons)
+                          ..where((t) => t.id.equals(lessonId)))
+                        .write(LessonsCompanion(
+                          isPinned: const Value(true),
+                          fixedDay: Value(day),
+                          fixedPeriod: Value(period),
+                        ));
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Lesson pinned to this slot')),
+                      );
+                    }
+                  }
+                }
+              },
+            ),
+            // Delete card
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('Remove from Timetable',
+                  style: TextStyle(color: Colors.red)),
+              subtitle: const Text('Move this lesson back to unscheduled'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                _lockedCardIds.remove(cardId);
+                await (widget.db.delete(widget.db.cards)
+                      ..where((t) => t.id.equals(cardId)))
+                    .go();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Lesson moved to unscheduled')),
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Row Lock/Unlock Dialog ───────────────────────────────────────────────
+
+  void _showRowLockDialog(int rowIndex, String rowLabel, _CockpitVm vm) {
+    // Gather all cardIds in this row
+    final rowCardIds = <String>[];
+    for (var c = 0; c < vm.periods.length; c++) {
+      final key = UniversalTimetableGrid.keyFor(rowIndex, c);
+      final d = vm.cells[key];
+      if (d != null) rowCardIds.add(d.cardId);
+    }
+    if (rowCardIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No lessons in this row')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('$rowLabel — All Periods',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.amber.shade800)),
+                  const SizedBox(height: 2),
+                  Text('Lock or unlock all lessons for $rowLabel',
+                      style: TextStyle(fontSize: 13, color: Colors.amber.shade600)),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.lock_rounded, color: Colors.amber.shade700),
+              title: const Text('Lock All Lessons'),
+              subtitle: const Text('Keep all lessons fixed during regeneration'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                setState(() => _lockedCardIds.addAll(rowCardIds));
+                for (final cid in rowCardIds) {
+                  await (widget.db.update(widget.db.cards)
+                        ..where((t) => t.id.equals(cid)))
+                      .write(const CardsCompanion(isLocked: Value(true)));
+                }
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${rowCardIds.length} lessons locked')),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.lock_open_rounded, color: Colors.amber.shade700),
+              title: const Text('Unlock All Lessons'),
+              subtitle: const Text('Allow lessons to be moved or regenerated'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                setState(() => _lockedCardIds.removeAll(rowCardIds));
+                for (final cid in rowCardIds) {
+                  await (widget.db.update(widget.db.cards)
+                        ..where((t) => t.id.equals(cid)))
+                      .write(const CardsCompanion(isLocked: Value(false)));
+                }
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${rowCardIds.length} lessons unlocked')),
+                  );
+                }
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text('Fixed (pinned) lessons cannot be modified.',
+                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey.shade500)),
+            ),
+            const SizedBox(height: 4),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Display Options Popup ───────────────────────────────────────────────
+
+  void _showDisplayOptions(BuildContext anchorContext) {
+    final RenderBox renderBox = anchorContext.findRenderObject() as RenderBox;
+    final pos = renderBox.localToGlobal(Offset.zero);
+    final left = pos.dx;
+    final top = pos.dy + renderBox.size.height;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (ctx) => Stack(
+        children: [
+          GestureDetector(onTap: () => Navigator.pop(ctx), child: const SizedBox.expand()),
+          Positioned(
+            left: left.clamp(0, MediaQuery.of(ctx).size.width - 280),
+            top: top,
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: 260,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: StatefulBuilder(
+                  builder: (sctx, setSheetState) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        child: Text('DISPLAY OPTIONS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.grey.shade600, letterSpacing: 0.5)),
+                      ),
+                      _displayCheckbox(setSheetState, ctx, 'Show Teacher Short Names', _showTeacherShortNames, (v) => _showTeacherShortNames = v),
+                      _displayCheckbox(setSheetState, ctx, 'Show Class Short Names', _showClassShortNames, (v) => _showClassShortNames = v),
+                      _displayCheckbox(setSheetState, ctx, 'Show Subject Short Names', _showSubjectShortNames, (v) => _showSubjectShortNames = v),
+                      _displayCheckbox(setSheetState, ctx, 'Show Room Short Names', _showRoomShortNames, (v) => _showRoomShortNames = v),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _displayCheckbox(StateSetter setSheetState, BuildContext ctx, String label, bool value, void Function(bool) onChanged) {
+    return CheckboxListTile(
+      dense: true,
+      title: Text(label, style: const TextStyle(fontSize: 14)),
+      value: value,
+      activeColor: const Color(0xFF5B6CF7),
+      onChanged: (v) {
+        setSheetState(() => onChanged(v ?? false));
+        setState(() {});
+        _saveDisplayPrefs();
+      },
+    );
   }
 
   // ── Regenerate ───────────────────────────────────────────────────────────
@@ -516,9 +900,21 @@ class _CockpitScreenState extends State<CockpitScreen> {
                           if (r is Map) rooms.add(SolverRoom(id: r['id']?.toString() ?? ''));
                         }
 
+                        // Count how many cards are already locked per lesson
+                        final lockedCards = await widget.db.select(widget.db.cards).get();
+                        final lockedCountPerLesson = <String, int>{};
+                        for (final c in lockedCards) {
+                          if (_lockedCardIds.contains(c.id)) {
+                            lockedCountPerLesson[c.lessonId] =
+                                (lockedCountPerLesson[c.lessonId] ?? 0) + 1;
+                          }
+                        }
+
                         final solverLessons = <SolverLesson>[];
                         for (final l in lessons) {
-                          for (int k = 0; k < l.periodsPerWeek; k++) {
+                          final alreadyLocked = lockedCountPerLesson[l.id] ?? 0;
+                          final remaining = l.periodsPerWeek - alreadyLocked;
+                          for (int k = 0; k < remaining; k++) {
                             solverLessons.add(SolverLesson(
                               id: '${l.id}_$k',
                               teacherIds: l.teacherIds,
@@ -526,6 +922,15 @@ class _CockpitScreenState extends State<CockpitScreen> {
                               subjectId: l.subjectId,
                             ));
                           }
+                        }
+
+                        if (solverLessons.isEmpty) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('All lessons are locked — nothing to regenerate.')),
+                            );
+                          }
+                          return;
                         }
 
                         final payload = SolverPayload(
@@ -543,7 +948,7 @@ class _CockpitScreenState extends State<CockpitScreen> {
                             final originalId = a.lessonId.split('_').first;
                             final lesson = lessonById[originalId];
                             if (lesson == null) continue;
-                            await widget.db.into(widget.db.cards).insert(
+                            await widget.db.into(widget.db.cards).insertOnConflictUpdate(
                               CardsCompanion.insert(
                                 id: '${originalId}_${a.day}_${a.period}',
                                 lessonId: originalId,
@@ -606,8 +1011,9 @@ class _CockpitScreenState extends State<CockpitScreen> {
                 ),
                 // ─── Header Row 2: Toolbar Icons ─────────────────────
                 _ToolbarRow(
-                  onClear: _showClearMenu,
+                  onClear: (ctx) => _showClearMenu(ctx),
                   onExport: _showExportMenu,
+                  onDisplayOptions: (ctx) => _showDisplayOptions(ctx),
                   onInsights: () => GenerationInsightsSheet.show(
                       context, widget.db, widget.dbId),
                   onRegenerate: vm != null
@@ -619,35 +1025,33 @@ class _CockpitScreenState extends State<CockpitScreen> {
                 Expanded(
                   child: vm == null
                       ? const Center(child: CircularProgressIndicator())
-                      : vm.cells.isEmpty &&
-                              _selectedTeacherId == null &&
-                              _selectedClassId == null &&
-                              _selectedRoomId == null
+                      : vm.entityLabels.isEmpty
                           ? _EmptyState()
-                          : Column(
-                              children: [
-                                _buildFilterDropdown(vm),
-                                const SizedBox(height: 4),
-                                Expanded(
-                                  child: UniversalTimetableGrid(
-                                    viewMode: _mode,
-                                    rowLabels: _activeDays(vm.workingDays),
-                                    periods: vm.periods,
-                                    cells: vm.cells,
-                                    onMoveCell: (id, r, c) =>
-                                        _moveLessonValidated(
-                                            id, r, c, vm.periods),
-                                    onValidateMove: (lessonId, row, col) {
-                                      // Check if the target cell already has a card
-                                      final key = UniversalTimetableGrid.keyFor(row, col);
-                                      final existing = vm.cells[key];
-                                      if (existing == null) return true; // Empty cell — always OK
-                                      // If occupied, only allow if same lesson (swap within same entity)
-                                      return existing.id == lessonId;
-                                    },
-                                  ),
-                                ),
-                              ],
+                          : UniversalTimetableGrid(
+                              viewMode: _mode,
+                              rowLabels: vm.entityLabels,
+                              periods: vm.periods,
+                              dayGroups: vm.dayGroups,
+                              cornerTitle: switch (_mode) {
+                                ViewMode.classView => 'Section',
+                                ViewMode.teacher => 'Teachers',
+                                ViewMode.room => 'Rooms',
+                              },
+                              cornerCount: vm.entityLabels.length,
+                              cells: vm.cells,
+                              onTapCell: _showCardActionSheet,
+                              lockedIds: _lockedCardIds,
+                              onTapRowLabel: (rowIndex, rowLabel) =>
+                                  _showRowLockDialog(rowIndex, rowLabel, vm),
+                              onMoveCell: (id, r, c) =>
+                                  _moveLessonValidated(
+                                      id, r, c, vm.periods),
+                              onValidateMove: (lessonId, row, col) {
+                                final key = UniversalTimetableGrid.keyFor(row, col);
+                                final existing = vm.cells[key];
+                                if (existing == null) return true;
+                                return existing.id == lessonId;
+                              },
                             ),
                 ),
                 // ─── Persistent Bottom Bar ───────────────────────────
@@ -683,64 +1087,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
       ),
     );
   }
-
-  Widget _buildFilterDropdown(_CockpitVm vm) {
-    Widget filterWidget = const SizedBox.shrink();
-    if (_mode == ViewMode.teacher) {
-      filterWidget = DropdownButton<String>(
-        isExpanded: true,
-        value: _selectedTeacherId,
-        hint: const Text('Select a Teacher'),
-        items: [
-          const DropdownMenuItem(
-              value: null, child: Text('Show All Teachers')),
-          ...vm.teachers.map((t) => DropdownMenuItem(
-              value: t.id, child: Text(t.name.split(' ').first))),
-        ],
-        onChanged: (v) => setState(() => _selectedTeacherId = v),
-      );
-    } else if (_mode == ViewMode.classView) {
-      filterWidget = DropdownButton<String>(
-        isExpanded: true,
-        value: _selectedClassId,
-        hint: const Text('Select a Class'),
-        items: [
-          const DropdownMenuItem(
-              value: null, child: Text('Show All Classes')),
-          ...vm.classes.map((c) =>
-              DropdownMenuItem(value: c.id, child: Text(c.name))),
-        ],
-        onChanged: (v) => setState(() => _selectedClassId = v),
-      );
-    } else if (_mode == ViewMode.room) {
-      filterWidget = DropdownButton<String>(
-        isExpanded: true,
-        value: _selectedRoomId,
-        hint: const Text('Select a Room'),
-        items: [
-          const DropdownMenuItem(
-              value: null, child: Text('Show All Rooms')),
-          ...vm.rooms.map((r) {
-            final rMap = r as Map<String, dynamic>;
-            return DropdownMenuItem(
-                value: rMap['id'] as String,
-                child: Text(rMap['name'] as String));
-          }),
-        ],
-        onChanged: (v) => setState(() => _selectedRoomId = v),
-      );
-    }
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: filterWidget,
-    );
-  }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // View Model
@@ -749,6 +1097,10 @@ class _CockpitScreenState extends State<CockpitScreen> {
 class _CockpitVm {
   final Map<String, TimetableCellData> cells;
   final List<PeriodSlot> periods;
+  final List<DayGroup> dayGroups;
+  final List<PeriodSlot> basePeriods;
+  final List<String> entityIds;
+  final List<String> entityLabels;
   final List<TeacherRow> teachers;
   final List<ClassRow> classes;
   final List<SubjectRow> subjects;
@@ -761,6 +1113,10 @@ class _CockpitVm {
   const _CockpitVm({
     required this.cells,
     required this.periods,
+    required this.dayGroups,
+    required this.basePeriods,
+    required this.entityIds,
+    required this.entityLabels,
     required this.teachers,
     required this.classes,
     required this.subjects,
@@ -922,11 +1278,13 @@ class _ToolbarRow extends StatelessWidget {
   const _ToolbarRow({
     required this.onClear,
     required this.onExport,
+    this.onDisplayOptions,
     this.onInsights,
     this.onRegenerate,
   });
-  final VoidCallback onClear;
+  final void Function(BuildContext) onClear;
   final VoidCallback onExport;
+  final void Function(BuildContext)? onDisplayOptions;
   final VoidCallback? onInsights;
   final VoidCallback? onRegenerate;
 
@@ -943,22 +1301,33 @@ class _ToolbarRow extends StatelessWidget {
         children: [
           _ToolbarIcon(Icons.undo, 'Undo', onTap: () {}),
           _ToolbarIcon(Icons.redo, 'Redo', onTap: () {}),
-          _ToolbarIcon(Icons.auto_fix_high_outlined, 'Clear', onTap: onClear),
-          _ToolbarIcon(Icons.settings_outlined, 'Insights', onTap: onInsights ?? () {}),
-          _ToolbarIcon(Icons.share_outlined, 'Share', onTap: onExport),
+          // Eraser → Clear
+          Builder(builder: (ctx) => _ToolbarIcon(
+            Icons.auto_fix_high_outlined, 'Clear',
+            onTap: () => onClear(ctx),
+          )),
+          // Gear → Display Options
+          Builder(builder: (ctx) => _ToolbarIcon(
+            Icons.settings_outlined, 'Display',
+            onTap: () => onDisplayOptions?.call(ctx),
+          )),
+          // Document → Export
           _ToolbarIcon(Icons.description_outlined, 'Export', onTap: onExport),
           const Spacer(),
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF22C55E).withOpacity(0.15),
-              shape: BoxShape.circle,
+          // Green check → Insights
+          GestureDetector(
+            onTap: onInsights,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle,
+                  color: Color(0xFF22C55E), size: 20),
             ),
-            child: const Icon(Icons.check_circle,
-                color: Color(0xFF22C55E), size: 20),
           ),
           const SizedBox(width: 6),
-          // Regenerate button
           _RegenerateButton(onTap: onRegenerate),
         ],
       ),
@@ -1300,79 +1669,85 @@ class _UnscheduledCard extends StatelessWidget {
 // Export Sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ExportSheet extends StatelessWidget {
-  const _ExportSheet({
-    required this.onSharePdf,
-    required this.onShareExcel,
-    required this.onPrintPdf,
-  });
-  final VoidCallback onSharePdf;
-  final VoidCallback onShareExcel;
-  final VoidCallback onPrintPdf;
+class _ExportPopup extends StatefulWidget {
+  const _ExportPopup({required this.onExport});
+  final void Function(String format, String category) onExport;
+
+  @override
+  State<_ExportPopup> createState() => _ExportPopupState();
+}
+
+class _ExportPopupState extends State<_ExportPopup> {
+  String _format = 'pdf';
+
+  static const _categories = [
+    'Class-wise (Combined)',
+    'Class-wise (Individual)',
+    'Faculty-wise (Combined)',
+    'Faculty-wise (Individual)',
+    'Room-wise (Combined)',
+    'Room-wise (Individual)',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Export Timetable',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          // Handle bar
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.only(top: 10, bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
-          _ExportFormatRow(
-            icon: Icons.picture_as_pdf,
-            iconColor: const Color(0xFFDC2626),
-            title: 'Share as PDF',
-            subtitle:
-                'Class, teacher & room pages with school branding',
-            onTap: onSharePdf,
+          // Format toggle
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                const Text('Format', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                SegmentedButton<String>(
+                  selected: {_format},
+                  onSelectionChanged: (s) => setState(() => _format = s.first),
+                  segments: const [
+                    ButtonSegment(value: 'pdf', label: Text('PDF')),
+                    ButtonSegment(value: 'excel', label: Text('Excel')),
+                  ],
+                  style: SegmentedButton.styleFrom(
+                    selectedBackgroundColor: const Color(0xFF5B6CF7),
+                    selectedForegroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
-          _ExportFormatRow(
-            icon: Icons.table_chart,
-            iconColor: const Color(0xFF059669),
-            title: 'Share as Excel',
-            subtitle: 'Sheets per class, teacher & room',
-            onTap: onShareExcel,
+          const Divider(height: 1),
+          // Category label
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Text(
+              '${_format.toUpperCase()} EXPORT',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.grey.shade600, letterSpacing: 0.5),
+            ),
           ),
-          _ExportFormatRow(
-            icon: Icons.print,
-            iconColor: const Color(0xFF4F46E5),
-            title: 'Print PDF',
-            subtitle: 'Send to printer or save as PDF',
-            onTap: onPrintPdf,
-          ),
+          // Category list
+          for (final cat in _categories)
+            ListTile(
+              leading: Icon(Icons.description_outlined, color: _format == 'pdf' ? const Color(0xFFDC2626) : const Color(0xFF059669)),
+              title: Text(cat, style: const TextStyle(fontSize: 14)),
+              onTap: () => widget.onExport(_format, cat),
+            ),
           const SizedBox(height: 8),
         ],
       ),
-    );
-  }
-}
-
-class _ExportFormatRow extends StatelessWidget {
-  const _ExportFormatRow({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: iconColor),
-      title: Text(title),
-      subtitle: Text(subtitle),
-      onTap: onTap,
     );
   }
 }

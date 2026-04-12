@@ -236,7 +236,7 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
     if (!mounted) return;
 
     // Done!
-    planner.markTimetableGenerated();
+    planner.markTimetableGenerated(scheduledCount: _solver.assignments.length);
     setState(() {
       _phase = _SolverPhase.done;
       _progress = 1.0;

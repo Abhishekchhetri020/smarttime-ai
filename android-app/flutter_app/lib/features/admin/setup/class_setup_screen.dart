@@ -749,6 +749,8 @@ class _AvailableClassesSectionState extends State<_AvailableClassesSection> {
     final nameCtrl = TextEditingController();
     final abbrCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    // Tracks the last auto-generated abbreviation so manual edits are preserved.
+    String lastAutoAbbr = '';
 
     showModalBottomSheet<void>(
       context: context,
@@ -788,15 +790,12 @@ class _AvailableClassesSectionState extends State<_AvailableClassesSection> {
                     return null;
                   },
                   onChanged: (val) {
-                    // Auto-generate abbreviation from class name
-                    final newAbbr = _classAutoAbbr(val);
+                    // Auto-fill only when user hasn't manually overridden it.
                     final currentAbbr = abbrCtrl.text;
-                    // Only auto-fill if user hasn't manually edited
-                    if (currentAbbr.isEmpty ||
-                        currentAbbr ==
-                            _classAutoAbbr(val.substring(
-                                0, val.length > 1 ? val.length - 1 : 0))) {
-                      abbrCtrl.text = newAbbr;
+                    if (currentAbbr.isEmpty || currentAbbr == lastAutoAbbr) {
+                      final generated = _classAutoAbbr(val);
+                      abbrCtrl.text = generated;
+                      lastAutoAbbr = generated;
                     }
                   },
                 ),

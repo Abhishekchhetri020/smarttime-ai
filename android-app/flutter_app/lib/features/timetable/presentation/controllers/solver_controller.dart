@@ -155,8 +155,8 @@ class SolverController extends ChangeNotifier {
 
       assignments.add(TimetableAssignment(
         lessonId: a.lessonId,
-        day: a.day + 1, // Convert 0-indexed back to 1-indexed
-        period: a.period + 1,
+        day: a.day,    // 0-indexed; persisted as-is by generation_progress_screen
+        period: a.period,
         subjectId: plannerLesson.subjectId,
         classIds: List<String>.from(plannerLesson.classIds),
         teacherIds: List<String>.from(plannerLesson.teacherIds),

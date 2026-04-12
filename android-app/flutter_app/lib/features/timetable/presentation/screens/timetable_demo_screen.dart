@@ -76,6 +76,7 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
       case ViewMode.teacher:
         return {
           UniversalTimetableGrid.keyFor(0, 0): const TimetableCellData(
+            cardId: '',
             id: 't_m00',
             primary: 'Math',
             secondary: 'X A + X B', // joint class demo
@@ -83,6 +84,7 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
             accent: Color(0xFF3257B8),
           ),
           UniversalTimetableGrid.keyFor(0, 1): const TimetableCellData(
+            cardId: '',
             id: 't_m01',
             primary: 'English',
             secondary: 'IX C',
@@ -90,6 +92,7 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
             accent: Color(0xFF0E8A70),
           ),
           UniversalTimetableGrid.keyFor(2, 4): const TimetableCellData(
+            cardId: '',
             id: 't_m24',
             primary: 'Physics',
             secondary: 'XI A',
@@ -97,6 +100,7 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
             accent: Color(0xFF9A4D1C),
           ),
           UniversalTimetableGrid.keyFor(4, 6): const TimetableCellData(
+            cardId: '',
             id: 't_m46',
             primary: 'SST',
             secondary: 'VIII B',
@@ -107,6 +111,7 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
       case ViewMode.classView:
         return {
           UniversalTimetableGrid.keyFor(0, 0): const TimetableCellData(
+            cardId: '',
             id: 'c_m00',
             primary: 'Math',
             secondary: 'Mr. B. Prakash', // longer teacher label demo
@@ -114,6 +119,7 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
             accent: Color(0xFF3257B8),
           ),
           UniversalTimetableGrid.keyFor(0, 2): const TimetableCellData(
+            cardId: '',
             id: 'c_m02',
             primary: 'Hindi',
             secondary: 'Ms. Sumitra',
@@ -121,6 +127,7 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
             accent: Color(0xFF7A5A17),
           ),
           UniversalTimetableGrid.keyFor(1, 4): const TimetableCellData(
+            cardId: '',
             id: 'c_m14',
             primary: 'Chemistry',
             secondary: 'Mr. Gaurav',
@@ -128,6 +135,7 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
             accent: Color(0xFFB45520),
           ),
           UniversalTimetableGrid.keyFor(5, 6): const TimetableCellData(
+            cardId: '',
             id: 'c_m56',
             primary: 'Sports',
             secondary: 'Coach Aman',
@@ -138,6 +146,7 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
       case ViewMode.room:
         return {
           UniversalTimetableGrid.keyFor(0, 0): const TimetableCellData(
+            cardId: '',
             id: 'r_m00',
             primary: 'Math',
             secondary: 'X A / Mr. Prakash',
@@ -145,6 +154,7 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
             accent: Color(0xFF3257B8),
           ),
           UniversalTimetableGrid.keyFor(2, 1): const TimetableCellData(
+            cardId: '',
             id: 'r_m21',
             primary: 'Bio',
             secondary: 'IX B / Ms. Saloni',
@@ -152,6 +162,7 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
             accent: Color(0xFF1A8D6B),
           ),
           UniversalTimetableGrid.keyFor(3, 5): const TimetableCellData(
+            cardId: '',
             id: 'r_m35',
             primary: 'Music',
             secondary: 'III A / Mr. Santu',

@@ -1,6 +1,6 @@
-// Excel Export Service — generates .xlsx files with teacher-wise, class-wise,
-// and room-wise sheets.
+// Excel Export Service — generates .xlsx files matching ASC Timetable format.
 //
+// Layout: Days as ROWS, Periods as COLUMNS (transposed from original).
 // Uses the `excel` Dart package. Data can come from either the Cards table
 // in SQLite, or directly from solver results (List<TimetableAssignment>).
 
@@ -17,12 +17,12 @@ import '../database.dart';
 
 class ExcelExportService {
   static const _dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  static const _dayAbbrs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  // ── Mother Sage branding colors ──
-  static const _headerBgHex = '7B906F';   // Mother Sage
+  // ── Clean professional styling ──
+  static const _headerBgHex = '2F2F2F';   // Dark header
   static const _headerFontHex = 'FFFFFF';
-  static const _subHeaderBgHex = 'F4EBD9'; // Mother Almond
-  static const _altRowBgHex = 'F5F5F0';
+  static const _breakBgHex = 'D9D9D9';    // Light gray for breaks
 
   /// Build and share a complete .xlsx timetable workbook.
   Future<void> exportAndShare(AppDatabase db, int dbId) async {
@@ -63,10 +63,25 @@ class ExcelExportService {
         ? 5
         : (cards.map((c) => c.dayIndex).reduce((a, b) => a > b ? a : b) + 1).clamp(1, 6);
 
+    // Extract class teacher mapping from planner snapshot.
+    final classTeacherMap = <String, String>{};
+    final rawClasses = (plannerSnapshot?['classes'] as List?) ?? const [];
+    for (final c in rawClasses) {
+      if (c is Map<String, dynamic>) {
+        final classId = c['id']?.toString() ?? '';
+        final teacherId = c['classTeacherId']?.toString();
+        if (classId.isNotEmpty && teacherId != null && teacherId.isNotEmpty) {
+          classTeacherMap[classId] = catalog.teacherLabel(teacherId);
+        }
+      }
+    }
+
+    final schoolName = plannerSnapshot?['schoolName']?.toString() ?? '';
+
     final excel = Excel.createExcel();
 
-    // ── Sheet 1: Master Overview ──
-    _buildMasterSheet(excel, cards, lessonById, catalog, slots, dayCount);
+    // ── Master Overview ──
+    _buildMasterSheet(excel, cards, lessonById, catalog, slots, dayCount, schoolName);
 
     // ── Class-wise sheets ──
     final sortedClassIds = classes.map((c) => c.id).toList()..sort();
@@ -79,10 +94,13 @@ class ExcelExportService {
 
       final classLabel = catalog.classLabel(classId);
       final sheetName = _sanitizeSheetName('C_$classLabel');
+      final classTeacher = classTeacherMap[classId];
       _buildEntitySheet(
         excel: excel,
         sheetName: sheetName,
-        title: 'Class: $classLabel',
+        title: classLabel,
+        subtitle: classTeacher != null ? 'Class teacher: $classTeacher' : null,
+        schoolName: schoolName,
         cards: classCards,
         lessonById: lessonById,
         catalog: catalog,
@@ -106,7 +124,8 @@ class ExcelExportService {
       _buildEntitySheet(
         excel: excel,
         sheetName: sheetName,
-        title: 'Teacher: $teacherLabel',
+        title: teacherLabel,
+        schoolName: schoolName,
         cards: teacherCards,
         lessonById: lessonById,
         catalog: catalog,
@@ -135,7 +154,8 @@ class ExcelExportService {
       _buildEntitySheet(
         excel: excel,
         sheetName: sheetName,
-        title: 'Room: $roomLabel',
+        title: roomLabel,
+        schoolName: schoolName,
         cards: roomCards,
         lessonById: lessonById,
         catalog: catalog,
@@ -177,7 +197,7 @@ class ExcelExportService {
       growable: false,
     );
 
-    // Convert solver assignments to CardRow/LessonRow for reuse of existing sheet builders.
+    // Convert solver assignments to CardRow/LessonRow.
     final cards = <CardRow>[];
     final lessonById = <String, LessonRow>{};
     for (final a in assignments) {
@@ -187,6 +207,7 @@ class ExcelExportService {
         dayIndex: a.day - 1,
         periodIndex: a.period - 1,
         roomId: a.roomId.isEmpty ? null : a.roomId,
+        isLocked: false,
       ));
       lessonById.putIfAbsent(
         a.lessonId,
@@ -205,7 +226,7 @@ class ExcelExportService {
     final excel = Excel.createExcel();
 
     // ── Master Overview ──
-    _buildMasterSheet(excel, cards, lessonById, catalog, slots, days);
+    _buildMasterSheet(excel, cards, lessonById, catalog, slots, days, '');
 
     // ── Class-wise sheets ──
     final classIds = assignments.expand((a) => a.classIds).toSet().toList()..sort();
@@ -219,7 +240,8 @@ class ExcelExportService {
       _buildEntitySheet(
         excel: excel,
         sheetName: _sanitizeSheetName('C_$classLabel'),
-        title: 'Class: $classLabel',
+        title: classLabel,
+        schoolName: '',
         cards: classCards,
         lessonById: lessonById,
         catalog: catalog,
@@ -241,7 +263,8 @@ class ExcelExportService {
       _buildEntitySheet(
         excel: excel,
         sheetName: _sanitizeSheetName('T_$teacherLabel'),
-        title: 'Teacher: $teacherLabel',
+        title: teacherLabel,
+        schoolName: '',
         cards: teacherCards,
         lessonById: lessonById,
         catalog: catalog,
@@ -267,7 +290,8 @@ class ExcelExportService {
       _buildEntitySheet(
         excel: excel,
         sheetName: _sanitizeSheetName('R_$roomLabel'),
-        title: 'Room: $roomLabel',
+        title: roomLabel,
+        schoolName: '',
         cards: roomCards,
         lessonById: lessonById,
         catalog: catalog,
@@ -313,6 +337,42 @@ class ExcelExportService {
     );
   }
 
+  // ─── Build flat slots (merge consecutive breaks) ───────────────────────────
+
+  List<_FlatSlot> _buildFlatSlots(List<TimetableSlotDescriptor> slots) {
+    final flat = <_FlatSlot>[];
+    int periodOrdinal = 0;
+    int i = 0;
+    while (i < slots.length) {
+      if (slots[i].isBreak) {
+        // Merge consecutive breaks
+        final labels = <String>[];
+        final start = i;
+        while (i < slots.length && slots[i].isBreak) {
+          labels.add(slots[i].label);
+          i++;
+        }
+        flat.add(_FlatSlot(
+          isBreak: true,
+          label: labels.join(' '),
+          timeRange: slots[start].timeRange,
+        ));
+      } else {
+        flat.add(_FlatSlot(
+          isBreak: false,
+          label: _ordinalLabel(periodOrdinal),
+          timeRange: slots[i].timeRange,
+          slotIndex: i,
+        ));
+        periodOrdinal++;
+        i++;
+      }
+    }
+    return flat;
+  }
+
+  // ─── Master Overview Sheet ─────────────────────────────────────────────────
+
   void _buildMasterSheet(
     Excel excel,
     List<CardRow> cards,
@@ -320,64 +380,62 @@ class ExcelExportService {
     TimetableDisplayCatalog catalog,
     List<TimetableSlotDescriptor> slots,
     int dayCount,
+    String schoolName,
   ) {
     final sheet = excel['Master Overview'];
+    final flatSlots = _buildFlatSlots(slots);
 
     // Title row
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value =
-        TextCellValue('SmartTime AI — Master Timetable');
+        TextCellValue(schoolName.isNotEmpty ? '$schoolName — Master Timetable' : 'SmartTime AI — Master Timetable');
     sheet.merge(
       CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
-      CellIndex.indexByColumnRow(columnIndex: dayCount, rowIndex: 0),
+      CellIndex.indexByColumnRow(columnIndex: flatSlots.length, rowIndex: 0),
     );
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle =
         CellStyle(
       bold: true,
       fontSize: 14,
-      fontColorHex: ExcelColor.fromHexString('#4A3F35'),
-      backgroundColorHex: ExcelColor.fromHexString('#$_subHeaderBgHex'),
+      fontColorHex: ExcelColor.fromHexString('#$_headerFontHex'),
+      backgroundColorHex: ExcelColor.fromHexString('#$_headerBgHex'),
     );
 
-    // Summary row
-    final totalLessons = cards.length;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value =
-        TextCellValue('Total scheduled: $totalLessons lessons across $dayCount days');
-    sheet.merge(
-      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
-      CellIndex.indexByColumnRow(columnIndex: dayCount, rowIndex: 1),
-    );
-
-    // Header row: Day/Period | Day1 | Day2 | ...
-    final headerRow = 3;
-    _setCellWithStyle(sheet, headerRow, 0, 'Period / Day', isHeader: true);
-    for (int d = 0; d < dayCount; d++) {
-      _setCellWithStyle(sheet, headerRow, d + 1, d < _dayNames.length ? _dayNames[d] : 'Day ${d + 1}', isHeader: true);
+    // Header row: Day \ Period | 1st (time) | Break | 2nd (time) | ...
+    final headerRow = 2;
+    _setCellWithStyle(sheet, headerRow, 0, 'Day', isHeader: true);
+    for (int c = 0; c < flatSlots.length; c++) {
+      final fs = flatSlots[c];
+      final headerText = fs.isBreak
+          ? 'Break'
+          : fs.timeRange != null
+              ? '${fs.label}\n${fs.timeRange}'
+              : fs.label;
+      _setCellWithStyle(sheet, headerRow, c + 1, headerText, isHeader: true, isBreak: fs.isBreak);
     }
 
-    // Build grid
+    // Build grid lookup
     final slotIndexByPeriod = <int, int>{
       for (var i = 0; i < slots.length; i++)
         if (slots[i].periodIndex != null) slots[i].periodIndex!: i,
     };
 
-    for (int s = 0; s < slots.length; s++) {
-      final row = headerRow + 1 + s;
-      final slot = slots[s];
-      _setCellWithStyle(sheet, row, 0, slot.label, isRowHeader: true, isBreak: slot.isBreak);
+    // Day rows
+    for (int d = 0; d < dayCount; d++) {
+      final row = headerRow + 1 + d;
+      _setCellWithStyle(sheet, row, 0, d < _dayNames.length ? _dayNames[d] : 'Day ${d + 1}', isRowHeader: true);
 
-      if (slot.isBreak) {
-        for (int d = 0; d < dayCount; d++) {
-          _setCellWithStyle(sheet, row, d + 1, '', isBreak: true);
+      for (int c = 0; c < flatSlots.length; c++) {
+        final fs = flatSlots[c];
+        if (fs.isBreak) {
+          _setCellWithStyle(sheet, row, c + 1, '', isBreak: true);
+          continue;
         }
-        continue;
-      }
-
-      for (int d = 0; d < dayCount; d++) {
-        final matchingCards = cards.where((c) =>
-            c.dayIndex == d && slotIndexByPeriod[c.periodIndex] == s);
+        
+        final matchingCards = cards.where((card) =>
+            card.dayIndex == d && slotIndexByPeriod[card.periodIndex] == fs.slotIndex);
 
         if (matchingCards.isEmpty) {
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: d + 1, rowIndex: row)).value =
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row)).value =
               TextCellValue('');
           continue;
         }
@@ -392,38 +450,30 @@ class ExcelExportService {
           cellParts.add('$subject ($teacher) [$cls]');
         }
 
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: d + 1, rowIndex: row)).value =
-            TextCellValue(cellParts.join('\n'));
-
-        // Alternate row coloring
-        if (s % 2 == 1) {
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: d + 1, rowIndex: row)).cellStyle =
-              CellStyle(
-            backgroundColorHex: ExcelColor.fromHexString('#$_altRowBgHex'),
-            textWrapping: TextWrapping.WrapText,
-            fontSize: 9,
-          );
-        } else {
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: d + 1, rowIndex: row)).cellStyle =
-              CellStyle(
-            textWrapping: TextWrapping.WrapText,
-            fontSize: 9,
-          );
-        }
+        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row));
+        cell.value = TextCellValue(cellParts.join('\n'));
+        cell.cellStyle = CellStyle(
+          textWrapping: TextWrapping.WrapText,
+          fontSize: 9,
+        );
       }
     }
 
     // Set column widths
-    sheet.setColumnWidth(0, 18);
-    for (int d = 0; d < dayCount; d++) {
-      sheet.setColumnWidth(d + 1, 28);
+    sheet.setColumnWidth(0, 14);
+    for (int c = 0; c < flatSlots.length; c++) {
+      sheet.setColumnWidth(c + 1, flatSlots[c].isBreak ? 8 : 20);
     }
   }
+
+  // ─── Entity Sheet (Class/Teacher/Room) ─────────────────────────────────────
 
   void _buildEntitySheet({
     required Excel excel,
     required String sheetName,
     required String title,
+    String? subtitle,
+    required String schoolName,
     required List<CardRow> cards,
     required Map<String, LessonRow> lessonById,
     required TimetableDisplayCatalog catalog,
@@ -432,27 +482,48 @@ class ExcelExportService {
     required String Function(LessonRow lesson) secondaryFn,
   }) {
     final sheet = excel[sheetName];
+    final flatSlots = _buildFlatSlots(slots);
 
-    // Title
+    // Title row
+    final titleText = schoolName.isNotEmpty ? '$schoolName — $title' : title;
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value =
-        TextCellValue(title);
+        TextCellValue(titleText);
     sheet.merge(
       CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
-      CellIndex.indexByColumnRow(columnIndex: dayCount, rowIndex: 0),
+      CellIndex.indexByColumnRow(columnIndex: flatSlots.length, rowIndex: 0),
     );
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle =
         CellStyle(
       bold: true,
       fontSize: 13,
-      fontColorHex: ExcelColor.fromHexString('#4A3F35'),
-      backgroundColorHex: ExcelColor.fromHexString('#$_subHeaderBgHex'),
+      fontColorHex: ExcelColor.fromHexString('#$_headerFontHex'),
+      backgroundColorHex: ExcelColor.fromHexString('#$_headerBgHex'),
     );
 
+    // Subtitle row (class teacher, etc.)
+    int headerRow = 2;
+    if (subtitle != null) {
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value =
+          TextCellValue(subtitle);
+      sheet.merge(
+        CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+        CellIndex.indexByColumnRow(columnIndex: flatSlots.length, rowIndex: 1),
+      );
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).cellStyle =
+          CellStyle(bold: true, fontSize: 10);
+      headerRow = 3;
+    }
+
     // Header row
-    final headerRow = 2;
-    _setCellWithStyle(sheet, headerRow, 0, 'Period / Day', isHeader: true);
-    for (int d = 0; d < dayCount; d++) {
-      _setCellWithStyle(sheet, headerRow, d + 1, d < _dayNames.length ? _dayNames[d] : 'Day ${d + 1}', isHeader: true);
+    _setCellWithStyle(sheet, headerRow, 0, 'Day', isHeader: true);
+    for (int c = 0; c < flatSlots.length; c++) {
+      final fs = flatSlots[c];
+      final headerText = fs.isBreak
+          ? 'Break'
+          : fs.timeRange != null
+              ? '${fs.label}\n${fs.timeRange}'
+              : fs.label;
+      _setCellWithStyle(sheet, headerRow, c + 1, headerText, isHeader: true, isBreak: fs.isBreak);
     }
 
     final slotIndexByPeriod = <int, int>{
@@ -460,24 +531,23 @@ class ExcelExportService {
         if (slots[i].periodIndex != null) slots[i].periodIndex!: i,
     };
 
-    for (int s = 0; s < slots.length; s++) {
-      final row = headerRow + 1 + s;
-      final slot = slots[s];
-      _setCellWithStyle(sheet, row, 0, slot.label, isRowHeader: true, isBreak: slot.isBreak);
+    // Day rows
+    for (int d = 0; d < dayCount; d++) {
+      final row = headerRow + 1 + d;
+      _setCellWithStyle(sheet, row, 0, d < _dayAbbrs.length ? _dayAbbrs[d] : 'D${d + 1}', isRowHeader: true);
 
-      if (slot.isBreak) {
-        for (int d = 0; d < dayCount; d++) {
-          _setCellWithStyle(sheet, row, d + 1, '', isBreak: true);
+      for (int c = 0; c < flatSlots.length; c++) {
+        final fs = flatSlots[c];
+        if (fs.isBreak) {
+          _setCellWithStyle(sheet, row, c + 1, '', isBreak: true);
+          continue;
         }
-        continue;
-      }
 
-      for (int d = 0; d < dayCount; d++) {
-        final matchingCards = cards.where((c) =>
-            c.dayIndex == d && slotIndexByPeriod[c.periodIndex] == s);
+        final matchingCards = cards.where((card) =>
+            card.dayIndex == d && slotIndexByPeriod[card.periodIndex] == fs.slotIndex);
 
         if (matchingCards.isEmpty) {
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: d + 1, rowIndex: row)).value =
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row)).value =
               TextCellValue('');
           continue;
         }
@@ -491,27 +561,23 @@ class ExcelExportService {
           cellParts.add(secondary.isNotEmpty ? '$subject\n$secondary' : subject);
         }
 
-        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: d + 1, rowIndex: row));
+        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row));
         cell.value = TextCellValue(cellParts.join('\n'));
-        cell.cellStyle = s % 2 == 1
-            ? CellStyle(
-                textWrapping: TextWrapping.WrapText,
-                fontSize: 9,
-                backgroundColorHex: ExcelColor.fromHexString('#$_altRowBgHex'),
-              )
-            : CellStyle(
-                textWrapping: TextWrapping.WrapText,
-                fontSize: 9,
-              );
+        cell.cellStyle = CellStyle(
+          textWrapping: TextWrapping.WrapText,
+          fontSize: 9,
+        );
       }
     }
 
     // Column widths
-    sheet.setColumnWidth(0, 18);
-    for (int d = 0; d < dayCount; d++) {
-      sheet.setColumnWidth(d + 1, 22);
+    sheet.setColumnWidth(0, 10);
+    for (int c = 0; c < flatSlots.length; c++) {
+      sheet.setColumnWidth(c + 1, flatSlots[c].isBreak ? 8 : 18);
     }
   }
+
+  // ─── Styling Helpers ───────────────────────────────────────────────────────
 
   void _setCellWithStyle(
     Sheet sheet,
@@ -529,25 +595,34 @@ class ExcelExportService {
       cell.cellStyle = CellStyle(
         bold: true,
         fontSize: 10,
-        fontColorHex: ExcelColor.fromHexString('#$_headerFontHex'),
-        backgroundColorHex: ExcelColor.fromHexString('#$_headerBgHex'),
+        fontColorHex: isBreak ? ExcelColor.fromHexString('#333333') : ExcelColor.fromHexString('#$_headerFontHex'),
+        backgroundColorHex: isBreak ? ExcelColor.fromHexString('#$_breakBgHex') : ExcelColor.fromHexString('#$_headerBgHex'),
         horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+        textWrapping: TextWrapping.WrapText,
       );
     } else if (isRowHeader) {
       cell.cellStyle = CellStyle(
         bold: true,
-        fontSize: 9,
-        backgroundColorHex: isBreak
-            ? ExcelColor.fromHexString('#E0E0E0')
-            : ExcelColor.fromHexString('#$_subHeaderBgHex'),
+        fontSize: 11,
         horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
       );
     } else if (isBreak) {
       cell.cellStyle = CellStyle(
-        backgroundColorHex: ExcelColor.fromHexString('#E0E0E0'),
+        backgroundColorHex: ExcelColor.fromHexString('#$_breakBgHex'),
         fontSize: 8,
       );
     }
+  }
+
+  /// ASC-style ordinal labels
+  static String _ordinalLabel(int index) {
+    final n = index + 1;
+    if (n == 1) return '1st';
+    if (n == 2) return '2nd';
+    if (n == 3) return '3rd';
+    return '${n}th';
   }
 
   /// Sanitize sheet name for Excel (max 31 chars, no special chars)
@@ -662,4 +737,19 @@ class ExcelExportService {
       text: 'SmartTime AI Unified Setup Template',
     );
   }
+}
+
+// ─── Internal helper classes ─────────────────────────────────────────────────
+
+class _FlatSlot {
+  final bool isBreak;
+  final String label;
+  final String? timeRange;
+  final int? slotIndex;
+  const _FlatSlot({
+    required this.isBreak,
+    required this.label,
+    this.timeRange,
+    this.slotIndex,
+  });
 }

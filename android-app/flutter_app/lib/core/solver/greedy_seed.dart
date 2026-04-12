@@ -166,6 +166,9 @@ class GreedySeed {
       return lesson.requiredRoomId!;
     }
 
+    // No rooms configured — skip room assignment
+    if (payload.rooms.isEmpty) return '';
+
     // Find rooms not in use at this slot
     final slotsToCheck = <SolverSlot>[slot];
     if (lesson.isDouble) {
@@ -184,8 +187,8 @@ class GreedySeed {
       }
     }
 
-    // Fallback: return a synthetic room ID
-    return 'AUTO_ROOM_${slot.day}_${slot.period}';
+    // All rooms occupied — return empty (no room assigned)
+    return '';
   }
 
   void _trackRoom(Map<SolverSlot, Set<String>> usage, SolverSlot slot, String roomId) {

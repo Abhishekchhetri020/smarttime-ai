@@ -2260,9 +2260,19 @@ class $CardsTable extends Cards with TableInfo<$CardsTable, CardRow> {
   late final GeneratedColumn<String> roomId = GeneratedColumn<String>(
       'room_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _isLockedMeta =
+      const VerificationMeta('isLocked');
+  @override
+  late final GeneratedColumn<bool> isLocked = GeneratedColumn<bool>(
+      'is_locked', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_locked" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, lessonId, dayIndex, periodIndex, roomId];
+      [id, lessonId, dayIndex, periodIndex, roomId, isLocked];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2302,6 +2312,10 @@ class $CardsTable extends Cards with TableInfo<$CardsTable, CardRow> {
       context.handle(_roomIdMeta,
           roomId.isAcceptableOrUnknown(data['room_id']!, _roomIdMeta));
     }
+    if (data.containsKey('is_locked')) {
+      context.handle(_isLockedMeta,
+          isLocked.isAcceptableOrUnknown(data['is_locked']!, _isLockedMeta));
+    }
     return context;
   }
 
@@ -2321,6 +2335,8 @@ class $CardsTable extends Cards with TableInfo<$CardsTable, CardRow> {
           .read(DriftSqlType.int, data['${effectivePrefix}period_index'])!,
       roomId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}room_id']),
+      isLocked: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_locked'])!,
     );
   }
 
@@ -2336,12 +2352,14 @@ class CardRow extends DataClass implements Insertable<CardRow> {
   final int dayIndex;
   final int periodIndex;
   final String? roomId;
+  final bool isLocked;
   const CardRow(
       {required this.id,
       required this.lessonId,
       required this.dayIndex,
       required this.periodIndex,
-      this.roomId});
+      this.roomId,
+      required this.isLocked});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2352,6 +2370,7 @@ class CardRow extends DataClass implements Insertable<CardRow> {
     if (!nullToAbsent || roomId != null) {
       map['room_id'] = Variable<String>(roomId);
     }
+    map['is_locked'] = Variable<bool>(isLocked);
     return map;
   }
 
@@ -2363,6 +2382,7 @@ class CardRow extends DataClass implements Insertable<CardRow> {
       periodIndex: Value(periodIndex),
       roomId:
           roomId == null && nullToAbsent ? const Value.absent() : Value(roomId),
+      isLocked: Value(isLocked),
     );
   }
 
@@ -2375,6 +2395,7 @@ class CardRow extends DataClass implements Insertable<CardRow> {
       dayIndex: serializer.fromJson<int>(json['dayIndex']),
       periodIndex: serializer.fromJson<int>(json['periodIndex']),
       roomId: serializer.fromJson<String?>(json['roomId']),
+      isLocked: serializer.fromJson<bool>(json['isLocked']),
     );
   }
   @override
@@ -2386,6 +2407,7 @@ class CardRow extends DataClass implements Insertable<CardRow> {
       'dayIndex': serializer.toJson<int>(dayIndex),
       'periodIndex': serializer.toJson<int>(periodIndex),
       'roomId': serializer.toJson<String?>(roomId),
+      'isLocked': serializer.toJson<bool>(isLocked),
     };
   }
 
@@ -2394,13 +2416,15 @@ class CardRow extends DataClass implements Insertable<CardRow> {
           String? lessonId,
           int? dayIndex,
           int? periodIndex,
-          Value<String?> roomId = const Value.absent()}) =>
+          Value<String?> roomId = const Value.absent(),
+          bool? isLocked}) =>
       CardRow(
         id: id ?? this.id,
         lessonId: lessonId ?? this.lessonId,
         dayIndex: dayIndex ?? this.dayIndex,
         periodIndex: periodIndex ?? this.periodIndex,
         roomId: roomId.present ? roomId.value : this.roomId,
+        isLocked: isLocked ?? this.isLocked,
       );
   CardRow copyWithCompanion(CardsCompanion data) {
     return CardRow(
@@ -2410,6 +2434,7 @@ class CardRow extends DataClass implements Insertable<CardRow> {
       periodIndex:
           data.periodIndex.present ? data.periodIndex.value : this.periodIndex,
       roomId: data.roomId.present ? data.roomId.value : this.roomId,
+      isLocked: data.isLocked.present ? data.isLocked.value : this.isLocked,
     );
   }
 
@@ -2420,13 +2445,15 @@ class CardRow extends DataClass implements Insertable<CardRow> {
           ..write('lessonId: $lessonId, ')
           ..write('dayIndex: $dayIndex, ')
           ..write('periodIndex: $periodIndex, ')
-          ..write('roomId: $roomId')
+          ..write('roomId: $roomId, ')
+          ..write('isLocked: $isLocked')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, lessonId, dayIndex, periodIndex, roomId);
+  int get hashCode =>
+      Object.hash(id, lessonId, dayIndex, periodIndex, roomId, isLocked);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2435,7 +2462,8 @@ class CardRow extends DataClass implements Insertable<CardRow> {
           other.lessonId == this.lessonId &&
           other.dayIndex == this.dayIndex &&
           other.periodIndex == this.periodIndex &&
-          other.roomId == this.roomId);
+          other.roomId == this.roomId &&
+          other.isLocked == this.isLocked);
 }
 
 class CardsCompanion extends UpdateCompanion<CardRow> {
@@ -2444,6 +2472,7 @@ class CardsCompanion extends UpdateCompanion<CardRow> {
   final Value<int> dayIndex;
   final Value<int> periodIndex;
   final Value<String?> roomId;
+  final Value<bool> isLocked;
   final Value<int> rowid;
   const CardsCompanion({
     this.id = const Value.absent(),
@@ -2451,6 +2480,7 @@ class CardsCompanion extends UpdateCompanion<CardRow> {
     this.dayIndex = const Value.absent(),
     this.periodIndex = const Value.absent(),
     this.roomId = const Value.absent(),
+    this.isLocked = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CardsCompanion.insert({
@@ -2459,6 +2489,7 @@ class CardsCompanion extends UpdateCompanion<CardRow> {
     required int dayIndex,
     required int periodIndex,
     this.roomId = const Value.absent(),
+    this.isLocked = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         lessonId = Value(lessonId),
@@ -2470,6 +2501,7 @@ class CardsCompanion extends UpdateCompanion<CardRow> {
     Expression<int>? dayIndex,
     Expression<int>? periodIndex,
     Expression<String>? roomId,
+    Expression<bool>? isLocked,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2478,6 +2510,7 @@ class CardsCompanion extends UpdateCompanion<CardRow> {
       if (dayIndex != null) 'day_index': dayIndex,
       if (periodIndex != null) 'period_index': periodIndex,
       if (roomId != null) 'room_id': roomId,
+      if (isLocked != null) 'is_locked': isLocked,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2488,6 +2521,7 @@ class CardsCompanion extends UpdateCompanion<CardRow> {
       Value<int>? dayIndex,
       Value<int>? periodIndex,
       Value<String?>? roomId,
+      Value<bool>? isLocked,
       Value<int>? rowid}) {
     return CardsCompanion(
       id: id ?? this.id,
@@ -2495,6 +2529,7 @@ class CardsCompanion extends UpdateCompanion<CardRow> {
       dayIndex: dayIndex ?? this.dayIndex,
       periodIndex: periodIndex ?? this.periodIndex,
       roomId: roomId ?? this.roomId,
+      isLocked: isLocked ?? this.isLocked,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2517,6 +2552,9 @@ class CardsCompanion extends UpdateCompanion<CardRow> {
     if (roomId.present) {
       map['room_id'] = Variable<String>(roomId.value);
     }
+    if (isLocked.present) {
+      map['is_locked'] = Variable<bool>(isLocked.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2531,6 +2569,7 @@ class CardsCompanion extends UpdateCompanion<CardRow> {
           ..write('dayIndex: $dayIndex, ')
           ..write('periodIndex: $periodIndex, ')
           ..write('roomId: $roomId, ')
+          ..write('isLocked: $isLocked, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3626,9 +3665,11 @@ class $AppStateTable extends AppState
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
       'id', aliasedName, false,
+      hasAutoIncrement: true,
       type: DriftSqlType.int,
       requiredDuringInsert: false,
-      defaultValue: const Constant(1));
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
   static const VerificationMeta _plannerJsonMeta =
       const VerificationMeta('plannerJson');
   @override
@@ -6122,6 +6163,7 @@ typedef $$CardsTableCreateCompanionBuilder = CardsCompanion Function({
   required int dayIndex,
   required int periodIndex,
   Value<String?> roomId,
+  Value<bool> isLocked,
   Value<int> rowid,
 });
 typedef $$CardsTableUpdateCompanionBuilder = CardsCompanion Function({
@@ -6130,6 +6172,7 @@ typedef $$CardsTableUpdateCompanionBuilder = CardsCompanion Function({
   Value<int> dayIndex,
   Value<int> periodIndex,
   Value<String?> roomId,
+  Value<bool> isLocked,
   Value<int> rowid,
 });
 
@@ -6171,6 +6214,9 @@ class $$CardsTableFilterComposer extends Composer<_$AppDatabase, $CardsTable> {
 
   ColumnFilters<String> get roomId => $composableBuilder(
       column: $table.roomId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isLocked => $composableBuilder(
+      column: $table.isLocked, builder: (column) => ColumnFilters(column));
 
   $$LessonsTableFilterComposer get lessonId {
     final $$LessonsTableFilterComposer composer = $composerBuilder(
@@ -6214,6 +6260,9 @@ class $$CardsTableOrderingComposer
   ColumnOrderings<String> get roomId => $composableBuilder(
       column: $table.roomId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isLocked => $composableBuilder(
+      column: $table.isLocked, builder: (column) => ColumnOrderings(column));
+
   $$LessonsTableOrderingComposer get lessonId {
     final $$LessonsTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -6255,6 +6304,9 @@ class $$CardsTableAnnotationComposer
 
   GeneratedColumn<String> get roomId =>
       $composableBuilder(column: $table.roomId, builder: (column) => column);
+
+  GeneratedColumn<bool> get isLocked =>
+      $composableBuilder(column: $table.isLocked, builder: (column) => column);
 
   $$LessonsTableAnnotationComposer get lessonId {
     final $$LessonsTableAnnotationComposer composer = $composerBuilder(
@@ -6305,6 +6357,7 @@ class $$CardsTableTableManager extends RootTableManager<
             Value<int> dayIndex = const Value.absent(),
             Value<int> periodIndex = const Value.absent(),
             Value<String?> roomId = const Value.absent(),
+            Value<bool> isLocked = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               CardsCompanion(
@@ -6313,6 +6366,7 @@ class $$CardsTableTableManager extends RootTableManager<
             dayIndex: dayIndex,
             periodIndex: periodIndex,
             roomId: roomId,
+            isLocked: isLocked,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -6321,6 +6375,7 @@ class $$CardsTableTableManager extends RootTableManager<
             required int dayIndex,
             required int periodIndex,
             Value<String?> roomId = const Value.absent(),
+            Value<bool> isLocked = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               CardsCompanion.insert(
@@ -6329,6 +6384,7 @@ class $$CardsTableTableManager extends RootTableManager<
             dayIndex: dayIndex,
             periodIndex: periodIndex,
             roomId: roomId,
+            isLocked: isLocked,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

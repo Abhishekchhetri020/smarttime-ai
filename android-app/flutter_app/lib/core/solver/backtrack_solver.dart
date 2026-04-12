@@ -290,6 +290,8 @@ class BacktrackSolver {
       return lesson.requiredRoomId!;
     }
 
+    if (payload.rooms.isEmpty) return '';
+
     final allUsed = <String>{};
     allUsed.addAll(roomUsage[slot] ?? {});
     // Also check assignments directly for this slot
@@ -313,7 +315,7 @@ class BacktrackSolver {
       if (!allUsed.contains(room.id)) return room.id;
     }
 
-    return 'AUTO_ROOM_${slot.day}_${slot.period}';
+    return '';
   }
 }
 

@@ -188,6 +188,7 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
 
         cells['$day|$period'] = TimetableCellData(
           id: lesson.id,
+          cardId: '',
           primary: subject,
           secondary: secondary,
           tertiary: tertiary,

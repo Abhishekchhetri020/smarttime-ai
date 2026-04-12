@@ -5,12 +5,15 @@ class TimetableSlotDescriptor {
   final String label;
   final bool isBreak;
   final int? periodIndex;
+  /// Time range string, e.g. '7:40 - 8:20'. Null if not available.
+  final String? timeRange;
 
   const TimetableSlotDescriptor({
     required this.id,
     required this.label,
     this.isBreak = false,
     this.periodIndex,
+    this.timeRange,
   });
 }
 
@@ -110,6 +113,7 @@ List<TimetableSlotDescriptor> buildTimetableSlots({
             id: 'break_${slots.length}',
             label: display.isNotEmpty ? display : 'Break',
             isBreak: true,
+            timeRange: timeRange.isNotEmpty ? timeRange : null,
           ),
         );
         continue;
@@ -119,6 +123,7 @@ List<TimetableSlotDescriptor> buildTimetableSlots({
           id: 'period_${periodIndex + 1}',
           label: display.isNotEmpty ? display : 'P${periodIndex + 1}',
           periodIndex: periodIndex,
+          timeRange: timeRange.isNotEmpty ? timeRange : null,
         ),
       );
       periodIndex++;

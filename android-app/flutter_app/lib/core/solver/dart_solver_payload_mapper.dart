@@ -55,19 +55,13 @@ class DartSolverPayloadMapper {
 
     // ── Rooms ──
     final rooms = <SolverRoom>[];
-    if (planner.classrooms.isNotEmpty) {
-      for (final r in planner.classrooms) {
-        rooms.add(SolverRoom(
-          id: r.id,
-          roomType: r.roomType,
-        ));
-      }
-    } else {
-      // Default rooms
-      for (int i = 101; i <= 108; i++) {
-        rooms.add(SolverRoom(id: 'ROOM_$i'));
-      }
+    for (final r in planner.classrooms) {
+      rooms.add(SolverRoom(
+        id: r.id,
+        roomType: r.roomType,
+      ));
     }
+    // If no classrooms configured, rooms stays empty — solver will skip room assignment
 
     // ── Lessons ──
     // Expand periodsPerWeek into individual solver lessons

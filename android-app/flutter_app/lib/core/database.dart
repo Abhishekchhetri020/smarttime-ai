@@ -151,6 +151,7 @@ class Cards extends Table {
   IntColumn get dayIndex => integer()();
   IntColumn get periodIndex => integer()();
   TextColumn get roomId => text().nullable()();
+  BoolColumn get isLocked => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -229,7 +230,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -354,6 +355,11 @@ class AppDatabase extends _$AppDatabase {
             
             await customStatement('DROP TABLE IF EXISTS app_state');
             await customStatement('ALTER TABLE app_state_new RENAME TO app_state');
+          }
+          if (from < 14) {
+            await customStatement(
+              'ALTER TABLE cards ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0',
+            );
           }
         },
         beforeOpen: (details) async {
