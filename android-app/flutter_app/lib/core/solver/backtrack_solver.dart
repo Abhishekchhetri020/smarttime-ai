@@ -49,10 +49,14 @@ class BacktrackSolver {
     // Room usage tracker from existing assignments
     final roomUsage = <SolverSlot, Set<String>>{};
     for (final a in currentAssignments) {
-      roomUsage.putIfAbsent(SolverSlot(a.day, a.period), () => <String>{}).add(a.roomId);
+      roomUsage
+          .putIfAbsent(SolverSlot(a.day, a.period), () => <String>{})
+          .add(a.roomId);
       final lesson = lessonById[a.lessonId];
       if (lesson != null && lesson.isDouble) {
-        roomUsage.putIfAbsent(SolverSlot(a.day, a.period + 1), () => <String>{}).add(a.roomId);
+        roomUsage
+            .putIfAbsent(SolverSlot(a.day, a.period + 1), () => <String>{})
+            .add(a.roomId);
       }
     }
 
@@ -65,7 +69,8 @@ class BacktrackSolver {
         for (int p = 0; p < payload.periodsPerDay; p++) {
           final slot = SolverSlot(d, p);
           final roomId = _findRoom(lesson, slot, roomUsage, currentAssignments);
-          final check = checker.checkHard(lesson, slot, roomId, currentAssignments);
+          final check =
+              checker.checkHard(lesson, slot, roomId, currentAssignments);
           if (!check.hardViolation) {
             entries.add(_DomainEntry(slot, roomId));
           }
@@ -104,7 +109,8 @@ class BacktrackSolver {
     onProgress?.call(SolverProgress(
       phase: 'backtrack',
       percent: 1.0,
-      message: 'Backtracking complete. Explored $_nodesExplored nodes in ${_stopwatch.elapsedMilliseconds}ms',
+      message:
+          'Backtracking complete. Explored $_nodesExplored nodes in ${_stopwatch.elapsedMilliseconds}ms',
     ));
 
     return BacktrackResult(
@@ -128,7 +134,8 @@ class BacktrackSolver {
 
     final lid = lessonIds[index];
     final lesson = lessonById[lid];
-    if (lesson == null) return _backtrack(lessonIds, index + 1, assignments, domains, lessonById);
+    if (lesson == null)
+      return _backtrack(lessonIds, index + 1, assignments, domains, lessonById);
 
     final domain = domains[lid];
     if (domain == null || domain.isEmpty) return false;
@@ -144,7 +151,8 @@ class BacktrackSolver {
     }
 
     for (final entry in domain) {
-      final check = checker.checkHard(lesson, entry.slot, entry.roomId, assignments);
+      final check =
+          checker.checkHard(lesson, entry.slot, entry.roomId, assignments);
       if (check.hardViolation) continue;
 
       // Place the lesson
@@ -157,8 +165,10 @@ class BacktrackSolver {
       assignments.add(assignment);
 
       // Forward check: verify remaining lessons still have non-empty domains
-      if (_forwardCheck(lessonIds, index + 1, assignments, domains, lessonById)) {
-        if (_backtrack(lessonIds, index + 1, assignments, domains, lessonById)) {
+      if (_forwardCheck(
+          lessonIds, index + 1, assignments, domains, lessonById)) {
+        if (_backtrack(
+            lessonIds, index + 1, assignments, domains, lessonById)) {
           return true;
         }
       }
@@ -189,7 +199,8 @@ class BacktrackSolver {
 
       bool hasValid = false;
       for (final entry in domain) {
-        final check = checker.checkHard(lesson, entry.slot, entry.roomId, assignments);
+        final check =
+            checker.checkHard(lesson, entry.slot, entry.roomId, assignments);
         if (!check.hardViolation) {
           hasValid = true;
           break;
@@ -251,7 +262,8 @@ class BacktrackSolver {
     final toLesson = lessonById[arc.to];
     if (fromLesson == null || toLesson == null) return false;
 
-    final shareTeacher = fromLesson.teacherIds.any(toLesson.teacherIds.contains);
+    final shareTeacher =
+        fromLesson.teacherIds.any(toLesson.teacherIds.contains);
     final shareClass = fromLesson.classIds.any(toLesson.classIds.contains);
 
     bool revised = false;

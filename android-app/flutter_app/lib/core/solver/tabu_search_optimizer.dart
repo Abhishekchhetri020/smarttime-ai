@@ -41,9 +41,9 @@ class TabuSearchOptimizer {
 
     // Build SolverState from initial assignments
     var state = SolverState.fromAssignments(payload, initialAssignments);
-    var currentScore =
-        checker.scoreSolutionWithState(state, unscheduledIds, variantIndex)
-            .totalScore;
+    var currentScore = checker
+        .scoreSolutionWithState(state, unscheduledIds, variantIndex)
+        .totalScore;
     var bestState = state.clone();
     var bestScore = currentScore;
 
@@ -85,11 +85,14 @@ class TabuSearchOptimizer {
       // excluding each affected lesson in turn, as the gold-standard check.
       bool valid = true;
       final neighborAssignments = neighborState.allAssignments;
-      
+
       for (final affectedLid in move.affectedLessonIds) {
         final lesson = lessonById[affectedLid];
         final assignment = neighborState.assignmentFor(affectedLid);
-        if (lesson == null || assignment == null) { valid = false; break; }
+        if (lesson == null || assignment == null) {
+          valid = false;
+          break;
+        }
 
         // Build state without this lesson
         final checkState = SolverState(payload);
@@ -105,7 +108,10 @@ class TabuSearchOptimizer {
           SolverSlot(assignment.day, assignment.period),
           assignment.roomId,
         );
-        if (code != 0) { valid = false; break; }
+        if (code != 0) {
+          valid = false;
+          break;
+        }
       }
       if (!valid) continue;
 
@@ -115,8 +121,8 @@ class TabuSearchOptimizer {
           .totalScore;
 
       // Is any affected entity Tabu?
-      final isTabu = move.affectedLessonIds.any(
-          (lid) => entityTabu.containsKey(lid) && entityTabu[lid]! > iter);
+      final isTabu = move.affectedLessonIds
+          .any((lid) => entityTabu.containsKey(lid) && entityTabu[lid]! > iter);
 
       // Aspiration criterion: accept Tabu move if it beats global best
       final aspirationMet = neighborScore < bestScore;
@@ -128,8 +134,7 @@ class TabuSearchOptimizer {
 
       // Accept move?
       final delta = neighborScore - currentScore;
-      final accept = aspirationMet ||
-          (!isTabu && (delta < 0 || lahcAccept));
+      final accept = aspirationMet || (!isTabu && (delta < 0 || lahcAccept));
 
       if (accept) {
         state = neighborState;
@@ -213,8 +218,7 @@ class TabuSearchOptimizer {
         final lb = lessonById[b.lessonId];
         if (la == null || lb == null || la.isPinned || lb.isPinned) return null;
 
-        return _SwapMove(
-            lessonIdA: a.lessonId, lessonIdB: b.lessonId);
+        return _SwapMove(lessonIdA: a.lessonId, lessonIdB: b.lessonId);
 
       case 2: // Room change
         if (payload.rooms.length < 2) return null;

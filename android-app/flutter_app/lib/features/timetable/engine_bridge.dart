@@ -22,9 +22,11 @@ class EnginePayload {
 }
 
 class EngineBridge {
-  static const MethodChannel _channel = MethodChannel('com.smarttime.ai/engine');
+  static const MethodChannel _channel =
+      MethodChannel('com.smarttime.ai/engine');
 
-  static Future<Map<String, dynamic>> triggerSolver(EnginePayload payload) async {
+  static Future<Map<String, dynamic>> triggerSolver(
+      EnginePayload payload) async {
     final response = await _channel.invokeMethod<dynamic>(
       'solve_timetable',
       payload.toMap(),

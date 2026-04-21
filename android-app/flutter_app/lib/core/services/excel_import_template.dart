@@ -22,7 +22,11 @@ class ExcelImportTemplateService {
     await file.writeAsBytes(bytes, flush: true);
 
     await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')],
+      [
+        XFile(file.path,
+            mimeType:
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      ],
       text: 'SmartTime AI Import Template',
     );
   }
@@ -51,7 +55,11 @@ class ExcelImportTemplateService {
     final sheet = excel['Lessons'];
 
     // Instruction row
-    _instructionCell(sheet, 0, 0, 'INSTRUCTIONS: Fill in one row per lesson. '
+    _instructionCell(
+        sheet,
+        0,
+        0,
+        'INSTRUCTIONS: Fill in one row per lesson. '
         'lesson_id is optional (auto-generated if blank). '
         'teacher_name must match the Teachers sheet. '
         'class_name must match the Classes sheet. '
@@ -77,11 +85,43 @@ class ExcelImportTemplateService {
 
     // Example rows
     final examples = [
-      ['L001', 'Grade 10', 'Mathematics', 'Aarav Sharma', '6', 'single', 'Room 101'],
-      ['L002', 'Grade 10', 'Science', 'Priya Verma', '2', 'double', 'Science Lab'],
+      [
+        'L001',
+        'Grade 10',
+        'Mathematics',
+        'Aarav Sharma',
+        '6',
+        'single',
+        'Room 101'
+      ],
+      [
+        'L002',
+        'Grade 10',
+        'Science',
+        'Priya Verma',
+        '2',
+        'double',
+        'Science Lab'
+      ],
       ['L003', 'Grade 10', 'English', 'Ravi Kumar', '5', 'single', ''],
-      ['L004', 'Grade 11', 'Physics', 'Priya Verma', '4', 'single', 'Physics Lab'],
-      ['L005', 'Grade 11', 'Mathematics', 'Aarav Sharma', '5', 'single', 'Room 201'],
+      [
+        'L004',
+        'Grade 11',
+        'Physics',
+        'Priya Verma',
+        '4',
+        'single',
+        'Physics Lab'
+      ],
+      [
+        'L005',
+        'Grade 11',
+        'Mathematics',
+        'Aarav Sharma',
+        '5',
+        'single',
+        'Room 201'
+      ],
     ];
     for (int r = 0; r < examples.length; r++) {
       for (int c = 0; c < examples[r].length; c++) {
@@ -99,7 +139,11 @@ class ExcelImportTemplateService {
   void _buildTeachersSheet(Excel excel) {
     final sheet = excel['Teachers'];
 
-    _instructionCell(sheet, 0, 0, 'INSTRUCTIONS: One row per teacher. '
+    _instructionCell(
+        sheet,
+        0,
+        0,
+        'INSTRUCTIONS: One row per teacher. '
         'teacher_name must be unique. off_days: comma-separated day names. '
         'off_slots: comma-separated "Day-Period" pairs. '
         'max_periods_per_day and max_gaps_per_day are optional.');
@@ -140,7 +184,11 @@ class ExcelImportTemplateService {
   void _buildClassesSheet(Excel excel) {
     final sheet = excel['Classes'];
 
-    _instructionCell(sheet, 0, 0, 'INSTRUCTIONS: One row per class. '
+    _instructionCell(
+        sheet,
+        0,
+        0,
+        'INSTRUCTIONS: One row per class. '
         'class_name must match the names used in the Lessons sheet.');
     sheet.merge(
       CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
@@ -171,7 +219,11 @@ class ExcelImportTemplateService {
   void _buildSubjectsSheet(Excel excel) {
     final sheet = excel['Subjects'];
 
-    _instructionCell(sheet, 0, 0, 'INSTRUCTIONS: One row per subject. '
+    _instructionCell(
+        sheet,
+        0,
+        0,
+        'INSTRUCTIONS: One row per subject. '
         'subject_name must match the names used in the Lessons sheet. '
         'group_id groups related subjects (e.g., "Science" for Physics, Chemistry, Bio).');
     sheet.merge(
@@ -179,7 +231,12 @@ class ExcelImportTemplateService {
       CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0),
     );
 
-    final headers = ['subject_name', 'subject_abbr', 'group_id', 'requires_lab'];
+    final headers = [
+      'subject_name',
+      'subject_abbr',
+      'group_id',
+      'requires_lab'
+    ];
     for (int i = 0; i < headers.length; i++) {
       _headerCell(sheet, 1, i, headers[i]);
     }
@@ -206,7 +263,11 @@ class ExcelImportTemplateService {
   void _buildRoomsSheet(Excel excel) {
     final sheet = excel['Rooms'];
 
-    _instructionCell(sheet, 0, 0, 'INSTRUCTIONS: One row per room. '
+    _instructionCell(
+        sheet,
+        0,
+        0,
+        'INSTRUCTIONS: One row per room. '
         'room_type: standard, lab, computer, art, sports. '
         'capacity is the maximum students.');
     sheet.merge(
@@ -240,7 +301,8 @@ class ExcelImportTemplateService {
   // ── Cell styling helpers ──
 
   void _headerCell(Sheet sheet, int row, int col, String text) {
-    final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
+    final cell =
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
     cell.value = TextCellValue(text);
     cell.cellStyle = CellStyle(
       bold: true,
@@ -252,7 +314,8 @@ class ExcelImportTemplateService {
   }
 
   void _instructionCell(Sheet sheet, int row, int col, String text) {
-    final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
+    final cell =
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
     cell.value = TextCellValue(text);
     cell.cellStyle = CellStyle(
       fontSize: 9,
@@ -263,7 +326,8 @@ class ExcelImportTemplateService {
   }
 
   void _exampleCell(Sheet sheet, int row, int col, String text) {
-    final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
+    final cell =
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
     cell.value = TextCellValue(text);
     cell.cellStyle = CellStyle(
       fontSize: 9,

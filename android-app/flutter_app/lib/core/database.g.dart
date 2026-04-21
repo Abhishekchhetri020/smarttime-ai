@@ -3876,6 +3876,685 @@ class AppStateCompanion extends UpdateCompanion<AppStateData> {
   }
 }
 
+class $DailyAbsencesTable extends DailyAbsences
+    with TableInfo<$DailyAbsencesTable, DailyAbsenceRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailyAbsencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _entityIdMeta =
+      const VerificationMeta('entityId');
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+      'entity_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _entityTypeMeta =
+      const VerificationMeta('entityType');
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+      'entity_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+      'date', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+      'reason', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _substituteIdMeta =
+      const VerificationMeta('substituteId');
+  @override
+  late final GeneratedColumn<String> substituteId = GeneratedColumn<String>(
+      'substitute_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, entityId, entityType, date, reason, substituteId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_absences';
+  @override
+  VerificationContext validateIntegrity(Insertable<DailyAbsenceRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(_entityIdMeta,
+          entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta));
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+          _entityTypeMeta,
+          entityType.isAcceptableOrUnknown(
+              data['entity_type']!, _entityTypeMeta));
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+          _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(_reasonMeta,
+          reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta));
+    }
+    if (data.containsKey('substitute_id')) {
+      context.handle(
+          _substituteIdMeta,
+          substituteId.isAcceptableOrUnknown(
+              data['substitute_id']!, _substituteIdMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DailyAbsenceRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailyAbsenceRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      entityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}entity_id'])!,
+      entityType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}entity_type'])!,
+      date: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!,
+      reason: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}reason']),
+      substituteId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}substitute_id']),
+    );
+  }
+
+  @override
+  $DailyAbsencesTable createAlias(String alias) {
+    return $DailyAbsencesTable(attachedDatabase, alias);
+  }
+}
+
+class DailyAbsenceRow extends DataClass implements Insertable<DailyAbsenceRow> {
+  final int id;
+  final String entityId;
+  final String entityType;
+  final DateTime date;
+  final String? reason;
+  final String? substituteId;
+  const DailyAbsenceRow(
+      {required this.id,
+      required this.entityId,
+      required this.entityType,
+      required this.date,
+      this.reason,
+      this.substituteId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['entity_id'] = Variable<String>(entityId);
+    map['entity_type'] = Variable<String>(entityType);
+    map['date'] = Variable<DateTime>(date);
+    if (!nullToAbsent || reason != null) {
+      map['reason'] = Variable<String>(reason);
+    }
+    if (!nullToAbsent || substituteId != null) {
+      map['substitute_id'] = Variable<String>(substituteId);
+    }
+    return map;
+  }
+
+  DailyAbsencesCompanion toCompanion(bool nullToAbsent) {
+    return DailyAbsencesCompanion(
+      id: Value(id),
+      entityId: Value(entityId),
+      entityType: Value(entityType),
+      date: Value(date),
+      reason:
+          reason == null && nullToAbsent ? const Value.absent() : Value(reason),
+      substituteId: substituteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(substituteId),
+    );
+  }
+
+  factory DailyAbsenceRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailyAbsenceRow(
+      id: serializer.fromJson<int>(json['id']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      date: serializer.fromJson<DateTime>(json['date']),
+      reason: serializer.fromJson<String?>(json['reason']),
+      substituteId: serializer.fromJson<String?>(json['substituteId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'entityId': serializer.toJson<String>(entityId),
+      'entityType': serializer.toJson<String>(entityType),
+      'date': serializer.toJson<DateTime>(date),
+      'reason': serializer.toJson<String?>(reason),
+      'substituteId': serializer.toJson<String?>(substituteId),
+    };
+  }
+
+  DailyAbsenceRow copyWith(
+          {int? id,
+          String? entityId,
+          String? entityType,
+          DateTime? date,
+          Value<String?> reason = const Value.absent(),
+          Value<String?> substituteId = const Value.absent()}) =>
+      DailyAbsenceRow(
+        id: id ?? this.id,
+        entityId: entityId ?? this.entityId,
+        entityType: entityType ?? this.entityType,
+        date: date ?? this.date,
+        reason: reason.present ? reason.value : this.reason,
+        substituteId:
+            substituteId.present ? substituteId.value : this.substituteId,
+      );
+  DailyAbsenceRow copyWithCompanion(DailyAbsencesCompanion data) {
+    return DailyAbsenceRow(
+      id: data.id.present ? data.id.value : this.id,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      entityType:
+          data.entityType.present ? data.entityType.value : this.entityType,
+      date: data.date.present ? data.date.value : this.date,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      substituteId: data.substituteId.present
+          ? data.substituteId.value
+          : this.substituteId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyAbsenceRow(')
+          ..write('id: $id, ')
+          ..write('entityId: $entityId, ')
+          ..write('entityType: $entityType, ')
+          ..write('date: $date, ')
+          ..write('reason: $reason, ')
+          ..write('substituteId: $substituteId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, entityId, entityType, date, reason, substituteId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailyAbsenceRow &&
+          other.id == this.id &&
+          other.entityId == this.entityId &&
+          other.entityType == this.entityType &&
+          other.date == this.date &&
+          other.reason == this.reason &&
+          other.substituteId == this.substituteId);
+}
+
+class DailyAbsencesCompanion extends UpdateCompanion<DailyAbsenceRow> {
+  final Value<int> id;
+  final Value<String> entityId;
+  final Value<String> entityType;
+  final Value<DateTime> date;
+  final Value<String?> reason;
+  final Value<String?> substituteId;
+  const DailyAbsencesCompanion({
+    this.id = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.date = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.substituteId = const Value.absent(),
+  });
+  DailyAbsencesCompanion.insert({
+    this.id = const Value.absent(),
+    required String entityId,
+    required String entityType,
+    required DateTime date,
+    this.reason = const Value.absent(),
+    this.substituteId = const Value.absent(),
+  })  : entityId = Value(entityId),
+        entityType = Value(entityType),
+        date = Value(date);
+  static Insertable<DailyAbsenceRow> custom({
+    Expression<int>? id,
+    Expression<String>? entityId,
+    Expression<String>? entityType,
+    Expression<DateTime>? date,
+    Expression<String>? reason,
+    Expression<String>? substituteId,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entityId != null) 'entity_id': entityId,
+      if (entityType != null) 'entity_type': entityType,
+      if (date != null) 'date': date,
+      if (reason != null) 'reason': reason,
+      if (substituteId != null) 'substitute_id': substituteId,
+    });
+  }
+
+  DailyAbsencesCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? entityId,
+      Value<String>? entityType,
+      Value<DateTime>? date,
+      Value<String?>? reason,
+      Value<String?>? substituteId}) {
+    return DailyAbsencesCompanion(
+      id: id ?? this.id,
+      entityId: entityId ?? this.entityId,
+      entityType: entityType ?? this.entityType,
+      date: date ?? this.date,
+      reason: reason ?? this.reason,
+      substituteId: substituteId ?? this.substituteId,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (substituteId.present) {
+      map['substitute_id'] = Variable<String>(substituteId.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyAbsencesCompanion(')
+          ..write('id: $id, ')
+          ..write('entityId: $entityId, ')
+          ..write('entityType: $entityType, ')
+          ..write('date: $date, ')
+          ..write('reason: $reason, ')
+          ..write('substituteId: $substituteId')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SupervisionsTable extends Supervisions
+    with TableInfo<$SupervisionsTable, SupervisionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SupervisionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _teacherIdMeta =
+      const VerificationMeta('teacherId');
+  @override
+  late final GeneratedColumn<String> teacherId = GeneratedColumn<String>(
+      'teacher_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES teachers (id)'));
+  static const VerificationMeta _dayMeta = const VerificationMeta('day');
+  @override
+  late final GeneratedColumn<int> day = GeneratedColumn<int>(
+      'day', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _periodMeta = const VerificationMeta('period');
+  @override
+  late final GeneratedColumn<int> period = GeneratedColumn<int>(
+      'period', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _roomNameMeta =
+      const VerificationMeta('roomName');
+  @override
+  late final GeneratedColumn<String> roomName = GeneratedColumn<String>(
+      'room_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, teacherId, day, period, roomName, note];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'supervisions';
+  @override
+  VerificationContext validateIntegrity(Insertable<SupervisionRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('teacher_id')) {
+      context.handle(_teacherIdMeta,
+          teacherId.isAcceptableOrUnknown(data['teacher_id']!, _teacherIdMeta));
+    } else if (isInserting) {
+      context.missing(_teacherIdMeta);
+    }
+    if (data.containsKey('day')) {
+      context.handle(
+          _dayMeta, day.isAcceptableOrUnknown(data['day']!, _dayMeta));
+    } else if (isInserting) {
+      context.missing(_dayMeta);
+    }
+    if (data.containsKey('period')) {
+      context.handle(_periodMeta,
+          period.isAcceptableOrUnknown(data['period']!, _periodMeta));
+    } else if (isInserting) {
+      context.missing(_periodMeta);
+    }
+    if (data.containsKey('room_name')) {
+      context.handle(_roomNameMeta,
+          roomName.isAcceptableOrUnknown(data['room_name']!, _roomNameMeta));
+    } else if (isInserting) {
+      context.missing(_roomNameMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SupervisionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SupervisionRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      teacherId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}teacher_id'])!,
+      day: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}day'])!,
+      period: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}period'])!,
+      roomName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}room_name'])!,
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+    );
+  }
+
+  @override
+  $SupervisionsTable createAlias(String alias) {
+    return $SupervisionsTable(attachedDatabase, alias);
+  }
+}
+
+class SupervisionRow extends DataClass implements Insertable<SupervisionRow> {
+  final int id;
+  final String teacherId;
+  final int day;
+  final int period;
+  final String roomName;
+  final String? note;
+  const SupervisionRow(
+      {required this.id,
+      required this.teacherId,
+      required this.day,
+      required this.period,
+      required this.roomName,
+      this.note});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['teacher_id'] = Variable<String>(teacherId);
+    map['day'] = Variable<int>(day);
+    map['period'] = Variable<int>(period);
+    map['room_name'] = Variable<String>(roomName);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    return map;
+  }
+
+  SupervisionsCompanion toCompanion(bool nullToAbsent) {
+    return SupervisionsCompanion(
+      id: Value(id),
+      teacherId: Value(teacherId),
+      day: Value(day),
+      period: Value(period),
+      roomName: Value(roomName),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+    );
+  }
+
+  factory SupervisionRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SupervisionRow(
+      id: serializer.fromJson<int>(json['id']),
+      teacherId: serializer.fromJson<String>(json['teacherId']),
+      day: serializer.fromJson<int>(json['day']),
+      period: serializer.fromJson<int>(json['period']),
+      roomName: serializer.fromJson<String>(json['roomName']),
+      note: serializer.fromJson<String?>(json['note']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'teacherId': serializer.toJson<String>(teacherId),
+      'day': serializer.toJson<int>(day),
+      'period': serializer.toJson<int>(period),
+      'roomName': serializer.toJson<String>(roomName),
+      'note': serializer.toJson<String?>(note),
+    };
+  }
+
+  SupervisionRow copyWith(
+          {int? id,
+          String? teacherId,
+          int? day,
+          int? period,
+          String? roomName,
+          Value<String?> note = const Value.absent()}) =>
+      SupervisionRow(
+        id: id ?? this.id,
+        teacherId: teacherId ?? this.teacherId,
+        day: day ?? this.day,
+        period: period ?? this.period,
+        roomName: roomName ?? this.roomName,
+        note: note.present ? note.value : this.note,
+      );
+  SupervisionRow copyWithCompanion(SupervisionsCompanion data) {
+    return SupervisionRow(
+      id: data.id.present ? data.id.value : this.id,
+      teacherId: data.teacherId.present ? data.teacherId.value : this.teacherId,
+      day: data.day.present ? data.day.value : this.day,
+      period: data.period.present ? data.period.value : this.period,
+      roomName: data.roomName.present ? data.roomName.value : this.roomName,
+      note: data.note.present ? data.note.value : this.note,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SupervisionRow(')
+          ..write('id: $id, ')
+          ..write('teacherId: $teacherId, ')
+          ..write('day: $day, ')
+          ..write('period: $period, ')
+          ..write('roomName: $roomName, ')
+          ..write('note: $note')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, teacherId, day, period, roomName, note);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SupervisionRow &&
+          other.id == this.id &&
+          other.teacherId == this.teacherId &&
+          other.day == this.day &&
+          other.period == this.period &&
+          other.roomName == this.roomName &&
+          other.note == this.note);
+}
+
+class SupervisionsCompanion extends UpdateCompanion<SupervisionRow> {
+  final Value<int> id;
+  final Value<String> teacherId;
+  final Value<int> day;
+  final Value<int> period;
+  final Value<String> roomName;
+  final Value<String?> note;
+  const SupervisionsCompanion({
+    this.id = const Value.absent(),
+    this.teacherId = const Value.absent(),
+    this.day = const Value.absent(),
+    this.period = const Value.absent(),
+    this.roomName = const Value.absent(),
+    this.note = const Value.absent(),
+  });
+  SupervisionsCompanion.insert({
+    this.id = const Value.absent(),
+    required String teacherId,
+    required int day,
+    required int period,
+    required String roomName,
+    this.note = const Value.absent(),
+  })  : teacherId = Value(teacherId),
+        day = Value(day),
+        period = Value(period),
+        roomName = Value(roomName);
+  static Insertable<SupervisionRow> custom({
+    Expression<int>? id,
+    Expression<String>? teacherId,
+    Expression<int>? day,
+    Expression<int>? period,
+    Expression<String>? roomName,
+    Expression<String>? note,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (teacherId != null) 'teacher_id': teacherId,
+      if (day != null) 'day': day,
+      if (period != null) 'period': period,
+      if (roomName != null) 'room_name': roomName,
+      if (note != null) 'note': note,
+    });
+  }
+
+  SupervisionsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? teacherId,
+      Value<int>? day,
+      Value<int>? period,
+      Value<String>? roomName,
+      Value<String?>? note}) {
+    return SupervisionsCompanion(
+      id: id ?? this.id,
+      teacherId: teacherId ?? this.teacherId,
+      day: day ?? this.day,
+      period: period ?? this.period,
+      roomName: roomName ?? this.roomName,
+      note: note ?? this.note,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (teacherId.present) {
+      map['teacher_id'] = Variable<String>(teacherId.value);
+    }
+    if (day.present) {
+      map['day'] = Variable<int>(day.value);
+    }
+    if (period.present) {
+      map['period'] = Variable<int>(period.value);
+    }
+    if (roomName.present) {
+      map['room_name'] = Variable<String>(roomName.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SupervisionsCompanion(')
+          ..write('id: $id, ')
+          ..write('teacherId: $teacherId, ')
+          ..write('day: $day, ')
+          ..write('period: $period, ')
+          ..write('roomName: $roomName, ')
+          ..write('note: $note')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3893,6 +4572,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SoftConstraintProfilesTable softConstraintProfiles =
       $SoftConstraintProfilesTable(this);
   late final $AppStateTable appState = $AppStateTable(this);
+  late final $DailyAbsencesTable dailyAbsences = $DailyAbsencesTable(this);
+  late final $SupervisionsTable supervisions = $SupervisionsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3909,7 +4590,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         lessonTeachers,
         entityTimeOff,
         softConstraintProfiles,
-        appState
+        appState,
+        dailyAbsences,
+        supervisions
       ];
 }
 
@@ -4872,6 +5555,21 @@ final class $$TeachersTableReferences
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
+
+  static MultiTypedResultKey<$SupervisionsTable, List<SupervisionRow>>
+      _supervisionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.supervisions,
+          aliasName:
+              $_aliasNameGenerator(db.teachers.id, db.supervisions.teacherId));
+
+  $$SupervisionsTableProcessedTableManager get supervisionsRefs {
+    final manager = $$SupervisionsTableTableManager($_db, $_db.supervisions)
+        .filter((f) => f.teacherId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_supervisionsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 }
 
 class $$TeachersTableFilterComposer
@@ -4938,6 +5636,27 @@ class $$TeachersTableFilterComposer
             $$LessonTeachersTableFilterComposer(
               $db: $db,
               $table: $db.lessonTeachers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> supervisionsRefs(
+      Expression<bool> Function($$SupervisionsTableFilterComposer f) f) {
+    final $$SupervisionsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.supervisions,
+        getReferencedColumn: (t) => t.teacherId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SupervisionsTableFilterComposer(
+              $db: $db,
+              $table: $db.supervisions,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -5048,6 +5767,27 @@ class $$TeachersTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> supervisionsRefs<T extends Object>(
+      Expression<T> Function($$SupervisionsTableAnnotationComposer a) f) {
+    final $$SupervisionsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.supervisions,
+        getReferencedColumn: (t) => t.teacherId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SupervisionsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.supervisions,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$TeachersTableTableManager extends RootTableManager<
@@ -5062,7 +5802,9 @@ class $$TeachersTableTableManager extends RootTableManager<
     (TeacherRow, $$TeachersTableReferences),
     TeacherRow,
     PrefetchHooks Function(
-        {bool teacherUnavailabilityRefs, bool lessonTeachersRefs})> {
+        {bool teacherUnavailabilityRefs,
+        bool lessonTeachersRefs,
+        bool supervisionsRefs})> {
   $$TeachersTableTableManager(_$AppDatabase db, $TeachersTable table)
       : super(TableManagerState(
           db: db,
@@ -5114,12 +5856,15 @@ class $$TeachersTableTableManager extends RootTableManager<
                   (e.readTable(table), $$TeachersTableReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: (
-              {teacherUnavailabilityRefs = false, lessonTeachersRefs = false}) {
+              {teacherUnavailabilityRefs = false,
+              lessonTeachersRefs = false,
+              supervisionsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
                 if (teacherUnavailabilityRefs) db.teacherUnavailability,
-                if (lessonTeachersRefs) db.lessonTeachers
+                if (lessonTeachersRefs) db.lessonTeachers,
+                if (supervisionsRefs) db.supervisions
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
@@ -5149,6 +5894,19 @@ class $$TeachersTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem:
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.teacherId == item.id),
+                        typedResults: items),
+                  if (supervisionsRefs)
+                    await $_getPrefetchedData<TeacherRow, $TeachersTable,
+                            SupervisionRow>(
+                        currentTable: table,
+                        referencedTable: $$TeachersTableReferences
+                            ._supervisionsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$TeachersTableReferences(db, table, p0)
+                                .supervisionsRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.teacherId == item.id),
                         typedResults: items)
                 ];
               },
@@ -5169,7 +5927,9 @@ typedef $$TeachersTableProcessedTableManager = ProcessedTableManager<
     (TeacherRow, $$TeachersTableReferences),
     TeacherRow,
     PrefetchHooks Function(
-        {bool teacherUnavailabilityRefs, bool lessonTeachersRefs})>;
+        {bool teacherUnavailabilityRefs,
+        bool lessonTeachersRefs,
+        bool supervisionsRefs})>;
 typedef $$TeacherUnavailabilityTableCreateCompanionBuilder
     = TeacherUnavailabilityCompanion Function({
   required String id,
@@ -7555,6 +8315,473 @@ typedef $$AppStateTableProcessedTableManager = ProcessedTableManager<
     (AppStateData, BaseReferences<_$AppDatabase, $AppStateTable, AppStateData>),
     AppStateData,
     PrefetchHooks Function()>;
+typedef $$DailyAbsencesTableCreateCompanionBuilder = DailyAbsencesCompanion
+    Function({
+  Value<int> id,
+  required String entityId,
+  required String entityType,
+  required DateTime date,
+  Value<String?> reason,
+  Value<String?> substituteId,
+});
+typedef $$DailyAbsencesTableUpdateCompanionBuilder = DailyAbsencesCompanion
+    Function({
+  Value<int> id,
+  Value<String> entityId,
+  Value<String> entityType,
+  Value<DateTime> date,
+  Value<String?> reason,
+  Value<String?> substituteId,
+});
+
+class $$DailyAbsencesTableFilterComposer
+    extends Composer<_$AppDatabase, $DailyAbsencesTable> {
+  $$DailyAbsencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+      column: $table.entityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+      column: $table.entityType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get reason => $composableBuilder(
+      column: $table.reason, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get substituteId => $composableBuilder(
+      column: $table.substituteId, builder: (column) => ColumnFilters(column));
+}
+
+class $$DailyAbsencesTableOrderingComposer
+    extends Composer<_$AppDatabase, $DailyAbsencesTable> {
+  $$DailyAbsencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+      column: $table.entityId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+      column: $table.entityType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+      column: $table.reason, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get substituteId => $composableBuilder(
+      column: $table.substituteId,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$DailyAbsencesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DailyAbsencesTable> {
+  $$DailyAbsencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+      column: $table.entityType, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get substituteId => $composableBuilder(
+      column: $table.substituteId, builder: (column) => column);
+}
+
+class $$DailyAbsencesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $DailyAbsencesTable,
+    DailyAbsenceRow,
+    $$DailyAbsencesTableFilterComposer,
+    $$DailyAbsencesTableOrderingComposer,
+    $$DailyAbsencesTableAnnotationComposer,
+    $$DailyAbsencesTableCreateCompanionBuilder,
+    $$DailyAbsencesTableUpdateCompanionBuilder,
+    (
+      DailyAbsenceRow,
+      BaseReferences<_$AppDatabase, $DailyAbsencesTable, DailyAbsenceRow>
+    ),
+    DailyAbsenceRow,
+    PrefetchHooks Function()> {
+  $$DailyAbsencesTableTableManager(_$AppDatabase db, $DailyAbsencesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DailyAbsencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DailyAbsencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DailyAbsencesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> entityId = const Value.absent(),
+            Value<String> entityType = const Value.absent(),
+            Value<DateTime> date = const Value.absent(),
+            Value<String?> reason = const Value.absent(),
+            Value<String?> substituteId = const Value.absent(),
+          }) =>
+              DailyAbsencesCompanion(
+            id: id,
+            entityId: entityId,
+            entityType: entityType,
+            date: date,
+            reason: reason,
+            substituteId: substituteId,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String entityId,
+            required String entityType,
+            required DateTime date,
+            Value<String?> reason = const Value.absent(),
+            Value<String?> substituteId = const Value.absent(),
+          }) =>
+              DailyAbsencesCompanion.insert(
+            id: id,
+            entityId: entityId,
+            entityType: entityType,
+            date: date,
+            reason: reason,
+            substituteId: substituteId,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$DailyAbsencesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $DailyAbsencesTable,
+    DailyAbsenceRow,
+    $$DailyAbsencesTableFilterComposer,
+    $$DailyAbsencesTableOrderingComposer,
+    $$DailyAbsencesTableAnnotationComposer,
+    $$DailyAbsencesTableCreateCompanionBuilder,
+    $$DailyAbsencesTableUpdateCompanionBuilder,
+    (
+      DailyAbsenceRow,
+      BaseReferences<_$AppDatabase, $DailyAbsencesTable, DailyAbsenceRow>
+    ),
+    DailyAbsenceRow,
+    PrefetchHooks Function()>;
+typedef $$SupervisionsTableCreateCompanionBuilder = SupervisionsCompanion
+    Function({
+  Value<int> id,
+  required String teacherId,
+  required int day,
+  required int period,
+  required String roomName,
+  Value<String?> note,
+});
+typedef $$SupervisionsTableUpdateCompanionBuilder = SupervisionsCompanion
+    Function({
+  Value<int> id,
+  Value<String> teacherId,
+  Value<int> day,
+  Value<int> period,
+  Value<String> roomName,
+  Value<String?> note,
+});
+
+final class $$SupervisionsTableReferences
+    extends BaseReferences<_$AppDatabase, $SupervisionsTable, SupervisionRow> {
+  $$SupervisionsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $TeachersTable _teacherIdTable(_$AppDatabase db) =>
+      db.teachers.createAlias(
+          $_aliasNameGenerator(db.supervisions.teacherId, db.teachers.id));
+
+  $$TeachersTableProcessedTableManager get teacherId {
+    final $_column = $_itemColumn<String>('teacher_id')!;
+
+    final manager = $$TeachersTableTableManager($_db, $_db.teachers)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_teacherIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$SupervisionsTableFilterComposer
+    extends Composer<_$AppDatabase, $SupervisionsTable> {
+  $$SupervisionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get day => $composableBuilder(
+      column: $table.day, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get period => $composableBuilder(
+      column: $table.period, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get roomName => $composableBuilder(
+      column: $table.roomName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  $$TeachersTableFilterComposer get teacherId {
+    final $$TeachersTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.teacherId,
+        referencedTable: $db.teachers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$TeachersTableFilterComposer(
+              $db: $db,
+              $table: $db.teachers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$SupervisionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SupervisionsTable> {
+  $$SupervisionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get day => $composableBuilder(
+      column: $table.day, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get period => $composableBuilder(
+      column: $table.period, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get roomName => $composableBuilder(
+      column: $table.roomName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  $$TeachersTableOrderingComposer get teacherId {
+    final $$TeachersTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.teacherId,
+        referencedTable: $db.teachers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$TeachersTableOrderingComposer(
+              $db: $db,
+              $table: $db.teachers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$SupervisionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SupervisionsTable> {
+  $$SupervisionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get day =>
+      $composableBuilder(column: $table.day, builder: (column) => column);
+
+  GeneratedColumn<int> get period =>
+      $composableBuilder(column: $table.period, builder: (column) => column);
+
+  GeneratedColumn<String> get roomName =>
+      $composableBuilder(column: $table.roomName, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  $$TeachersTableAnnotationComposer get teacherId {
+    final $$TeachersTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.teacherId,
+        referencedTable: $db.teachers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$TeachersTableAnnotationComposer(
+              $db: $db,
+              $table: $db.teachers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$SupervisionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SupervisionsTable,
+    SupervisionRow,
+    $$SupervisionsTableFilterComposer,
+    $$SupervisionsTableOrderingComposer,
+    $$SupervisionsTableAnnotationComposer,
+    $$SupervisionsTableCreateCompanionBuilder,
+    $$SupervisionsTableUpdateCompanionBuilder,
+    (SupervisionRow, $$SupervisionsTableReferences),
+    SupervisionRow,
+    PrefetchHooks Function({bool teacherId})> {
+  $$SupervisionsTableTableManager(_$AppDatabase db, $SupervisionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SupervisionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SupervisionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SupervisionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> teacherId = const Value.absent(),
+            Value<int> day = const Value.absent(),
+            Value<int> period = const Value.absent(),
+            Value<String> roomName = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+          }) =>
+              SupervisionsCompanion(
+            id: id,
+            teacherId: teacherId,
+            day: day,
+            period: period,
+            roomName: roomName,
+            note: note,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String teacherId,
+            required int day,
+            required int period,
+            required String roomName,
+            Value<String?> note = const Value.absent(),
+          }) =>
+              SupervisionsCompanion.insert(
+            id: id,
+            teacherId: teacherId,
+            day: day,
+            period: period,
+            roomName: roomName,
+            note: note,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$SupervisionsTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({teacherId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (teacherId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.teacherId,
+                    referencedTable:
+                        $$SupervisionsTableReferences._teacherIdTable(db),
+                    referencedColumn:
+                        $$SupervisionsTableReferences._teacherIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$SupervisionsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SupervisionsTable,
+    SupervisionRow,
+    $$SupervisionsTableFilterComposer,
+    $$SupervisionsTableOrderingComposer,
+    $$SupervisionsTableAnnotationComposer,
+    $$SupervisionsTableCreateCompanionBuilder,
+    $$SupervisionsTableUpdateCompanionBuilder,
+    (SupervisionRow, $$SupervisionsTableReferences),
+    SupervisionRow,
+    PrefetchHooks Function({bool teacherId})>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7584,4 +8811,8 @@ class $AppDatabaseManager {
           _db, _db.softConstraintProfiles);
   $$AppStateTableTableManager get appState =>
       $$AppStateTableTableManager(_db, _db.appState);
+  $$DailyAbsencesTableTableManager get dailyAbsences =>
+      $$DailyAbsencesTableTableManager(_db, _db.dailyAbsences);
+  $$SupervisionsTableTableManager get supervisions =>
+      $$SupervisionsTableTableManager(_db, _db.supervisions);
 }

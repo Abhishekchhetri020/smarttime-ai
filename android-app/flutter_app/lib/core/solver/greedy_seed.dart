@@ -47,7 +47,8 @@ class GreedySeed {
       // Pinned lessons go directly
       if (lesson.isPinned && lesson.pinnedSlot != null) {
         final roomId = _assignRoom(lesson, lesson.pinnedSlot!, roomUsage);
-        final check = checker.checkHard(lesson, lesson.pinnedSlot!, roomId, assignments);
+        final check =
+            checker.checkHard(lesson, lesson.pinnedSlot!, roomId, assignments);
         if (!check.hardViolation) {
           final assignment = SolverAssignment(
             lessonId: lesson.id,
@@ -58,7 +59,8 @@ class GreedySeed {
           assignments.add(assignment);
           _trackRoom(roomUsage, lesson.pinnedSlot!, roomId);
           if (lesson.isDouble) {
-            final nextSlot = SolverSlot(lesson.pinnedSlot!.day, lesson.pinnedSlot!.period + 1);
+            final nextSlot = SolverSlot(
+                lesson.pinnedSlot!.day, lesson.pinnedSlot!.period + 1);
             _trackRoom(roomUsage, nextSlot, roomId);
           }
         } else {
@@ -145,10 +147,12 @@ class GreedySeed {
 
       // Teachers with more time-off constraints = harder
       final aUnavail = a.teacherIds
-          .map((tid) => payload.teacherProfiles[tid]?.unavailableSlots.length ?? 0)
+          .map((tid) =>
+              payload.teacherProfiles[tid]?.unavailableSlots.length ?? 0)
           .fold<int>(0, (sum, v) => sum + v);
       final bUnavail = b.teacherIds
-          .map((tid) => payload.teacherProfiles[tid]?.unavailableSlots.length ?? 0)
+          .map((tid) =>
+              payload.teacherProfiles[tid]?.unavailableSlots.length ?? 0)
           .fold<int>(0, (sum, v) => sum + v);
       return bUnavail.compareTo(aUnavail);
     });
@@ -191,7 +195,8 @@ class GreedySeed {
     return '';
   }
 
-  void _trackRoom(Map<SolverSlot, Set<String>> usage, SolverSlot slot, String roomId) {
+  void _trackRoom(
+      Map<SolverSlot, Set<String>> usage, SolverSlot slot, String roomId) {
     usage.putIfAbsent(slot, () => <String>{}).add(roomId);
   }
 
@@ -204,16 +209,13 @@ class GreedySeed {
     double score = 0;
 
     // Prefer distributing across days evenly
-    final sameDayCount = assignments
-        .where((a) => a.day == slot.day)
-        .where((a) {
-          final l = payload.lessons.firstWhere(
-            (l) => l.id == a.lessonId,
-            orElse: () => lesson,
-          );
-          return l.teacherIds.any(lesson.teacherIds.contains);
-        })
-        .length;
+    final sameDayCount = assignments.where((a) => a.day == slot.day).where((a) {
+      final l = payload.lessons.firstWhere(
+        (l) => l.id == a.lessonId,
+        orElse: () => lesson,
+      );
+      return l.teacherIds.any(lesson.teacherIds.contains);
+    }).length;
     score += sameDayCount * 2.0;
 
     // Prefer minimizing gaps for the teacher
@@ -233,23 +235,23 @@ class GreedySeed {
         ..sort();
 
       if (teacherPeriods.length >= 2) {
-        final gaps = teacherPeriods.last - teacherPeriods.first - (teacherPeriods.length - 1);
+        final gaps = teacherPeriods.last -
+            teacherPeriods.first -
+            (teacherPeriods.length - 1);
         score += gaps * 1.5;
       }
     }
 
     // Avoid same subject on same day for same class
     for (final cid in lesson.classIds) {
-      final sameDaySameSubject = assignments
-          .where((a) => a.day == slot.day)
-          .where((a) {
-            final l = payload.lessons.firstWhere(
-              (l) => l.id == a.lessonId,
-              orElse: () => lesson,
-            );
-            return l.classIds.contains(cid) && l.subjectId == lesson.subjectId;
-          })
-          .length;
+      final sameDaySameSubject =
+          assignments.where((a) => a.day == slot.day).where((a) {
+        final l = payload.lessons.firstWhere(
+          (l) => l.id == a.lessonId,
+          orElse: () => lesson,
+        );
+        return l.classIds.contains(cid) && l.subjectId == lesson.subjectId;
+      }).length;
       score += sameDaySameSubject * 5.0;
     }
 
@@ -259,7 +261,8 @@ class GreedySeed {
       if (subProfile.preferMorning && slot.period >= 4) {
         score += 1.0;
       }
-      if (subProfile.avoidLastPeriod && slot.period == payload.periodsPerDay - 1) {
+      if (subProfile.avoidLastPeriod &&
+          slot.period == payload.periodsPerDay - 1) {
         score += 2.0;
       }
     }

@@ -21,11 +21,13 @@ class PdfExportService {
     if (db == null) throw StateError('Database not available');
 
     final schoolName = planner.schoolName;
-    await _cockpitService.printCockpitMasterPdf(db, planner.dbId, schoolName: schoolName);
+    await _cockpitService.printCockpitMasterPdf(db, planner.dbId,
+        schoolName: schoolName);
   }
 
   /// Build and return the PDF bytes without printing (for sharing).
-  Future<void> shareAsPdf(AppDatabase db, int dbId, {String? schoolName}) async {
+  Future<void> shareAsPdf(AppDatabase db, int dbId,
+      {String? schoolName}) async {
     final bytes = await _cockpitService.buildWorkbookPdf(
       db,
       dbId,

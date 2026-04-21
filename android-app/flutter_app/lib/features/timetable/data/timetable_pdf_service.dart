@@ -10,9 +10,9 @@ import '../presentation/controllers/solver_controller.dart';
 import '../timetable_display.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ASC-style Timetable PDF Service
+// SmartTime-style Timetable PDF Service
 //
-// Produces industry-standard timetable PDFs matching the aSc Timetables format:
+// Produces industry-standard timetable PDFs matching the SmartTime Timetables format:
 //   – Days as ROWS (Mo, Tu, We, …), periods as COLUMNS
 //   – Two-line column headers (ordinal + time range)
 //   – Break columns with rotated vertical text
@@ -22,7 +22,6 @@ import '../timetable_display.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class TimetablePdfService {
-
   Future<Uint8List> buildMasterGridPdf({
     required List<TimetableAssignment> assignments,
     required int days,
@@ -119,7 +118,7 @@ class TimetablePdfService {
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
           margin: const pw.EdgeInsets.all(20),
-          build: (_) => _buildAscPage(
+          build: (_) => _buildSmartTimePage(
             schoolName: resolvedSchoolName,
             entityName: classLabel,
             subtitle: classTeacherMap[classId] != null
@@ -147,7 +146,7 @@ class TimetablePdfService {
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
           margin: const pw.EdgeInsets.all(20),
-          build: (_) => _buildAscPage(
+          build: (_) => _buildSmartTimePage(
             schoolName: resolvedSchoolName,
             entityName: catalog.teacherLabel(teacherId),
             cards: pageCards,
@@ -164,16 +163,15 @@ class TimetablePdfService {
 
     // ── Room-wise pages ──
     for (final roomId in roomIds) {
-      final pageCards = cards
-          .where((card) => card.roomId == roomId)
-          .toList(growable: false);
+      final pageCards =
+          cards.where((card) => card.roomId == roomId).toList(growable: false);
       if (pageCards.isEmpty) continue;
       final roomLabel = catalog.roomLabel(roomId) ?? roomId;
       doc.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
           margin: const pw.EdgeInsets.all(20),
-          build: (_) => _buildAscPage(
+          build: (_) => _buildSmartTimePage(
             schoolName: resolvedSchoolName,
             entityName: roomLabel,
             cards: pageCards,
@@ -223,8 +221,10 @@ class TimetablePdfService {
     }
 
     // Collect entity IDs.
-    final classIds = assignments.expand((a) => a.classIds).toSet().toList()..sort();
-    final teacherIds = assignments.expand((a) => a.teacherIds).toSet().toList()..sort();
+    final classIds = assignments.expand((a) => a.classIds).toSet().toList()
+      ..sort();
+    final teacherIds = assignments.expand((a) => a.teacherIds).toSet().toList()
+      ..sort();
     final roomIds = assignments
         .map((a) => a.roomId)
         .where((id) => id.isNotEmpty)
@@ -244,7 +244,7 @@ class TimetablePdfService {
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
           margin: const pw.EdgeInsets.all(20),
-          build: (_) => _buildAscPage(
+          build: (_) => _buildSmartTimePage(
             schoolName: schoolName,
             entityName: catalog.classLabel(classId),
             cards: pageCards,
@@ -269,7 +269,7 @@ class TimetablePdfService {
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
           margin: const pw.EdgeInsets.all(20),
-          build: (_) => _buildAscPage(
+          build: (_) => _buildSmartTimePage(
             schoolName: schoolName,
             entityName: catalog.teacherLabel(teacherId),
             cards: pageCards,
@@ -286,16 +286,15 @@ class TimetablePdfService {
 
     // ── Room-wise pages ──
     for (final roomId in roomIds) {
-      final pageCards = cards
-          .where((c) => c.roomId == roomId)
-          .toList(growable: false);
+      final pageCards =
+          cards.where((c) => c.roomId == roomId).toList(growable: false);
       if (pageCards.isEmpty) continue;
       final roomLabel = catalog.roomLabel(roomId) ?? roomId;
       doc.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
           margin: const pw.EdgeInsets.all(20),
-          build: (_) => _buildAscPage(
+          build: (_) => _buildSmartTimePage(
             schoolName: schoolName,
             entityName: roomLabel,
             cards: pageCards,
@@ -313,7 +312,8 @@ class TimetablePdfService {
     return doc.save();
   }
 
-  Future<void> printCockpitMasterPdf(AppDatabase db, int dbId, {String? schoolName}) async {
+  Future<void> printCockpitMasterPdf(AppDatabase db, int dbId,
+      {String? schoolName}) async {
     final bytes = await buildWorkbookPdf(db, dbId);
     await Printing.layoutPdf(
       onLayout: (_) async => bytes,
@@ -336,7 +336,7 @@ enum _PdfSecondaryMode { teacher, classroom, classAndTeacher }
 
 const _dayAbbrs = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-/// ASC-style ordinal labels: 1st, 2nd, 3rd, 4th, …
+/// SmartTime-style ordinal labels: 1st, 2nd, 3rd, 4th, …
 String _ordinalLabel(int index) {
   final n = index + 1;
   if (n == 1) return '1st';
@@ -345,9 +345,9 @@ String _ordinalLabel(int index) {
   return '${n}th';
 }
 
-// ─── ASC Page Builder ────────────────────────────────────────────────────────
+// ─── SmartTime Page Builder ────────────────────────────────────────────────────────
 
-pw.Widget _buildAscPage({
+pw.Widget _buildSmartTimePage({
   required String schoolName,
   required String entityName,
   String? subtitle,
@@ -362,12 +362,13 @@ pw.Widget _buildAscPage({
   return pw.Column(
     children: [
       // ── Header ──
-      _buildAscHeader(schoolName: schoolName, entityName: entityName, subtitle: subtitle),
+      _buildSmartTimeHeader(
+          schoolName: schoolName, entityName: entityName, subtitle: subtitle),
       pw.SizedBox(height: 6),
 
       // ── Grid ──
       pw.Expanded(
-        child: _buildAscGrid(
+        child: _buildSmartTimeGrid(
           cards: cards,
           lessonById: lessonById,
           catalog: catalog,
@@ -379,14 +380,14 @@ pw.Widget _buildAscPage({
 
       // ── Footer ──
       pw.SizedBox(height: 4),
-      _buildAscFooter(dateStamp: dateStamp),
+      _buildSmartTimeFooter(dateStamp: dateStamp),
     ],
   );
 }
 
-// ─── ASC Header ──────────────────────────────────────────────────────────────
+// ─── SmartTime Header ──────────────────────────────────────────────────────────────
 
-pw.Widget _buildAscHeader({
+pw.Widget _buildSmartTimeHeader({
   required String schoolName,
   required String entityName,
   String? subtitle,
@@ -466,9 +467,9 @@ pw.Widget _buildAscHeader({
   );
 }
 
-// ─── ASC Footer ──────────────────────────────────────────────────────────────
+// ─── SmartTime Footer ──────────────────────────────────────────────────────────────
 
-pw.Widget _buildAscFooter({required String dateStamp}) {
+pw.Widget _buildSmartTimeFooter({required String dateStamp}) {
   return pw.Row(
     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
     children: [
@@ -484,9 +485,9 @@ pw.Widget _buildAscFooter({required String dateStamp}) {
   );
 }
 
-// ─── ASC Grid (Days as rows, Periods as columns) ─────────────────────────────
+// ─── SmartTime Grid (Days as rows, Periods as columns) ─────────────────────────────
 
-pw.Widget _buildAscGrid({
+pw.Widget _buildSmartTimeGrid({
   required List<CardRow> cards,
   required Map<String, LessonRow> lessonById,
   required TimetableDisplayCatalog catalog,
@@ -530,7 +531,8 @@ pw.Widget _buildAscGrid({
         secondary: '${existing.secondary}\n$secondary',
       );
     } else {
-      grid[dayIdx][slotIdx] = _CellContent(subject: subject, secondary: secondary);
+      grid[dayIdx][slotIdx] =
+          _CellContent(subject: subject, secondary: secondary);
     }
   }
 
@@ -548,7 +550,8 @@ pw.Widget _buildAscGrid({
     }
   }
   if (breakStart != null) {
-    breakGroups.add(_BreakGroup(startSlot: breakStart, endSlot: slots.length - 1));
+    breakGroups
+        .add(_BreakGroup(startSlot: breakStart, endSlot: slots.length - 1));
   }
 
   // Count period slots (non-break) for ordinal labeling
@@ -567,7 +570,8 @@ pw.Widget _buildAscGrid({
   final dayColWidth = 42.0;
   // Calculate period column width to fill remaining space
   final availableWidth = PdfPageFormat.a4.landscape.width - 40; // margins
-  final totalBreakWidth = breakGroups.fold<double>(0, (sum, bg) => sum + breakColWidth);
+  final totalBreakWidth =
+      breakGroups.fold<double>(0, (sum, bg) => sum + breakColWidth);
   final nonBreakSlots = slots.where((s) => !s.isBreak).length;
   final periodColWidth = nonBreakSlots > 0
       ? (availableWidth - dayColWidth - totalBreakWidth) / nonBreakSlots
@@ -580,7 +584,8 @@ pw.Widget _buildAscGrid({
   for (int s = 0; s < slots.length; s++) {
     if (slots[s].isBreak) {
       // Check if this break is the first in its group
-      final bg = breakGroups.firstWhere((g) => g.startSlot == s, orElse: () => _BreakGroup(startSlot: -1, endSlot: -1));
+      final bg = breakGroups.firstWhere((g) => g.startSlot == s,
+          orElse: () => _BreakGroup(startSlot: -1, endSlot: -1));
       if (bg.startSlot == s) {
         colWidths[colIdx] = pw.FixedColumnWidth(breakColWidth);
         colIdx++;
@@ -596,7 +601,8 @@ pw.Widget _buildAscGrid({
   final flatSlots = <_FlatSlot>[];
   for (int s = 0; s < slots.length; s++) {
     if (slots[s].isBreak) {
-      final bg = breakGroups.firstWhere((g) => g.startSlot <= s && g.endSlot >= s);
+      final bg =
+          breakGroups.firstWhere((g) => g.startSlot <= s && g.endSlot >= s);
       if (bg.startSlot == s) {
         // Build break label from all break slots in the group
         final labels = <String>[];
@@ -647,7 +653,8 @@ pw.Widget _buildAscGrid({
               ? pw.Text(
                   'Break',
                   textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
+                  style:
+                      pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
                 )
               : pw.Column(
                   mainAxisAlignment: pw.MainAxisAlignment.center,
@@ -655,7 +662,8 @@ pw.Widget _buildAscGrid({
                     pw.Text(
                       fs.label,
                       textAlign: pw.TextAlign.center,
-                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+                      style: pw.TextStyle(
+                          fontSize: 11, fontWeight: pw.FontWeight.bold),
                     ),
                     if (fs.timeRange != null)
                       pw.Text(
@@ -692,7 +700,8 @@ pw.Widget _buildAscGrid({
         for (final fs in flatSlots)
           fs.isBreak
               ? _buildBreakCell(fs.label, cellHeight)
-              : _buildContentCell(grid[d][fs.slotIndex!], cellHeight, secondaryMode),
+              : _buildContentCell(
+                  grid[d][fs.slotIndex!], cellHeight, secondaryMode),
       ],
     ));
   }
@@ -732,7 +741,8 @@ pw.Widget _buildBreakCell(String label, double height) {
 
 // ─── Content Cell ────────────────────────────────────────────────────────────
 
-pw.Widget _buildContentCell(_CellContent? content, double height, _PdfSecondaryMode mode) {
+pw.Widget _buildContentCell(
+    _CellContent? content, double height, _PdfSecondaryMode mode) {
   if (content == null) {
     return pw.Container(
       height: height,
@@ -906,7 +916,8 @@ Future<Uint8List> _buildMasterPdfBytes(Map<String, dynamic> input) async {
             pw.TableRow(
               children: [
                 _legacyHeaderCell('P\\D'),
-                for (int day = 1; day <= days; day++) _legacyHeaderCell('Day $day'),
+                for (int day = 1; day <= days; day++)
+                  _legacyHeaderCell('Day $day'),
               ],
             ),
             for (int period = 1; period <= periodsPerDay; period++)

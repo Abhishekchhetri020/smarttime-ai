@@ -59,6 +59,7 @@ class DartSolverPayloadMapper {
       rooms.add(SolverRoom(
         id: r.id,
         roomType: r.roomType,
+        buildingId: r.buildingName,
       ));
     }
     // If no classrooms configured, rooms stays empty — solver will skip room assignment
@@ -91,9 +92,21 @@ class DartSolverPayloadMapper {
       }
     }
 
+    // ── Card Relationships ──
+    final cardRelationships = planner.cardRelationships
+        .where((r) => r.isActive)
+        .map((r) => SolverCardRelationship(
+              condition: r.condition,
+              importance: r.importance,
+              subjectIds: r.subjectIds,
+              classIds: r.classIds,
+            ))
+        .toList();
+
     return SolverPayload(
       days: planner.workingDays,
-      periodsPerDay: planner.bellTimes.isNotEmpty ? planner.bellTimes.length : 8,
+      periodsPerDay:
+          planner.bellTimes.isNotEmpty ? planner.bellTimes.length : 8,
       timeoutMs: timeoutMs,
       lessons: lessons,
       rooms: rooms,
@@ -101,6 +114,7 @@ class DartSolverPayloadMapper {
       classProfiles: classProfiles,
       subjectProfiles: subjectProfiles,
       variantCount: variantCount,
+      cardRelationships: cardRelationships,
     );
   }
 }

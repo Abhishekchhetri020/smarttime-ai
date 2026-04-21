@@ -225,7 +225,8 @@ abstract class EngineConstraint {
     SolverLesson lesson,
     SolverSlot slot,
     String roomId,
-  ) => 0;
+  ) =>
+      0;
 
   /// Score the entire solution for soft constraint penalty.
   /// Lower = better. Only called for soft constraints during scoring.
@@ -238,25 +239,32 @@ abstract class EngineConstraint {
 
 /// Slot must be within grid bounds.
 class BoundsConstraint extends EngineConstraint {
-  @override String get name => 'Bounds Check';
-  @override bool get isHard => true;
+  @override
+  String get name => 'Bounds Check';
+  @override
+  bool get isHard => true;
 
   @override
-  int checkHard(SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
+  int checkHard(
+      SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
     if (slot.day < 0 || slot.day >= state.payload.days) return 1;
     if (slot.period < 0 || slot.period >= state.payload.periodsPerDay) return 1;
-    if (lesson.isDouble && slot.period + 1 >= state.payload.periodsPerDay) return 2;
+    if (lesson.isDouble && slot.period + 1 >= state.payload.periodsPerDay)
+      return 2;
     return 0;
   }
 }
 
 /// No two lessons sharing a teacher can occupy the same slot.
 class TeacherClashConstraint extends EngineConstraint {
-  @override String get name => 'Teacher Clash';
-  @override bool get isHard => true;
+  @override
+  String get name => 'Teacher Clash';
+  @override
+  bool get isHard => true;
 
   @override
-  int checkHard(SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
+  int checkHard(
+      SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
     final periodsToCheck = [slot.period];
     if (lesson.isDouble) periodsToCheck.add(slot.period + 1);
 
@@ -273,11 +281,14 @@ class TeacherClashConstraint extends EngineConstraint {
 /// No two lessons sharing a class can occupy the same slot
 /// (unless they are different divisions of the same class).
 class ClassClashConstraint extends EngineConstraint {
-  @override String get name => 'Class Clash';
-  @override bool get isHard => true;
+  @override
+  String get name => 'Class Clash';
+  @override
+  bool get isHard => true;
 
   @override
-  int checkHard(SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
+  int checkHard(
+      SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
     final periodsToCheck = [slot.period];
     if (lesson.isDouble) periodsToCheck.add(slot.period + 1);
 
@@ -312,11 +323,14 @@ class ClassClashConstraint extends EngineConstraint {
 
 /// No two lessons can use the same room at the same time.
 class RoomClashConstraint extends EngineConstraint {
-  @override String get name => 'Room Clash';
-  @override bool get isHard => true;
+  @override
+  String get name => 'Room Clash';
+  @override
+  bool get isHard => true;
 
   @override
-  int checkHard(SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
+  int checkHard(
+      SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
     if (roomId.isEmpty) return 0;
     final periodsToCheck = [slot.period];
     if (lesson.isDouble) periodsToCheck.add(slot.period + 1);
@@ -331,11 +345,14 @@ class RoomClashConstraint extends EngineConstraint {
 
 /// Teacher must not be scheduled during their unavailable slots.
 class TeacherUnavailabilityConstraint extends EngineConstraint {
-  @override String get name => 'Teacher Unavailability';
-  @override bool get isHard => true;
+  @override
+  String get name => 'Teacher Unavailability';
+  @override
+  bool get isHard => true;
 
   @override
-  int checkHard(SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
+  int checkHard(
+      SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
     final periodsToCheck = [slot.period];
     if (lesson.isDouble) periodsToCheck.add(slot.period + 1);
 
@@ -354,11 +371,14 @@ class TeacherUnavailabilityConstraint extends EngineConstraint {
 
 /// Teacher cannot exceed their max periods per day.
 class TeacherMaxPeriodsPerDayConstraint extends EngineConstraint {
-  @override String get name => 'Teacher Max Periods/Day';
-  @override bool get isHard => true;
+  @override
+  String get name => 'Teacher Max Periods/Day';
+  @override
+  bool get isHard => true;
 
   @override
-  int checkHard(SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
+  int checkHard(
+      SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
     final addingPeriods = lesson.isDouble ? 2 : 1;
     for (final tid in lesson.teacherIds) {
       final profile = state.payload.teacherProfiles[tid];
@@ -373,11 +393,14 @@ class TeacherMaxPeriodsPerDayConstraint extends EngineConstraint {
 
 /// Class cannot exceed their max periods per day.
 class ClassMaxPeriodsPerDayConstraint extends EngineConstraint {
-  @override String get name => 'Class Max Periods/Day';
-  @override bool get isHard => true;
+  @override
+  String get name => 'Class Max Periods/Day';
+  @override
+  bool get isHard => true;
 
   @override
-  int checkHard(SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
+  int checkHard(
+      SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
     final addingPeriods = lesson.isDouble ? 2 : 1;
     for (final cid in lesson.classIds) {
       final profile = state.payload.classProfiles[cid];
@@ -392,11 +415,14 @@ class ClassMaxPeriodsPerDayConstraint extends EngineConstraint {
 
 /// Lesson with a required room must be placed in that room.
 class RequiredRoomConstraint extends EngineConstraint {
-  @override String get name => 'Required Room';
-  @override bool get isHard => true;
+  @override
+  String get name => 'Required Room';
+  @override
+  bool get isHard => true;
 
   @override
-  int checkHard(SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
+  int checkHard(
+      SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
     if (lesson.requiredRoomId != null && lesson.requiredRoomId!.isNotEmpty) {
       if (roomId != lesson.requiredRoomId) return 9;
     }
@@ -406,11 +432,14 @@ class RequiredRoomConstraint extends EngineConstraint {
 
 /// Pinned lessons must go to their designated slot.
 class PinnedConstraint extends EngineConstraint {
-  @override String get name => 'Pinned Lesson';
-  @override bool get isHard => true;
+  @override
+  String get name => 'Pinned Lesson';
+  @override
+  bool get isHard => true;
 
   @override
-  int checkHard(SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
+  int checkHard(
+      SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
     if (lesson.isPinned && lesson.pinnedSlot != null) {
       if (slot != lesson.pinnedSlot) return 10;
     }
@@ -421,11 +450,14 @@ class PinnedConstraint extends EngineConstraint {
 /// Teacher cannot exceed their max consecutive teaching periods.
 /// This is enforced as a hard constraint when maxConsecutivePeriods is set.
 class TeacherMaxConsecutiveConstraint extends EngineConstraint {
-  @override String get name => 'Teacher Max Consecutive';
-  @override bool get isHard => true;
+  @override
+  String get name => 'Teacher Max Consecutive';
+  @override
+  bool get isHard => true;
 
   @override
-  int checkHard(SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
+  int checkHard(
+      SolverState state, SolverLesson lesson, SolverSlot slot, String roomId) {
     for (final tid in lesson.teacherIds) {
       final profile = state.payload.teacherProfiles[tid];
       if (profile?.maxConsecutivePeriods == null) continue;
@@ -458,8 +490,10 @@ class TeacherMaxConsecutiveConstraint extends EngineConstraint {
 
 /// Penalize idle gaps between teacher's first and last lesson each day.
 class TeacherGapsSoftConstraint extends EngineConstraint {
-  @override String get name => 'Teacher Gaps';
-  @override bool get isHard => false;
+  @override
+  String get name => 'Teacher Gaps';
+  @override
+  bool get isHard => false;
 
   @override
   double scoreSoft(SolverState state) {
@@ -488,8 +522,10 @@ class TeacherGapsSoftConstraint extends EngineConstraint {
 
 /// Penalize idle gaps in class schedules.
 class ClassGapsSoftConstraint extends EngineConstraint {
-  @override String get name => 'Class Gaps';
-  @override bool get isHard => false;
+  @override
+  String get name => 'Class Gaps';
+  @override
+  bool get isHard => false;
 
   @override
   double scoreSoft(SolverState state) {
@@ -513,8 +549,10 @@ class ClassGapsSoftConstraint extends EngineConstraint {
 
 /// Penalize same subject on same day or consecutive days for a class.
 class SubjectDistributionSoftConstraint extends EngineConstraint {
-  @override String get name => 'Subject Distribution';
-  @override bool get isHard => false;
+  @override
+  String get name => 'Subject Distribution';
+  @override
+  bool get isHard => false;
 
   @override
   double scoreSoft(SolverState state) {
@@ -549,8 +587,10 @@ class SubjectDistributionSoftConstraint extends EngineConstraint {
 
 /// Penalize teachers moving between many rooms on the same day.
 class TeacherRoomStabilitySoftConstraint extends EngineConstraint {
-  @override String get name => 'Room Stability';
-  @override bool get isHard => false;
+  @override
+  String get name => 'Room Stability';
+  @override
+  bool get isHard => false;
 
   @override
   double scoreSoft(SolverState state) {
@@ -579,8 +619,10 @@ class TeacherRoomStabilitySoftConstraint extends EngineConstraint {
 
 /// Penalize teachers exceeding max consecutive teaching periods.
 class TeacherConsecutiveSoftConstraint extends EngineConstraint {
-  @override String get name => 'Teacher Consecutive';
-  @override bool get isHard => false;
+  @override
+  String get name => 'Teacher Consecutive';
+  @override
+  bool get isHard => false;
 
   @override
   double scoreSoft(SolverState state) {
@@ -617,8 +659,10 @@ class TeacherConsecutiveSoftConstraint extends EngineConstraint {
 
 /// Penalize uneven distribution of teacher workload across days.
 class WorkloadBalanceSoftConstraint extends EngineConstraint {
-  @override String get name => 'Workload Balance';
-  @override bool get isHard => false;
+  @override
+  String get name => 'Workload Balance';
+  @override
+  bool get isHard => false;
 
   @override
   double scoreSoft(SolverState state) {
@@ -650,8 +694,10 @@ class WorkloadBalanceSoftConstraint extends EngineConstraint {
 
 /// Penalize subjects with morning preference being placed in late periods.
 class MorningPreferenceSoftConstraint extends EngineConstraint {
-  @override String get name => 'Morning Preference';
-  @override bool get isHard => false;
+  @override
+  String get name => 'Morning Preference';
+  @override
+  bool get isHard => false;
 
   @override
   double scoreSoft(SolverState state) {
@@ -670,8 +716,10 @@ class MorningPreferenceSoftConstraint extends EngineConstraint {
 
 /// Penalize orphan periods (single isolated lessons with gaps on both sides).
 class OrphanPeriodSoftConstraint extends EngineConstraint {
-  @override String get name => 'Orphan Periods';
-  @override bool get isHard => false;
+  @override
+  String get name => 'Orphan Periods';
+  @override
+  bool get isHard => false;
 
   @override
   double scoreSoft(SolverState state) {
@@ -697,6 +745,80 @@ class OrphanPeriodSoftConstraint extends EngineConstraint {
   }
 }
 
+// ─── Advanced Relational Constraints (ASC-style) ───────────────────────────
+
+/// Enforces complex card relationships extracted from the UI.
+/// Handles: Mutual Exclusion, Consecutiveness, and Building Changes.
+class AdvancedRelationalConstraint extends EngineConstraint {
+  @override
+  double penalty(SolverAssignment assignment, SolverState state) {
+    final lesson = state.lessonById[assignment.lessonId]!;
+    final payload = state.payload;
+    double totalPenalty = 0.0;
+
+    for (final rel in payload.cardRelationships) {
+      // Rule 1: Mutual Exclusion ('cannot be the same day')
+      if (rel.condition == 'cannot be the same day') {
+        final matchesSubject = rel.subjectIds.contains(lesson.subjectId);
+        final matchesClass =
+            rel.classIds.isEmpty || lesson.classIds.any(rel.classIds.contains);
+
+        if (matchesSubject && matchesClass) {
+          for (final classId in lesson.classIds) {
+            final lessonsOnDay = state.classPeriodsOnDay(classId, assignment.day);
+            for (final p in lessonsOnDay) {
+              final occupants = state.classesAt(assignment.day, p);
+              for (final otherLessonId in occupants) {
+                final otherLesson = state.lessonById[otherLessonId]!;
+                if (!otherLesson.classIds.contains(classId)) continue;
+                if (otherLesson.id != assignment.lessonId &&
+                    rel.subjectIds.contains(otherLesson.subjectId)) {
+                  if (rel.isStrict) return EngineConstraint.hard;
+                  totalPenalty += 50.0;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Rule 2: Building Change Limit ('Max building changes per day')
+      if (rel.condition == 'Max building changes per day') {
+        for (final teacherId in lesson.teacherIds) {
+          final periodsOnDay = state.teacherPeriodsOnDay(teacherId, assignment.day);
+          if (periodsOnDay.isEmpty) continue;
+
+          final buildingsVisited = <String>{};
+          // Add buildings from existing assignments today
+          for (final p in periodsOnDay) {
+            final otherLessonId = state.teachersAt(assignment.day, p).firstWhere(
+                (id) => state.lessonById[id]!.teacherIds.contains(teacherId));
+            final otherAssign = state.assignmentFor(otherLessonId);
+            if (otherAssign == null) continue;
+            final room = payload.rooms.firstWhere((r) => r.id == otherAssign.roomId);
+            if (room.buildingId != null) buildingsVisited.add(room.buildingId!);
+          }
+
+          // Add building of current potential placement
+          final currentRoom =
+              payload.rooms.firstWhere((r) => r.id == assignment.roomId);
+          if (currentRoom.buildingId != null) {
+            buildingsVisited.add(currentRoom.buildingId!);
+          }
+
+          // If they visit more than 1 building, apply penalty (configurable limit)
+          if (buildingsVisited.length > 1) {
+            if (rel.isStrict) return EngineConstraint.hard;
+            totalPenalty += 30.0 * (buildingsVisited.length - 1);
+          }
+        }
+      }
+    }
+
+    return totalPenalty;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 //  DEFAULT CONSTRAINT REGISTRY
 // ═══════════════════════════════════════════════════════════════════════
@@ -704,24 +826,25 @@ class OrphanPeriodSoftConstraint extends EngineConstraint {
 /// Returns the default list of all built-in constraints.
 /// Users can add custom constraints to this list before passing to the solver.
 List<EngineConstraint> defaultConstraints() => [
-  // Hard constraints
-  BoundsConstraint(),
-  TeacherClashConstraint(),
-  ClassClashConstraint(),
-  RoomClashConstraint(),
-  TeacherUnavailabilityConstraint(),
-  TeacherMaxPeriodsPerDayConstraint(),
-  ClassMaxPeriodsPerDayConstraint(),
-  RequiredRoomConstraint(),
-  PinnedConstraint(),
-  TeacherMaxConsecutiveConstraint(),
-  // Soft constraints
-  TeacherGapsSoftConstraint(),
-  ClassGapsSoftConstraint(),
-  SubjectDistributionSoftConstraint(),
-  TeacherRoomStabilitySoftConstraint(),
-  TeacherConsecutiveSoftConstraint(),
-  WorkloadBalanceSoftConstraint(),
-  MorningPreferenceSoftConstraint(),
-  OrphanPeriodSoftConstraint(),
-];
+      // Hard constraints
+      BoundsConstraint(),
+      TeacherClashConstraint(),
+      ClassClashConstraint(),
+      RoomClashConstraint(),
+      TeacherUnavailabilityConstraint(),
+      TeacherMaxPeriodsPerDayConstraint(),
+      ClassMaxPeriodsPerDayConstraint(),
+      RequiredRoomConstraint(),
+      PinnedConstraint(),
+      TeacherMaxConsecutiveConstraint(),
+      AdvancedRelationalConstraint(),
+      // Soft constraints
+      TeacherGapsSoftConstraint(),
+      ClassGapsSoftConstraint(),
+      SubjectDistributionSoftConstraint(),
+      TeacherRoomStabilitySoftConstraint(),
+      TeacherConsecutiveSoftConstraint(),
+      WorkloadBalanceSoftConstraint(),
+      MorningPreferenceSoftConstraint(),
+      OrphanPeriodSoftConstraint(),
+    ];

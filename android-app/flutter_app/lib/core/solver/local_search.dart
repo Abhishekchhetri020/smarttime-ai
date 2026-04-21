@@ -42,7 +42,8 @@ class LocalSearch {
     final sw = Stopwatch()..start();
 
     var current = List<SolverAssignment>.from(initialAssignments);
-    var currentVariant = checker.scoreSolution(current, unscheduledIds, variantIndex);
+    var currentVariant =
+        checker.scoreSolution(current, unscheduledIds, variantIndex);
     var bestAssignments = List<SolverAssignment>.from(current);
     var bestScore = currentVariant.totalScore;
 
@@ -60,7 +61,8 @@ class LocalSearch {
         onProgress?.call(SolverProgress(
           phase: 'optimize',
           percent: iter / maxIterations,
-          message: 'SA iteration $iter, score: ${currentVariant.totalScore.toStringAsFixed(1)}, best: ${bestScore.toStringAsFixed(1)}',
+          message:
+              'SA iteration $iter, score: ${currentVariant.totalScore.toStringAsFixed(1)}, best: ${bestScore.toStringAsFixed(1)}',
           currentVariant: variantIndex,
         ));
       }
@@ -75,12 +77,15 @@ class LocalSearch {
       // Check hard constraints for the moved lesson(s)
       bool feasible = true;
       for (final movedLid in move.affectedLessonIds) {
-        final movedAssignment = neighbor.firstWhere((a) => a.lessonId == movedLid);
+        final movedAssignment =
+            neighbor.firstWhere((a) => a.lessonId == movedLid);
         final lesson = lessonById[movedLid];
         if (lesson == null) continue;
 
-        final otherAssignments = neighbor.where((a) => a.lessonId != movedLid).toList();
-        final check = checker.checkHard(lesson, movedAssignment.slot, movedAssignment.roomId, otherAssignments);
+        final otherAssignments =
+            neighbor.where((a) => a.lessonId != movedLid).toList();
+        final check = checker.checkHard(lesson, movedAssignment.slot,
+            movedAssignment.roomId, otherAssignments);
         if (check.hardViolation) {
           feasible = false;
           break;
@@ -90,7 +95,8 @@ class LocalSearch {
       if (!feasible) continue;
 
       // Score neighbor
-      final neighborVariant = checker.scoreSolution(neighbor, unscheduledIds, variantIndex);
+      final neighborVariant =
+          checker.scoreSolution(neighbor, unscheduledIds, variantIndex);
       final delta = neighborVariant.totalScore - currentVariant.totalScore;
 
       // Accept or reject
@@ -119,7 +125,8 @@ class LocalSearch {
     onProgress?.call(SolverProgress(
       phase: 'optimize',
       percent: 1.0,
-      message: 'SA complete. Accepted $accepted moves, $improved improvements in ${sw.elapsedMilliseconds}ms',
+      message:
+          'SA complete. Accepted $accepted moves, $improved improvements in ${sw.elapsedMilliseconds}ms',
       currentVariant: variantIndex,
     ));
 
@@ -147,7 +154,8 @@ class LocalSearch {
 
         final newDay = rng.nextInt(payload.days);
         final newPeriod = rng.nextInt(payload.periodsPerDay);
-        if (newDay == assignment.day && newPeriod == assignment.period) return null;
+        if (newDay == assignment.day && newPeriod == assignment.period)
+          return null;
 
         return _RelocateMove(
           lessonId: assignment.lessonId,

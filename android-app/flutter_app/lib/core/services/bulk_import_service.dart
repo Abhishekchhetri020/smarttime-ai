@@ -91,14 +91,14 @@ class BulkImportBundle {
   });
 }
 
-class _AscLessonRaw {
+class _SmartTimeLessonRaw {
   final int rowNumber;
   final String subjectToken;
   final List<String> teacherTokens;
   final List<String> classTokens;
   final int periodsPerWeek;
 
-  const _AscLessonRaw({
+  const _SmartTimeLessonRaw({
     required this.rowNumber,
     required this.subjectToken,
     required this.teacherTokens,
@@ -219,9 +219,9 @@ class BulkImportService {
     );
   }
 
-  /// Parses aSc `contracts.xlsx` exported-as-CSV rows.
+  /// Parses SmartTime `contracts.xlsx` exported-as-CSV rows.
   /// Header expected: Teacher,Class,Group,Subject,Length,Count,Available classrooms,Week,More teachers,Classrooms
-  BulkImportBundle parseAscContractsCsv(Uint8List bytes) {
+  BulkImportBundle parseSmartTimeContractsCsv(Uint8List bytes) {
     final text = utf8.decode(bytes, allowMalformed: true);
     final rows = const CsvToListConverter(eol: '\n').convert(text);
     if (rows.isEmpty) {
@@ -271,7 +271,7 @@ class BulkImportService {
 
       lessons.add(
         LessonImportDto(
-          id: 'ASC_CONTRACT_${r + 1}',
+          id: 'SMARTTIME_CONTRACT_${r + 1}',
           subjectId: subject,
           periodsPerWeek: periodsPerWeek,
           teacherIds: teacherNames,
@@ -409,7 +409,7 @@ class BulkImportService {
     return '';
   }
 
-  Future<ImportReport> parseAndImportAscFiles(
+  Future<ImportReport> parseAndImportSmartTimeFiles(
       AppDatabase db, List<PlatformFile> files) async {
     final byName = <String, PlatformFile>{
       for (final f in files) f.name.toLowerCase(): f,
@@ -436,7 +436,7 @@ class BulkImportService {
         successCount: 0,
         failedRows: <int>[],
         unresolvedTokens: <String>[
-          'Required aSc CSVs missing. Need Subjects, Teachers, Classes and Lessons/Contracts CSV.',
+          'Required SmartTime CSVs missing. Need Subjects, Teachers, Classes and Lessons/Contracts CSV.',
         ],
       );
     }
@@ -502,7 +502,7 @@ class BulkImportService {
         .where((e) => e.name.isNotEmpty)
         .toList(growable: false);
 
-    final rawLessons = <_AscLessonRaw>[];
+    final rawLessons = <_SmartTimeLessonRaw>[];
     for (var i = 0; i < lessonsRows.length; i++) {
       final r = lessonsRows[i];
       final subjectToken = _req(r, ['Subject']);
@@ -514,7 +514,7 @@ class BulkImportService {
           int.tryParse(countRaw) ?? (double.tryParse(countRaw)?.toInt() ?? 1);
       if (subjectToken.isEmpty || classToken.isEmpty) continue;
       rawLessons.add(
-        _AscLessonRaw(
+        _SmartTimeLessonRaw(
           rowNumber: i + 2,
           subjectToken: subjectToken,
           classTokens: _splitMultiValue(classToken),
@@ -622,7 +622,7 @@ class BulkImportService {
 
           lessonDtos.add(
             LessonImportDto(
-              id: 'ASC_LESSON_${i + 1}',
+              id: 'SMARTTIME_LESSON_${i + 1}',
               subjectId: subjectId,
               periodsPerWeek: raw.periodsPerWeek,
               teacherIds: teacherIds.toSet().toList(growable: false),
@@ -984,7 +984,9 @@ class BulkImportService {
     if (sheet.maxRows < 2) return rows;
 
     final headerRow = sheet.row(0);
-    final headers = headerRow.map((c) => c?.value?.toString().trim().toLowerCase() ?? '').toList();
+    final headers = headerRow
+        .map((c) => c?.value?.toString().trim().toLowerCase() ?? '')
+        .toList();
 
     for (int i = 1; i < sheet.maxRows; i++) {
       final row = sheet.row(i);

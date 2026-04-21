@@ -6,7 +6,7 @@
 
 /// A single schedulable time slot: one (day, period) coordinate.
 class SolverSlot {
-  final int day;    // 0-indexed
+  final int day; // 0-indexed
   final int period; // 0-indexed
 
   const SolverSlot(this.day, this.period);
@@ -31,7 +31,7 @@ class SolverLesson {
   final List<String> classIds;
   final String? divisionId;
   final String? requiredRoomId;
-  final bool isDouble;        // requires 2 consecutive periods
+  final bool isDouble; // requires 2 consecutive periods
   final bool isPinned;
   final SolverSlot? pinnedSlot;
 
@@ -59,11 +59,13 @@ class SolverRoom {
   final String id;
   final String roomType; // 'standard', 'lab', 'computer', etc.
   final int capacity;
+  final String? buildingId;
 
   const SolverRoom({
     required this.id,
     this.roomType = 'standard',
     this.capacity = 40,
+    this.buildingId,
   });
 }
 
@@ -104,7 +106,7 @@ class SolverClassProfile {
 /// Subject-level preferences.
 class SolverSubjectProfile {
   final String id;
-  final bool preferMorning;     // prefer first 3 periods
+  final bool preferMorning; // prefer first 3 periods
   final bool avoidLastPeriod;
   final int? minGapBetweenSameSubject; // minimum periods gap for same class
 
@@ -170,6 +172,23 @@ class SoftWeights {
   });
 }
 
+/// A relationship rule extracted from the UI for the solver.
+class SolverCardRelationship {
+  final String condition;
+  final String importance;
+  final List<String> subjectIds;
+  final List<String> classIds;
+
+  const SolverCardRelationship({
+    required this.condition,
+    required this.importance,
+    required this.subjectIds,
+    required this.classIds,
+  });
+
+  bool get isStrict => importance.toLowerCase() == 'strict';
+}
+
 /// Complete solver input payload.
 class SolverPayload {
   final int days;
@@ -182,6 +201,7 @@ class SolverPayload {
   final Map<String, SolverSubjectProfile> subjectProfiles;
   final SoftWeights softWeights;
   final int variantCount; // how many variants to generate
+  final List<SolverCardRelationship> cardRelationships;
 
   const SolverPayload({
     required this.days,
@@ -194,6 +214,7 @@ class SolverPayload {
     this.subjectProfiles = const {},
     this.softWeights = const SoftWeights(),
     this.variantCount = 3,
+    this.cardRelationships = const [],
   });
 }
 
@@ -201,7 +222,7 @@ class SolverPayload {
 class SolverVariant {
   final int variantIndex;
   final List<SolverAssignment> assignments;
-  final double totalScore;         // lower is better
+  final double totalScore; // lower is better
   final int hardViolations;
   final Map<String, double> scoreBreakdown; // per-constraint scores
   final List<String> unscheduledLessonIds;
@@ -221,8 +242,8 @@ class SolverVariant {
 
 /// Progress callback data sent from Isolate to main thread.
 class SolverProgress {
-  final String phase;    // 'greedy', 'backtrack', 'optimize'
-  final double percent;  // 0.0 .. 1.0
+  final String phase; // 'greedy', 'backtrack', 'optimize'
+  final double percent; // 0.0 .. 1.0
   final String message;
   final int? currentVariant;
 

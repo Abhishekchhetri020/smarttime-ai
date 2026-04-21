@@ -1,4 +1,4 @@
-// Excel Export Service — generates .xlsx files matching ASC Timetable format.
+// Excel Export Service — generates .xlsx files matching SmartTime Timetable format.
 //
 // Layout: Days as ROWS, Periods as COLUMNS (transposed from original).
 // Uses the `excel` Dart package. Data can come from either the Cards table
@@ -16,13 +16,20 @@ import '../../features/timetable/timetable_display.dart';
 import '../database.dart';
 
 class ExcelExportService {
-  static const _dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  static const _dayNames = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday'
+  ];
   static const _dayAbbrs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // ── Clean professional styling ──
-  static const _headerBgHex = '2F2F2F';   // Dark header
+  static const _headerBgHex = '2F2F2F'; // Dark header
   static const _headerFontHex = 'FFFFFF';
-  static const _breakBgHex = 'D9D9D9';    // Light gray for breaks
+  static const _breakBgHex = 'D9D9D9'; // Light gray for breaks
 
   /// Build and share a complete .xlsx timetable workbook.
   Future<void> exportAndShare(AppDatabase db, int dbId) async {
@@ -32,7 +39,11 @@ class ExcelExportService {
     await file.writeAsBytes(bytes, flush: true);
 
     await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')],
+      [
+        XFile(file.path,
+            mimeType:
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      ],
       text: 'SmartTime AI Timetable Export',
     );
   }
@@ -61,7 +72,8 @@ class ExcelExportService {
 
     final dayCount = cards.isEmpty
         ? 5
-        : (cards.map((c) => c.dayIndex).reduce((a, b) => a > b ? a : b) + 1).clamp(1, 6);
+        : (cards.map((c) => c.dayIndex).reduce((a, b) => a > b ? a : b) + 1)
+            .clamp(1, 6);
 
     // Extract class teacher mapping from planner snapshot.
     final classTeacherMap = <String, String>{};
@@ -81,7 +93,8 @@ class ExcelExportService {
     final excel = Excel.createExcel();
 
     // ── Master Overview ──
-    _buildMasterSheet(excel, cards, lessonById, catalog, slots, dayCount, schoolName);
+    _buildMasterSheet(
+        excel, cards, lessonById, catalog, slots, dayCount, schoolName);
 
     // ── Class-wise sheets ──
     final sortedClassIds = classes.map((c) => c.id).toList()..sort();
@@ -144,9 +157,7 @@ class ExcelExportService {
         .toList()
       ..sort();
     for (final roomId in roomIds) {
-      final roomCards = cards
-          .where((c) => c.roomId == roomId)
-          .toList();
+      final roomCards = cards.where((c) => c.roomId == roomId).toList();
       if (roomCards.isEmpty) continue;
 
       final roomLabel = catalog.roomLabel(roomId) ?? roomId;
@@ -229,7 +240,8 @@ class ExcelExportService {
     _buildMasterSheet(excel, cards, lessonById, catalog, slots, days, '');
 
     // ── Class-wise sheets ──
-    final classIds = assignments.expand((a) => a.classIds).toSet().toList()..sort();
+    final classIds = assignments.expand((a) => a.classIds).toSet().toList()
+      ..sort();
     for (final classId in classIds) {
       final classCards = cards.where((c) {
         final lesson = lessonById[c.lessonId];
@@ -252,7 +264,8 @@ class ExcelExportService {
     }
 
     // ── Teacher-wise sheets ──
-    final teacherIds = assignments.expand((a) => a.teacherIds).toSet().toList()..sort();
+    final teacherIds = assignments.expand((a) => a.teacherIds).toSet().toList()
+      ..sort();
     for (final teacherId in teacherIds) {
       final teacherCards = cards.where((c) {
         final lesson = lessonById[c.lessonId];
@@ -282,9 +295,7 @@ class ExcelExportService {
         .toList()
       ..sort();
     for (final roomId in roomIds) {
-      final roomCards = cards
-          .where((c) => c.roomId == roomId)
-          .toList();
+      final roomCards = cards.where((c) => c.roomId == roomId).toList();
       if (roomCards.isEmpty) continue;
       final roomLabel = catalog.roomLabel(roomId) ?? roomId;
       _buildEntitySheet(
@@ -332,7 +343,11 @@ class ExcelExportService {
     await file.writeAsBytes(bytes, flush: true);
 
     await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')],
+      [
+        XFile(file.path,
+            mimeType:
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      ],
       text: 'SmartTime AI Timetable Export',
     );
   }
@@ -387,13 +402,16 @@ class ExcelExportService {
 
     // Title row
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value =
-        TextCellValue(schoolName.isNotEmpty ? '$schoolName — Master Timetable' : 'SmartTime AI — Master Timetable');
+        TextCellValue(schoolName.isNotEmpty
+            ? '$schoolName — Master Timetable'
+            : 'SmartTime AI — Master Timetable');
     sheet.merge(
       CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
       CellIndex.indexByColumnRow(columnIndex: flatSlots.length, rowIndex: 0),
     );
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle =
-        CellStyle(
+    sheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0))
+        .cellStyle = CellStyle(
       bold: true,
       fontSize: 14,
       fontColorHex: ExcelColor.fromHexString('#$_headerFontHex'),
@@ -410,7 +428,8 @@ class ExcelExportService {
           : fs.timeRange != null
               ? '${fs.label}\n${fs.timeRange}'
               : fs.label;
-      _setCellWithStyle(sheet, headerRow, c + 1, headerText, isHeader: true, isBreak: fs.isBreak);
+      _setCellWithStyle(sheet, headerRow, c + 1, headerText,
+          isHeader: true, isBreak: fs.isBreak);
     }
 
     // Build grid lookup
@@ -422,7 +441,9 @@ class ExcelExportService {
     // Day rows
     for (int d = 0; d < dayCount; d++) {
       final row = headerRow + 1 + d;
-      _setCellWithStyle(sheet, row, 0, d < _dayNames.length ? _dayNames[d] : 'Day ${d + 1}', isRowHeader: true);
+      _setCellWithStyle(
+          sheet, row, 0, d < _dayNames.length ? _dayNames[d] : 'Day ${d + 1}',
+          isRowHeader: true);
 
       for (int c = 0; c < flatSlots.length; c++) {
         final fs = flatSlots[c];
@@ -430,13 +451,16 @@ class ExcelExportService {
           _setCellWithStyle(sheet, row, c + 1, '', isBreak: true);
           continue;
         }
-        
+
         final matchingCards = cards.where((card) =>
-            card.dayIndex == d && slotIndexByPeriod[card.periodIndex] == fs.slotIndex);
+            card.dayIndex == d &&
+            slotIndexByPeriod[card.periodIndex] == fs.slotIndex);
 
         if (matchingCards.isEmpty) {
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row)).value =
-              TextCellValue('');
+          sheet
+              .cell(
+                  CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row))
+              .value = TextCellValue('');
           continue;
         }
 
@@ -450,7 +474,8 @@ class ExcelExportService {
           cellParts.add('$subject ($teacher) [$cls]');
         }
 
-        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row));
+        final cell = sheet.cell(
+            CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row));
         cell.value = TextCellValue(cellParts.join('\n'));
         cell.cellStyle = CellStyle(
           textWrapping: TextWrapping.WrapText,
@@ -492,8 +517,9 @@ class ExcelExportService {
       CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
       CellIndex.indexByColumnRow(columnIndex: flatSlots.length, rowIndex: 0),
     );
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle =
-        CellStyle(
+    sheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0))
+        .cellStyle = CellStyle(
       bold: true,
       fontSize: 13,
       fontColorHex: ExcelColor.fromHexString('#$_headerFontHex'),
@@ -503,14 +529,16 @@ class ExcelExportService {
     // Subtitle row (class teacher, etc.)
     int headerRow = 2;
     if (subtitle != null) {
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value =
-          TextCellValue(subtitle);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1))
+          .value = TextCellValue(subtitle);
       sheet.merge(
         CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
         CellIndex.indexByColumnRow(columnIndex: flatSlots.length, rowIndex: 1),
       );
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).cellStyle =
-          CellStyle(bold: true, fontSize: 10);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1))
+          .cellStyle = CellStyle(bold: true, fontSize: 10);
       headerRow = 3;
     }
 
@@ -523,7 +551,8 @@ class ExcelExportService {
           : fs.timeRange != null
               ? '${fs.label}\n${fs.timeRange}'
               : fs.label;
-      _setCellWithStyle(sheet, headerRow, c + 1, headerText, isHeader: true, isBreak: fs.isBreak);
+      _setCellWithStyle(sheet, headerRow, c + 1, headerText,
+          isHeader: true, isBreak: fs.isBreak);
     }
 
     final slotIndexByPeriod = <int, int>{
@@ -534,7 +563,9 @@ class ExcelExportService {
     // Day rows
     for (int d = 0; d < dayCount; d++) {
       final row = headerRow + 1 + d;
-      _setCellWithStyle(sheet, row, 0, d < _dayAbbrs.length ? _dayAbbrs[d] : 'D${d + 1}', isRowHeader: true);
+      _setCellWithStyle(
+          sheet, row, 0, d < _dayAbbrs.length ? _dayAbbrs[d] : 'D${d + 1}',
+          isRowHeader: true);
 
       for (int c = 0; c < flatSlots.length; c++) {
         final fs = flatSlots[c];
@@ -544,11 +575,14 @@ class ExcelExportService {
         }
 
         final matchingCards = cards.where((card) =>
-            card.dayIndex == d && slotIndexByPeriod[card.periodIndex] == fs.slotIndex);
+            card.dayIndex == d &&
+            slotIndexByPeriod[card.periodIndex] == fs.slotIndex);
 
         if (matchingCards.isEmpty) {
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row)).value =
-              TextCellValue('');
+          sheet
+              .cell(
+                  CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row))
+              .value = TextCellValue('');
           continue;
         }
 
@@ -558,10 +592,12 @@ class ExcelExportService {
           if (lesson == null) continue;
           final subject = catalog.subjectLabel(lesson.subjectId);
           final secondary = secondaryFn(lesson);
-          cellParts.add(secondary.isNotEmpty ? '$subject\n$secondary' : subject);
+          cellParts
+              .add(secondary.isNotEmpty ? '$subject\n$secondary' : subject);
         }
 
-        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row));
+        final cell = sheet.cell(
+            CellIndex.indexByColumnRow(columnIndex: c + 1, rowIndex: row));
         cell.value = TextCellValue(cellParts.join('\n'));
         cell.cellStyle = CellStyle(
           textWrapping: TextWrapping.WrapText,
@@ -588,15 +624,20 @@ class ExcelExportService {
     bool isRowHeader = false,
     bool isBreak = false,
   }) {
-    final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
+    final cell =
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
     cell.value = TextCellValue(text);
 
     if (isHeader) {
       cell.cellStyle = CellStyle(
         bold: true,
         fontSize: 10,
-        fontColorHex: isBreak ? ExcelColor.fromHexString('#333333') : ExcelColor.fromHexString('#$_headerFontHex'),
-        backgroundColorHex: isBreak ? ExcelColor.fromHexString('#$_breakBgHex') : ExcelColor.fromHexString('#$_headerBgHex'),
+        fontColorHex: isBreak
+            ? ExcelColor.fromHexString('#333333')
+            : ExcelColor.fromHexString('#$_headerFontHex'),
+        backgroundColorHex: isBreak
+            ? ExcelColor.fromHexString('#$_breakBgHex')
+            : ExcelColor.fromHexString('#$_headerBgHex'),
         horizontalAlign: HorizontalAlign.Center,
         verticalAlign: VerticalAlign.Center,
         textWrapping: TextWrapping.WrapText,
@@ -616,7 +657,7 @@ class ExcelExportService {
     }
   }
 
-  /// ASC-style ordinal labels
+  /// SmartTime-style ordinal labels
   static String _ordinalLabel(int index) {
     final n = index + 1;
     if (n == 1) return '1st';
@@ -627,9 +668,7 @@ class ExcelExportService {
 
   /// Sanitize sheet name for Excel (max 31 chars, no special chars)
   String _sanitizeSheetName(String name) {
-    var clean = name
-        .replaceAll(RegExp(r'[\\/*?\[\]:]'), '')
-        .trim();
+    var clean = name.replaceAll(RegExp(r'[\\/*?\[\]:]'), '').trim();
     if (clean.length > 31) clean = clean.substring(0, 31);
     if (clean.isEmpty) clean = 'Sheet';
     return clean;
@@ -640,7 +679,7 @@ class ExcelExportService {
     final excel = Excel.createExcel();
 
     final plannerSnapshot = (await db.loadPlannerSnapshot(dbId))!;
-    
+
     // Use the processed planner snapshot which has the correct structure for export
     final teachers = plannerSnapshot['teachers'] as List<dynamic>;
     final classes = plannerSnapshot['classes'] as List<dynamic>;
@@ -665,11 +704,11 @@ class ExcelExportService {
           .where((e) => e.value != 0) // not available
           .map((e) => e.key)
           .join(',');
-      
+
       final firstName = tMap['firstName'] as String? ?? '';
       final lastName = tMap['lastName'] as String? ?? '';
       final fullName = firstName + (lastName.isNotEmpty ? ' $lastName' : '');
-          
+
       tSheet.appendRow([
         TextCellValue(fullName),
         TextCellValue(tMap['abbr'] as String? ?? ''),
@@ -700,16 +739,17 @@ class ExcelExportService {
     for (final l in lessons) {
       final lMap = l as Map<String, dynamic>;
       final subj = subjectById[lMap['subjectId']];
-      
+
       final classIds = (lMap['classIds'] as List<dynamic>?) ?? [];
       final rCls = classIds.map((c) => classById[c]?['name'] ?? '').join(',');
-      
+
       final teacherIds = (lMap['teacherIds'] as List<dynamic>?) ?? [];
-      final rTeacher = teacherIds.map((t) => teacherById[t]?['firstName'] ?? '').join(',');
-      
+      final rTeacher =
+          teacherIds.map((t) => teacherById[t]?['firstName'] ?? '').join(',');
+
       final reqRoom = lMap['requiredClassroomId'] as String?;
       final rRoom = reqRoom != null ? (roomById[reqRoom]?['name'] ?? '') : '';
-      
+
       lSheet.appendRow([
         TextCellValue(lMap['id'] as String? ?? ''),
         TextCellValue(rCls),
@@ -733,7 +773,11 @@ class ExcelExportService {
     await file.writeAsBytes(encoded, flush: true);
 
     await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')],
+      [
+        XFile(file.path,
+            mimeType:
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      ],
       text: 'SmartTime AI Unified Setup Template',
     );
   }

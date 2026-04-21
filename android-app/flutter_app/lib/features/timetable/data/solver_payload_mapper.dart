@@ -77,24 +77,19 @@ class SolverPayloadMapper {
             if (t.maxConsecutivePeriods != null) t.id: t.maxConsecutivePeriods!,
         },
         'teacherMaxPeriodsPerDay': {
-          for (final t in planner.teachers)
-            t.id: planner.bellTimes.length - 1,
+          for (final t in planner.teachers) t.id: planner.bellTimes.length - 1,
         },
         'classMaxPeriodsPerDay': {
-          for (final c in planner.classes)
-            c.id: planner.bellTimes.length - 1,
+          for (final c in planner.classes) c.id: planner.bellTimes.length - 1,
         },
         'subjectDailyLimit': {
-          for (final s in planner.subjects)
-            s.id: 2,
+          for (final s in planner.subjects) s.id: 2,
         },
         'classMaxConsecutivePeriods': {
-          for (final c in planner.classes)
-            c.id: 3,
+          for (final c in planner.classes) c.id: 3,
         },
         'teacherNoLastPeriodMaxPerWeek': {
-          for (final t in planner.teachers)
-            t.id: 2,
+          for (final t in planner.teachers) t.id: 2,
         },
         'softWeights': planner.softWeights,
         'cardRelationships': planner.cardRelationships
@@ -217,22 +212,20 @@ class SolverPayloadMapper {
         // Default: each teacher can teach at most (periodsPerDay - 1) periods/day.
         // If teacher has specific maxGapsPerDay set, we infer a tighter limit.
         'teacherMaxPeriodsPerDay': <String, int>{
-          for (final t in teachers)
-            t.id: planner.bellTimes.length - 1,
+          for (final t in teachers) t.id: planner.bellTimes.length - 1,
         },
         // Default: classes attend at most (periodsPerDay - 1) periods/day.
         'classMaxPeriodsPerDay': <String, int>{
-          for (final c in classes)
-            c.id: planner.bellTimes.length - 1,
+          for (final c in classes) c.id: planner.bellTimes.length - 1,
         },
         // Default: max 2 lessons of same subject per class per day.
         'subjectDailyLimit': _applySubjectDailyLimits(planner, subjects),
         // Default: classes get max 3 consecutive periods without a break.
-        'classMaxConsecutivePeriods': _applyClassMaxConsecutive(planner, classes),
+        'classMaxConsecutivePeriods':
+            _applyClassMaxConsecutive(planner, classes),
         // Default: teachers shouldn't teach last period more than 2 days/week.
         'teacherNoLastPeriodMaxPerWeek': <String, int>{
-          for (final t in teachers)
-            t.id: 2,
+          for (final t in teachers) t.id: 2,
         },
         'softWeights': planner.softWeights,
         // Pass-through active card relationships for future solver enforcement
@@ -252,7 +245,8 @@ class SolverPayloadMapper {
     return m;
   }
 
-  Map<String, int> _applySubjectDailyLimits(PlannerState planner, List<SubjectItem> subjects) {
+  Map<String, int> _applySubjectDailyLimits(
+      PlannerState planner, List<SubjectItem> subjects) {
     final limits = <String, int>{for (final s in subjects) s.id: 2};
     for (final rule in planner.cardRelationships) {
       if (!rule.isActive) continue;
@@ -265,7 +259,8 @@ class SolverPayloadMapper {
     return limits;
   }
 
-  Map<String, int> _applyClassMaxConsecutive(PlannerState planner, List<ClassItem> classes) {
+  Map<String, int> _applyClassMaxConsecutive(
+      PlannerState planner, List<ClassItem> classes) {
     final limits = <String, int>{for (final c in classes) c.id: 3};
     for (final rule in planner.cardRelationships) {
       if (!rule.isActive) continue;

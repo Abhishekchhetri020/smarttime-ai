@@ -37,7 +37,8 @@ class NativeSolverResponse {
 }
 
 class NativeSolverClient {
-  static const MethodChannel _channel = MethodChannel('smarttime/offline_solver');
+  static const MethodChannel _channel =
+      MethodChannel('smarttime/offline_solver');
 
   Future<NativeSolverResponse> solve(Map<String, dynamic> payload) async {
     final raw = await _invoke('solveTimetable', payload);
@@ -49,11 +50,15 @@ class NativeSolverClient {
     Map<String, dynamic> payload,
   ) async {
     try {
-      final res = await _channel.invokeMapMethod<String, dynamic>(method, payload);
+      final res =
+          await _channel.invokeMapMethod<String, dynamic>(method, payload);
       if (res == null) {
         return {
           'status': 'INTERNAL_SOLVER_ERROR',
-          'error': {'code': 'NULL_RESPONSE', 'message': 'Native solver returned null'}
+          'error': {
+            'code': 'NULL_RESPONSE',
+            'message': 'Native solver returned null'
+          }
         };
       }
       return Map<String, dynamic>.from(res);
@@ -72,7 +77,8 @@ class NativeSolverClient {
 
   NativeSolverResponse _decode(Map<String, dynamic> raw) {
     final rawStatus = (raw['status'] ?? 'UNKNOWN').toString();
-    final err = raw['error'] is Map ? Map<String, dynamic>.from(raw['error']) : null;
+    final err =
+        raw['error'] is Map ? Map<String, dynamic>.from(raw['error']) : null;
 
     return NativeSolverResponse(
       status: _mapStatus(rawStatus),

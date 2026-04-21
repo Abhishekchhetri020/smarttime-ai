@@ -205,8 +205,8 @@ class TimetableService {
           ..where((t) => t.lessonId.equals(lessonId)))
         .getSingleOrNull();
     if (existingCard != null) {
-      await db.update(db.cards).replace(existingCard.copyWith(
-          dayIndex: dayIndex, periodIndex: periodIndex));
+      await db.update(db.cards).replace(
+          existingCard.copyWith(dayIndex: dayIndex, periodIndex: periodIndex));
     }
   }
 }

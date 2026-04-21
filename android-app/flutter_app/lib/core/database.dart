@@ -120,7 +120,7 @@ class Lessons extends Table {
   TextColumn get id => text()();
   TextColumn get subjectId => text().references(Subjects, #id)();
 
-  // aSc contract-style requirement fields
+  // SmartTime contract-style requirement fields
   IntColumn get periodsPerWeek => integer().withDefault(const Constant(1))();
   TextColumn get teacherIds => text()
       .map(const StringListConverter())
@@ -210,6 +210,26 @@ LazyDatabase _openConnection() {
   });
 }
 
+@DataClassName('DailyAbsenceRow')
+class DailyAbsences extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get entityId => text()(); // teacherId, roomId, classId
+  TextColumn get entityType => text()(); // 'teacher', 'room', 'class'
+  DateTimeColumn get date => dateTime()();
+  TextColumn get reason => text().nullable()();
+  TextColumn get substituteId => text().nullable()(); // teacherId of replacement
+}
+
+@DataClassName('SupervisionRow')
+class Supervisions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get teacherId => text().references(Teachers, #id)();
+  IntColumn get day => integer()();
+  IntColumn get period => integer()();
+  TextColumn get roomName => text()(); // Building/Area being supervised
+  TextColumn get note => text().nullable()();
+}
+
 @DriftDatabase(
   tables: [
     Subjects,
@@ -224,13 +244,15 @@ LazyDatabase _openConnection() {
     EntityTimeOff,
     SoftConstraintProfiles,
     AppState,
+    DailyAbsences,
+    Supervisions,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -247,8 +269,14 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(entityTimeOff);
           await m.createTable(softConstraintProfiles);
           await m.createTable(appState);
+          await m.createTable(dailyAbsences);
+          await m.createTable(supervisions);
         },
         onUpgrade: (m, from, to) async {
+          if (from < 15) {
+            await m.createTable(dailyAbsences);
+            await m.createTable(supervisions);
+          }
           if (from < 7) {
             await m.createAll();
             await customStatement('''
@@ -344,17 +372,19 @@ class AppDatabase extends _$AppDatabase {
                 updated_at INTEGER NOT NULL
               )
             ''');
-            
+
             try {
               // Drift stores DateTime as unix epoch seconds depending on settings,
               // but we are using dart:convert to copy straight data across.
-              await customStatement('INSERT INTO app_state_new (id, planner_json, updated_at) SELECT id, planner_json, CAST(updated_at AS INTEGER) FROM app_state');
+              await customStatement(
+                  'INSERT INTO app_state_new (id, planner_json, updated_at) SELECT id, planner_json, CAST(updated_at AS INTEGER) FROM app_state');
             } catch (e) {
               // Ignore failure if table was empty or not found
             }
-            
+
             await customStatement('DROP TABLE IF EXISTS app_state');
-            await customStatement('ALTER TABLE app_state_new RENAME TO app_state');
+            await customStatement(
+                'ALTER TABLE app_state_new RENAME TO app_state');
           }
           if (from < 14) {
             await customStatement(
@@ -377,7 +407,7 @@ class AppDatabase extends _$AppDatabase {
   Future<int> savePlannerSnapshot(Map<String, dynamic> data, int dbId) async {
     data['updatedAt'] = DateTime.now().toIso8601String();
     final payload = jsonEncode(data);
-    
+
     if (dbId == 0) {
       if (!data.containsKey('createdAt')) {
         data['createdAt'] = DateTime.now().toIso8601String();
@@ -406,25 +436,25 @@ class AppDatabase extends _$AppDatabase {
   Future<List<TimetableMeta>> loadAllTimetables() async {
     final rows = await select(appState).get();
     final list = <TimetableMeta>[];
-    
+
     for (final row in rows) {
       try {
         final decoded = jsonDecode(row.plannerJson) as Map<String, dynamic>;
-        
+
         // Extract fast metadata fields
         final name = decoded['draftName'] ?? 'Untitled Timetable';
         final status = decoded['status'] ?? 'draft';
         final createdAtStr = decoded['createdAt'];
         final updatedAtStr = decoded['updatedAt'];
-        
-        final createdAt = createdAtStr != null 
-          ? DateTime.tryParse(createdAtStr) ?? DateTime.now() 
-          : DateTime.now();
-          
-        final updatedAt = updatedAtStr != null 
-          ? DateTime.tryParse(updatedAtStr) ?? row.updatedAt 
-          : row.updatedAt;
-          
+
+        final createdAt = createdAtStr != null
+            ? DateTime.tryParse(createdAtStr) ?? DateTime.now()
+            : DateTime.now();
+
+        final updatedAt = updatedAtStr != null
+            ? DateTime.tryParse(updatedAtStr) ?? row.updatedAt
+            : row.updatedAt;
+
         list.add(TimetableMeta(
           id: row.id,
           name: name.toString(),
@@ -436,7 +466,7 @@ class AppDatabase extends _$AppDatabase {
         // Skip malformed JSON entries
       }
     }
-    
+
     // Sort by latest update first
     list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     return list;

@@ -35,7 +35,10 @@ class ConflictService {
       if (!l.isPinned || l.fixedDay == null || l.fixedPeriod == null) continue;
       final key = '${l.fixedDay}-${l.fixedPeriod}';
       for (final tid in l.teacherIds) {
-        final teacher = planner.teachers.where((t) => t.id == tid).cast<TeacherItem?>().firstWhere(
+        final teacher = planner.teachers
+            .where((t) => t.id == tid)
+            .cast<TeacherItem?>()
+            .firstWhere(
               (t) => t != null,
               orElse: () => null,
             );
@@ -80,34 +83,47 @@ class ConflictService {
     required int targetPeriod,
     required List<TimetableAssignment> currentAssignments,
   }) {
-    final moving = currentAssignments.where((a) => a.lessonId == lessonId).cast<TimetableAssignment?>().firstWhere(
+    final moving = currentAssignments
+        .where((a) => a.lessonId == lessonId)
+        .cast<TimetableAssignment?>()
+        .firstWhere(
           (a) => a != null,
           orElse: () => null,
         );
-    if (moving == null) return const MoveValidationResult(false, 'Lesson not found');
+    if (moving == null)
+      return const MoveValidationResult(false, 'Lesson not found');
 
     // Teacher busy at target slot?
     for (final other in currentAssignments) {
       if (other.lessonId == moving.lessonId) continue;
       if (other.day == targetDay && other.period == targetPeriod) {
-        final teacherConflict = other.teacherIds.any(moving.teacherIds.contains);
-        if (teacherConflict) return const MoveValidationResult(false, 'Teacher conflict at target slot');
+        final teacherConflict =
+            other.teacherIds.any(moving.teacherIds.contains);
+        if (teacherConflict)
+          return const MoveValidationResult(
+              false, 'Teacher conflict at target slot');
 
         final classConflict = other.classIds.any(moving.classIds.contains);
-        if (classConflict) return const MoveValidationResult(false, 'Class conflict at target slot');
+        if (classConflict)
+          return const MoveValidationResult(
+              false, 'Class conflict at target slot');
       }
     }
 
     // Time-off conflict
     for (final tid in moving.teacherIds) {
-      final teacher = planner.teachers.where((t) => t.id == tid).cast<TeacherItem?>().firstWhere(
+      final teacher = planner.teachers
+          .where((t) => t.id == tid)
+          .cast<TeacherItem?>()
+          .firstWhere(
             (t) => t != null,
             orElse: () => null,
           );
       if (teacher == null) continue;
       final state = teacher.timeOff['$targetDay-$targetPeriod'];
       if (state == TimeOffState.unavailable) {
-        return MoveValidationResult(false, 'Teacher ${teacher.abbr} unavailable');
+        return MoveValidationResult(
+            false, 'Teacher ${teacher.abbr} unavailable');
       }
     }
 

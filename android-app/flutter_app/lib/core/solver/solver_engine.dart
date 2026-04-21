@@ -50,7 +50,8 @@ SolverResult _solveSync(
     onProgress?.call(SolverProgress(
       phase: 'swap',
       percent: 0.0,
-      message: 'IFS placed ${ifsResult.assignments.length}/${payload.lessons.length}. Recursive swapping ${ifsResult.unscheduledIds.length} remaining...',
+      message:
+          'IFS placed ${ifsResult.assignments.length}/${payload.lessons.length}. Recursive swapping ${ifsResult.unscheduledIds.length} remaining...',
       currentVariant: v,
     ));
 
@@ -78,7 +79,8 @@ SolverResult _solveSync(
     onProgress?.call(SolverProgress(
       phase: 'optimize',
       percent: 0.0,
-      message: 'Scheduled ${assignments.length}/${payload.lessons.length}. Optimizing with Tabu Search...',
+      message:
+          'Scheduled ${assignments.length}/${payload.lessons.length}. Optimizing with Tabu Search...',
       currentVariant: v,
     ));
 
@@ -94,16 +96,20 @@ SolverResult _solveSync(
     // Pass 1: Atomic check — remove each assignment, verify against
     //         all others, re-add. Catches per-entity violations
     //         (max-consecutive, max-per-day) without ordering bias.
-    final atomicState = SolverState.fromAssignments(payload, optimized.assignments);
+    final atomicState =
+        SolverState.fromAssignments(payload, optimized.assignments);
     final pass1Invalid = <String>{};
 
     for (final a in optimized.assignments) {
       final lesson = atomicState.lessonById[a.lessonId];
-      if (lesson == null) { pass1Invalid.add(a.lessonId); continue; }
+      if (lesson == null) {
+        pass1Invalid.add(a.lessonId);
+        continue;
+      }
 
       atomicState.remove(a.lessonId);
       final code = checker.checkHardFast(
-        atomicState, lesson, SolverSlot(a.day, a.period), a.roomId);
+          atomicState, lesson, SolverSlot(a.day, a.period), a.roomId);
       if (code != 0) {
         pass1Invalid.add(a.lessonId);
       } else {
@@ -124,7 +130,7 @@ SolverResult _solveSync(
       if (lesson == null) continue;
 
       final code = checker.checkHardFast(
-        rebuildState, lesson, SolverSlot(a.day, a.period), a.roomId);
+          rebuildState, lesson, SolverSlot(a.day, a.period), a.roomId);
       if (code == 0) {
         rebuildState.place(a);
         validAssignments.add(a);

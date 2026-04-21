@@ -82,8 +82,8 @@ class IterativeForwardSearch {
           for (int p = 0; p < payload.periodsPerDay; p++) {
             final slot = SolverSlot(d, p);
             final roomId = _assignRoom(lesson, slot, state);
-            final check = checker.checkHardWithState(
-                state, lesson, slot, roomId);
+            final check =
+                checker.checkHardWithState(state, lesson, slot, roomId);
             if (!check.hardViolation) {
               final score = _slotScore(lesson, slot, state, conflictStats);
               validSlots.add(_ScoredSlot(slot, roomId, score));
@@ -261,7 +261,8 @@ class IterativeForwardSearch {
   bool _hasIntrinsicHardBlock(SolverLesson lesson, SolverSlot slot) {
     if (slot.day < 0 || slot.day >= payload.days) return true;
     if (slot.period < 0 || slot.period >= payload.periodsPerDay) return true;
-    if (lesson.isDouble && slot.period + 1 >= payload.periodsPerDay) return true;
+    if (lesson.isDouble && slot.period + 1 >= payload.periodsPerDay)
+      return true;
     for (final tid in lesson.teacherIds) {
       final profile = payload.teacherProfiles[tid];
       if (profile != null && profile.unavailableSlots.contains(slot)) {
@@ -328,7 +329,8 @@ class IterativeForwardSearch {
 
       // Room clashes
       if (lesson.requiredRoomId != null) {
-        if (state.isRoomOccupied(lesson.requiredRoomId!, checkSlot.day, checkSlot.period)) {
+        if (state.isRoomOccupied(
+            lesson.requiredRoomId!, checkSlot.day, checkSlot.period)) {
           for (final lid in state.lessonsAt(checkSlot.day, checkSlot.period)) {
             final a = state.assignmentFor(lid);
             if (a != null && a.roomId == lesson.requiredRoomId) {

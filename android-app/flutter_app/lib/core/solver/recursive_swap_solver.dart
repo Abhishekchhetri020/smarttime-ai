@@ -43,11 +43,17 @@ class RecursiveSwapSolver {
     for (int p = 0; p < payload.periodsPerDay; p++) {
       bool free = true;
       for (final tid in lesson.teacherIds) {
-        if (state.isTeacherBusy(tid, day, p)) { free = false; break; }
+        if (state.isTeacherBusy(tid, day, p)) {
+          free = false;
+          break;
+        }
       }
       if (!free) continue;
       for (final cid in lesson.classIds) {
-        if (state.isClassBusy(cid, day, p)) { free = false; break; }
+        if (state.isClassBusy(cid, day, p)) {
+          free = false;
+          break;
+        }
       }
       if (free) mask |= (1 << p);
     }
@@ -407,7 +413,8 @@ class RecursiveSwapSolver {
   bool _hasIntrinsicBlock(SolverLesson lesson, SolverSlot slot) {
     if (slot.day < 0 || slot.day >= payload.days) return true;
     if (slot.period < 0 || slot.period >= payload.periodsPerDay) return true;
-    if (lesson.isDouble && slot.period + 1 >= payload.periodsPerDay) return true;
+    if (lesson.isDouble && slot.period + 1 >= payload.periodsPerDay)
+      return true;
     for (final tid in lesson.teacherIds) {
       final profile = payload.teacherProfiles[tid];
       if (profile != null && profile.unavailableSlots.contains(slot)) {

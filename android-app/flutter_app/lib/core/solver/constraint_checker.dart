@@ -33,7 +33,6 @@ class ConstraintChecker {
   final SolverPayload payload;
   final List<EngineConstraint> constraints;
 
-
   /// Hard constraint violation reason codes → human-readable messages
   static const _violationMessages = <int, String>{
     1: 'Slot out of bounds',
@@ -87,7 +86,8 @@ class ConstraintChecker {
       if (code != 0) {
         return ConstraintCheckResult(
           hardViolation: true,
-          hardReason: _violationMessages[code] ?? 'Constraint violated: ${constraint.name} (code $code)',
+          hardReason: _violationMessages[code] ??
+              'Constraint violated: ${constraint.name} (code $code)',
         );
       }
     }
