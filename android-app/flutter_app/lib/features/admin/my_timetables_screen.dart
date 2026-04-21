@@ -51,28 +51,31 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
 
   void _openTimetable(int dbId) async {
     final p = PlannerState(_db, dbId: dbId);
-    await p.refreshFromDatabase(); // CRITICAL: Await hydration before building dashboard
-    
+    await p
+        .refreshFromDatabase(); // CRITICAL: Await hydration before building dashboard
+
     if (!mounted) return;
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ChangeNotifierProvider<PlannerState>.value(
-          value: p,
-          child: const TimetableDashboardScreen(),
-        ),
-      ),
-    ).then((_) => _loadTimetables()); // reload when coming back
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+              value: p,
+              child: const TimetableDashboardScreen(),
+            ),
+          ),
+        )
+        .then((_) => _loadTimetables()); // reload when coming back
   }
 
   Future<void> _duplicateTimetable(TimetableMeta meta) async {
     final existingData = await _db.loadPlannerSnapshot(meta.id);
     if (existingData == null) return;
-    
+
     existingData['draftName'] = '${meta.name} (Copy)';
     existingData['createdAt'] = DateTime.now().toIso8601String();
     existingData['updatedAt'] = DateTime.now().toIso8601String();
-    
+
     await _db.savePlannerSnapshot(existingData, 0); // 0 means insert new
     await _loadTimetables();
   }
@@ -105,7 +108,8 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Cannot delete this timetable. It may be in use.'),
+              content:
+                  const Text('Cannot delete this timetable. It may be in use.'),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
@@ -157,7 +161,8 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
   @override
   Widget build(BuildContext context) {
     final drafts = _timetables.where((t) => t.status == 'draft').toList();
-    final published = _timetables.where((t) => t.status == 'published').toList();
+    final published =
+        _timetables.where((t) => t.status == 'published').toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
@@ -213,7 +218,7 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
                       onPressed: () async {
                         final planner = PlannerState(_db, dbId: 0);
                         planner.draftName = 'New Timetable';
-                        await planner.saveToDatabase(); 
+                        await planner.saveToDatabase();
                         _openTimetable(planner.dbId);
                       },
                       icon: const Icon(Icons.add, color: Colors.white),
@@ -235,7 +240,7 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Metric Cards
                   _buildMetricCard(
                     icon: Icons.description_outlined,
@@ -260,17 +265,19 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
                     title: 'Drafts',
                     value: drafts.length.toString(),
                   ),
-                  
+
                   const SizedBox(height: 32),
-                  _buildSectionHeader('Published Timetables', published.length, Colors.green),
+                  _buildSectionHeader(
+                      'Published Timetables', published.length, Colors.green),
                   const SizedBox(height: 16),
                   if (published.isEmpty)
                     _buildEmptyPublishedState()
                   else
                     ...published.map((t) => _buildTimetableCard(t)),
-                    
+
                   const SizedBox(height: 32),
-                  _buildSectionHeader('Draft Timetables', drafts.length, Colors.grey.shade600),
+                  _buildSectionHeader(
+                      'Draft Timetables', drafts.length, Colors.grey.shade600),
                   const SizedBox(height: 16),
                   ...drafts.map((t) => _buildTimetableCard(t)),
                   const SizedBox(height: 40),
@@ -377,7 +384,8 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
       ),
       child: Column(
         children: [
-          const Icon(Icons.check_circle_outline, color: Color(0xFF22C55E), size: 32),
+          const Icon(Icons.check_circle_outline,
+              color: Color(0xFF22C55E), size: 32),
           const SizedBox(height: 12),
           const Text(
             'No published timetables',
@@ -402,12 +410,16 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
   }
 
   Widget _buildTimetableCard(TimetableMeta meta) {
-    final initials = meta.name.isNotEmpty 
-        ? meta.name.split(' ').take(2).map((w) => w.isNotEmpty ? w[0].toUpperCase() : '').join()
+    final initials = meta.name.isNotEmpty
+        ? meta.name
+            .split(' ')
+            .take(2)
+            .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
+            .join()
         : '?';
 
     final df = DateFormat('MMM d, yyyy');
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -473,19 +485,23 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
                               ),
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.grey.shade100,
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: Colors.grey.shade300),
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.access_time, size: 12, color: Colors.grey.shade700),
+                                    Icon(Icons.access_time,
+                                        size: 12, color: Colors.grey.shade700),
                                     const SizedBox(width: 4),
                                     Text(
-                                      meta.status[0].toUpperCase() + meta.status.substring(1),
+                                      meta.status[0].toUpperCase() +
+                                          meta.status.substring(1),
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
@@ -500,7 +516,8 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
                           const SizedBox(height: 12),
                           Row(
                             children: [
-                              Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey.shade500),
+                              Icon(Icons.calendar_today_outlined,
+                                  size: 14, color: Colors.grey.shade500),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
@@ -518,7 +535,8 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              Icon(Icons.insert_drive_file_outlined, size: 14, color: Colors.grey.shade500),
+                              Icon(Icons.insert_drive_file_outlined,
+                                  size: 14, color: Colors.grey.shade500),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
@@ -545,15 +563,20 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
                       child: ElevatedButton.icon(
                         onPressed: () async {
                           final isPublished = meta.status == 'published';
-                          final existingData = await _db.loadPlannerSnapshot(meta.id);
+                          final existingData =
+                              await _db.loadPlannerSnapshot(meta.id);
                           if (existingData != null) {
-                            existingData['status'] = isPublished ? 'draft' : 'published';
-                            await _db.savePlannerSnapshot(existingData, meta.id);
+                            existingData['status'] =
+                                isPublished ? 'draft' : 'published';
+                            await _db.savePlannerSnapshot(
+                                existingData, meta.id);
                             await _loadTimetables();
                           }
                         },
                         icon: Icon(
-                          meta.status == 'published' ? Icons.unpublished_outlined : Icons.check,
+                          meta.status == 'published'
+                              ? Icons.unpublished_outlined
+                              : Icons.check,
                           size: 18,
                           color: Colors.white,
                         ),
@@ -581,7 +604,8 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
                     PopupMenuButton<String>(
                       icon: const Icon(Icons.more_vert),
                       color: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       onSelected: (val) {
                         if (val == 'rename') _renameTimetable(meta);
                         if (val == 'duplicate') _duplicateTimetable(meta);
@@ -612,9 +636,11 @@ class _MyTimetablesScreenState extends State<MyTimetablesScreen> {
                           value: 'delete',
                           child: Row(
                             children: [
-                              Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                              Icon(Icons.delete_outline,
+                                  size: 18, color: Colors.red),
                               SizedBox(width: 12),
-                              Text('Delete', style: TextStyle(color: Colors.red)),
+                              Text('Delete',
+                                  style: TextStyle(color: Colors.red)),
                             ],
                           ),
                         ),

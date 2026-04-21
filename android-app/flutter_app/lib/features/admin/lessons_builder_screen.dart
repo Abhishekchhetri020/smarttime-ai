@@ -72,8 +72,10 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
               children: [
                 SegmentedButton<ViewMode>(
                   segments: const [
-                    ButtonSegment(value: ViewMode.classView, label: Text('Class')),
-                    ButtonSegment(value: ViewMode.teacher, label: Text('Teacher')),
+                    ButtonSegment(
+                        value: ViewMode.classView, label: Text('Class')),
+                    ButtonSegment(
+                        value: ViewMode.teacher, label: Text('Teacher')),
                     ButtonSegment(value: ViewMode.room, label: Text('Room')),
                   ],
                   selected: {_viewMode},
@@ -98,19 +100,24 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
           Expanded(
             child: UniversalTimetableGrid(
               viewMode: _viewMode,
-              rowLabels: const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].sublist(0, planner.workingDays),
-              periods: planner.scheduleEntries.map((e) => PeriodSlot(
-                id: e.id,
-                label: e.label,
-                isBreak: e.type == ScheduleEntryType.breakTime,
-              )).toList(),
+              rowLabels: const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                  .sublist(0, planner.workingDays),
+              periods: planner.scheduleEntries
+                  .map((e) => PeriodSlot(
+                        id: e.id,
+                        label: e.label,
+                        isBreak: e.type == ScheduleEntryType.breakTime,
+                      ))
+                  .toList(),
               cells: _buildCells(planner),
               onMoveCell: (lessonId, row, col) async {
-                await planner.pinLessonToSlot(lessonId: lessonId, day: row, period: col);
+                await planner.pinLessonToSlot(
+                    lessonId: lessonId, day: row, period: col);
                 return null;
               },
               onValidateMove: (lessonId, row, col) {
-                final targetLessonIdx = planner.lessons.indexWhere((l) => l.id == lessonId);
+                final targetLessonIdx =
+                    planner.lessons.indexWhere((l) => l.id == lessonId);
                 if (targetLessonIdx < 0) return false;
                 final targetLesson = planner.lessons[targetLessonIdx];
 
@@ -118,7 +125,8 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
                 for (final otherLesson in planner.lessons) {
                   if (otherLesson.id == lessonId) continue;
                   if (!otherLesson.isPinned) continue;
-                  if (otherLesson.fixedDay != row || otherLesson.fixedPeriod != col) continue;
+                  if (otherLesson.fixedDay != row ||
+                      otherLesson.fixedPeriod != col) continue;
 
                   // Teacher conflict
                   for (final tId in targetLesson.teacherIds) {
@@ -133,7 +141,8 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
                   // Room conflict (if both require the same specific room)
                   if (targetLesson.requiredClassroomId != null &&
                       otherLesson.requiredClassroomId != null &&
-                      targetLesson.requiredClassroomId == otherLesson.requiredClassroomId) {
+                      targetLesson.requiredClassroomId ==
+                          otherLesson.requiredClassroomId) {
                     return false;
                   }
                 }
@@ -153,7 +162,7 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
 
   Map<String, TimetableCellData> _buildCells(PlannerState planner) {
     final Map<String, TimetableCellData> cells = {};
-    
+
     for (final lesson in planner.lessons) {
       if (!lesson.isPinned) continue;
       final day = lesson.fixedDay;
@@ -172,18 +181,36 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
 
       if (shouldShow) {
         // Find names for display
-        final subject = planner.subjects.firstWhere((s) => s.id == lesson.subjectId, orElse: () => SubjectItem(name: 'Unknown', abbr: 'UNK', color: 0)).name;
-        
+        final subject = planner.subjects
+            .firstWhere((s) => s.id == lesson.subjectId,
+                orElse: () =>
+                    SubjectItem(name: 'Unknown', abbr: 'UNK', color: 0))
+            .name;
+
         String secondary = '';
         if (_viewMode == ViewMode.teacher) {
-           secondary = lesson.classIds.map((cid) => planner.classes.firstWhere((c) => c.id == cid, orElse: () => ClassItem(name: 'Unknown', abbr: 'UNK')).abbr).join(', ');
+          secondary = lesson.classIds
+              .map((cid) => planner.classes
+                  .firstWhere((c) => c.id == cid,
+                      orElse: () => ClassItem(name: 'Unknown', abbr: 'UNK'))
+                  .abbr)
+              .join(', ');
         } else if (_viewMode == ViewMode.classView) {
-           secondary = lesson.teacherIds.map((tid) => planner.teachers.firstWhere((t) => t.id == tid, orElse: () => TeacherItem(firstName: 'Unknown', lastName: '', abbr: 'UNK')).abbr).join(', ');
+          secondary = lesson.teacherIds
+              .map((tid) => planner.teachers
+                  .firstWhere((t) => t.id == tid,
+                      orElse: () => TeacherItem(
+                          firstName: 'Unknown', lastName: '', abbr: 'UNK'))
+                  .abbr)
+              .join(', ');
         }
 
         String? tertiary;
         if (lesson.requiredClassroomId != null) {
-          tertiary = planner.classrooms.firstWhere((r) => r.id == lesson.requiredClassroomId, orElse: () => ClassroomItem(name: 'Unknown')).name;
+          tertiary = planner.classrooms
+              .firstWhere((r) => r.id == lesson.requiredClassroomId,
+                  orElse: () => ClassroomItem(name: 'Unknown'))
+              .name;
         }
 
         cells['$day|$period'] = TimetableCellData(
@@ -192,11 +219,15 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
           primary: subject,
           secondary: secondary,
           tertiary: tertiary,
-          accent: Color(planner.subjects.firstWhere((s) => s.id == lesson.subjectId, orElse: () => SubjectItem(name: 'Unknown', abbr: 'UNK', color: 0xFF4F46E5)).color),
+          accent: Color(planner.subjects
+              .firstWhere((s) => s.id == lesson.subjectId,
+                  orElse: () => SubjectItem(
+                      name: 'Unknown', abbr: 'UNK', color: 0xFF4F46E5))
+              .color),
         );
       }
     }
-    
+
     return cells;
   }
 
@@ -210,7 +241,8 @@ class _LessonsBuilderScreenState extends State<LessonsBuilderScreen> {
 
   void _showAddLessonSheet(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add Lesson functionality would open here.')),
+      const SnackBar(
+          content: Text('Add Lesson functionality would open here.')),
     );
   }
 }
@@ -227,7 +259,10 @@ Future<Uint8List> generateTimetablePdf(PlannerState planner) async {
         margin: const pw.EdgeInsets.only(bottom: 20),
         child: pw.Text(
           'Timetable: ${planner.schoolName}',
-          style: pw.TextStyle(color: motherSageColor, fontWeight: pw.FontWeight.bold, fontSize: 18),
+          style: pw.TextStyle(
+              color: motherSageColor,
+              fontWeight: pw.FontWeight.bold,
+              fontSize: 18),
         ),
       ),
       footer: (pw.Context context) => pw.Container(
@@ -236,11 +271,14 @@ Future<Uint8List> generateTimetablePdf(PlannerState planner) async {
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('Generated by SmartTime AI', style: const pw.TextStyle(fontSize: 10)),
+            pw.Text('Generated by SmartTime AI',
+                style: const pw.TextStyle(fontSize: 10)),
             pw.Column(
               children: [
-                pw.Text('GD Goenka Public School', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.Text('Academic Excellence', style: const pw.TextStyle(fontSize: 8)),
+                pw.Text('GD Goenka Public School',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.Text('Academic Excellence',
+                    style: const pw.TextStyle(fontSize: 8)),
               ],
             ),
           ],
@@ -255,21 +293,29 @@ Future<Uint8List> generateTimetablePdf(PlannerState planner) async {
               children: [
                 pw.Padding(
                   padding: const pw.EdgeInsets.all(5),
-                  child: pw.Text('Day / Period', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold)),
+                  child: pw.Text('Day / Period',
+                      style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontWeight: pw.FontWeight.bold)),
                 ),
                 ...planner.scheduleEntries.map((e) => pw.Padding(
                       padding: const pw.EdgeInsets.all(5),
-                      child: pw.Text(e.label, style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold)),
+                      child: pw.Text(e.label,
+                          style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontWeight: pw.FontWeight.bold)),
                     )),
               ],
             ),
             ...List.generate(planner.workingDays, (dayIdx) {
-              final dayName = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayIdx];
+              final dayName =
+                  ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayIdx];
               return pw.TableRow(
                 children: [
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(5),
-                    child: pw.Text(dayName, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    child: pw.Text(dayName,
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                   ),
                   ...planner.scheduleEntries.map((period) {
                     return pw.Padding(

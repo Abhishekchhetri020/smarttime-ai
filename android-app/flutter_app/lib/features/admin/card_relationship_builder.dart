@@ -11,7 +11,8 @@ class CardRelationshipBuilder extends StatefulWidget {
   final CardRelationship? existingRule;
 
   @override
-  State<CardRelationshipBuilder> createState() => _CardRelationshipBuilderState();
+  State<CardRelationshipBuilder> createState() =>
+      _CardRelationshipBuilderState();
 }
 
 class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
@@ -20,7 +21,7 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
 
   List<String> _selectedSubjectIds = [];
   List<String> _selectedClassIds = [];
-  
+
   String _selectedCondition = 'Card distribution over the week';
   String _selectedImportance = 'Strict';
   bool _isActive = true;
@@ -53,6 +54,7 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
     'Cards cannot overlap',
     'Must be on different days',
     'Specific days only',
+    'Max building changes per day',
   ];
 
   final List<String> _importances = [
@@ -85,11 +87,12 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
 
   void _saveRule() {
     if (!_formKey.currentState!.validate()) return;
-    
+
     final planner = context.read<PlannerState>();
-    
+
     final rule = CardRelationship(
-      id: widget.existingRule?.id ?? 'CR_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}',
+      id: widget.existingRule?.id ??
+          'CR_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}',
       subjectIds: _selectedSubjectIds,
       classIds: _selectedClassIds,
       condition: _selectedCondition,
@@ -97,13 +100,13 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
       note: _noteController.text.trim(),
       isActive: _isActive,
     );
-    
+
     if (widget.existingRule != null) {
       planner.updateCardRelationship(rule);
     } else {
       planner.addCardRelationship(rule);
     }
-    
+
     Navigator.pop(context);
   }
 
@@ -112,10 +115,12 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
     final result = await _showMultiSelectSheet(
       context: context,
       title: 'Select Subjects',
-      items: planner.subjects.map((s) => _MultiSelectItem(id: s.id, label: s.name, color: s.color)).toList(),
+      items: planner.subjects
+          .map((s) => _MultiSelectItem(id: s.id, label: s.name, color: s.color))
+          .toList(),
       initialSelection: _selectedSubjectIds,
     );
-    
+
     if (result != null) {
       setState(() => _selectedSubjectIds = result);
     }
@@ -126,11 +131,13 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
     final result = await _showMultiSelectSheet(
       context: context,
       title: 'Select Classes',
-      items: planner.classes.map((c) => _MultiSelectItem(id: c.id, label: c.name, color: c.color)).toList(),
+      items: planner.classes
+          .map((c) => _MultiSelectItem(id: c.id, label: c.name, color: c.color))
+          .toList(),
       initialSelection: _selectedClassIds,
       allowSelectAll: true,
     );
-    
+
     if (result != null) {
       setState(() => _selectedClassIds = result);
     }
@@ -149,7 +156,9 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red),
               onPressed: () {
-                context.read<PlannerState>().removeCardRelationship(widget.existingRule!.id);
+                context
+                    .read<PlannerState>()
+                    .removeCardRelationship(widget.existingRule!.id);
                 Navigator.pop(context);
               },
             ),
@@ -166,7 +175,10 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
               children: [
                 const Text(
                   'Rule Active Status',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B)),
                 ),
                 Switch(
                   value: _isActive,
@@ -176,7 +188,7 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
               ],
             ),
             const Divider(height: 32),
-            
+
             // Subjects Selector
             _buildSectionHeader('Apply to Subjects'),
             const SizedBox(height: 8),
@@ -184,7 +196,8 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
               onTap: _openSubjectsSheet,
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(12),
@@ -197,7 +210,9 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
                             ? 'Select specific subjects (optional)'
                             : '\${_selectedSubjectIds.length} Subjects Selected',
                         style: TextStyle(
-                          color: _selectedSubjectIds.isEmpty ? Colors.grey.shade500 : const Color(0xFF1E293B),
+                          color: _selectedSubjectIds.isEmpty
+                              ? Colors.grey.shade500
+                              : const Color(0xFF1E293B),
                           fontSize: 15,
                         ),
                       ),
@@ -208,7 +223,7 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // Classes Selector
             _buildSectionHeader('Apply to Classes'),
             const SizedBox(height: 8),
@@ -216,7 +231,8 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
               onTap: _openClassesSheet,
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(12),
@@ -229,7 +245,9 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
                             ? 'Select specific classes (optional)'
                             : '\${_selectedClassIds.length} Classes Selected',
                         style: TextStyle(
-                          color: _selectedClassIds.isEmpty ? Colors.grey.shade500 : const Color(0xFF1E293B),
+                          color: _selectedClassIds.isEmpty
+                              ? Colors.grey.shade500
+                              : const Color(0xFF1E293B),
                           fontSize: 15,
                         ),
                       ),
@@ -240,7 +258,7 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // Condition Dropdown
             _buildSectionHeader('Rule Condition'),
             const SizedBox(height: 8),
@@ -251,15 +269,18 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
-              items: _conditions.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              items: _conditions
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .toList(),
               onChanged: (val) {
                 if (val != null) setState(() => _selectedCondition = val);
               },
             ),
             const SizedBox(height: 24),
-            
+
             // Importance Dropdown
             _buildSectionHeader('Importance Level'),
             const SizedBox(height: 8),
@@ -270,7 +291,8 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
               items: _importances.map((i) {
                 return DropdownMenuItem(
@@ -289,7 +311,7 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
               },
             ),
             const SizedBox(height: 24),
-            
+
             // Note Field
             _buildSectionHeader('Note / Description'),
             const SizedBox(height: 8),
@@ -305,7 +327,7 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
               maxLength: 100,
             ),
             const SizedBox(height: 40),
-            
+
             // Save Button
             SizedBox(
               height: 52,
@@ -319,7 +341,9 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text('Save Rule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: const Text('Save Rule',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -341,12 +365,18 @@ class _CardRelationshipBuilderState extends State<CardRelationshipBuilder> {
 
   Color _getImportanceColor(String importance) {
     switch (importance.toLowerCase()) {
-      case 'low': return Colors.green;
-      case 'normal': return Colors.blue;
-      case 'high': return Colors.orange;
-      case 'strict': return Colors.red;
-      case 'optimize': return Colors.purple;
-      default: return Colors.grey;
+      case 'low':
+        return Colors.green;
+      case 'normal':
+        return Colors.blue;
+      case 'high':
+        return Colors.orange;
+      case 'strict':
+        return Colors.red;
+      case 'optimize':
+        return Colors.purple;
+      default:
+        return Colors.grey;
     }
   }
 }
@@ -385,7 +415,9 @@ Future<List<String>?> _showMultiSelectSheet({
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(title,
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
                       const Spacer(),
                       IconButton(
                         icon: const Icon(Icons.close),
@@ -396,13 +428,15 @@ Future<List<String>?> _showMultiSelectSheet({
                 ),
                 if (allowSelectAll) ...[
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     child: Row(
                       children: [
                         TextButton(
                           onPressed: () {
                             setStateSheet(() {
-                              currentSelection = items.map((e) => e.id).toList();
+                              currentSelection =
+                                  items.map((e) => e.id).toList();
                             });
                           },
                           child: const Text('Select All'),
@@ -426,15 +460,20 @@ Future<List<String>?> _showMultiSelectSheet({
                     itemBuilder: (context, index) {
                       final item = items[index];
                       final isSelected = currentSelection.contains(item.id);
-                      final cColor = item.color != null ? Color(item.color!) : null;
-                      
+                      final cColor =
+                          item.color != null ? Color(item.color!) : null;
+
                       return CheckboxListTile(
                         value: isSelected,
                         activeColor: AppTheme.motherSage,
                         title: Row(
                           children: [
                             if (cColor != null) ...[
-                              Container(width: 12, height: 12, decoration: BoxDecoration(color: cColor, shape: BoxShape.circle)),
+                              Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                      color: cColor, shape: BoxShape.circle)),
                               const SizedBox(width: 8),
                             ],
                             Text(item.label),
@@ -463,9 +502,12 @@ Future<List<String>?> _showMultiSelectSheet({
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.motherSage,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('Confirm Selection', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      child: const Text('Confirm Selection',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ),

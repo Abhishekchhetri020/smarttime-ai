@@ -26,8 +26,12 @@ class _ClassroomsTabState extends State<ClassroomsTab> {
     final planner = context.watch<PlannerState>();
     return Column(
       children: [
-        TextField(controller: _name, decoration: const InputDecoration(labelText: 'Room name / ID')),
-        TextField(controller: _type, decoration: const InputDecoration(labelText: 'Room type')),
+        TextField(
+            controller: _name,
+            decoration: const InputDecoration(labelText: 'Room name / ID')),
+        TextField(
+            controller: _type,
+            decoration: const InputDecoration(labelText: 'Room type')),
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,
@@ -35,7 +39,11 @@ class _ClassroomsTabState extends State<ClassroomsTab> {
             onPressed: () {
               if (_name.text.trim().isEmpty) return;
               context.read<PlannerState>().addClassroom(
-                    ClassroomItem(name: _name.text.trim(), roomType: _type.text.trim().isEmpty ? 'standard' : _type.text.trim()),
+                    ClassroomItem(
+                        name: _name.text.trim(),
+                        roomType: _type.text.trim().isEmpty
+                            ? 'standard'
+                            : _type.text.trim()),
                   );
               _name.clear();
             },

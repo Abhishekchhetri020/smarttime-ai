@@ -130,10 +130,10 @@ class TimetableGridView extends StatelessWidget {
                       painter: _GridPainter(days: days, periods: periodsPerDay),
                     ),
                     ...assignments.map((a) => Positioned(
-                          left: (a.day - 1) * _cellW + 4,
-                          top: (a.period - 1) * _cellH + 4,
-                          width: _cellW - 8,
-                          height: _cellH - 8,
+                          left: (a.day - 1) * _cellW,
+                          top: (a.period - 1) * _cellH,
+                          width: _cellW,
+                          height: _cellH,
                           child: _LessonCard(a: a),
                         )),
                   ],
@@ -206,12 +206,14 @@ class _LessonCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.black12),
+        border: const Border(
+          bottom: BorderSide(color: Color(0xFF5E7FB4), width: 1.0),
+          right: BorderSide(color: Color(0xFF5E7FB4), width: 1.0),
+        ),
       ),
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(4),
       child: DefaultTextStyle(
-        style: const TextStyle(color: Colors.white, fontSize: 11),
+        style: const TextStyle(color: Colors.black, fontSize: 11),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -222,9 +224,15 @@ class _LessonCard extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const Spacer(),
-            if (teachers.isNotEmpty) Text(teachers),
-            if (classes.isNotEmpty) Text(classes),
-            if (room != null && room.isNotEmpty) Text(room),
+            if (teachers.isNotEmpty)
+              Text(teachers,
+                  style: const TextStyle(fontSize: 10, color: Colors.black87)),
+            if (classes.isNotEmpty)
+              Text(classes,
+                  style: const TextStyle(fontSize: 10, color: Colors.black87)),
+            if (room != null && room.isNotEmpty)
+              Text(room,
+                  style: const TextStyle(fontSize: 10, color: Colors.black87)),
           ],
         ),
       ),

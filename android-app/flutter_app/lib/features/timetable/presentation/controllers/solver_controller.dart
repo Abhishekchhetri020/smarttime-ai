@@ -112,7 +112,8 @@ class SolverController extends ChangeNotifier {
 
       if (result.isOk && result.best != null) {
         _mapDartAssignments(result.best!, planner);
-        debugPrint('--- DART SOLVER: ${result.status} in ${result.elapsedMs}ms, '
+        debugPrint(
+            '--- DART SOLVER: ${result.status} in ${result.elapsedMs}ms, '
             'score: ${result.best!.totalScore.toStringAsFixed(1)}, '
             '${result.variants.length} variant(s) ---');
       } else {
@@ -155,7 +156,7 @@ class SolverController extends ChangeNotifier {
 
       assignments.add(TimetableAssignment(
         lessonId: a.lessonId,
-        day: a.day,    // 0-indexed; persisted as-is by generation_progress_screen
+        day: a.day, // 0-indexed; persisted as-is by generation_progress_screen
         period: a.period,
         subjectId: plannerLesson.subjectId,
         classIds: List<String>.from(plannerLesson.classIds),
@@ -198,7 +199,8 @@ class SolverController extends ChangeNotifier {
       final sw = Stopwatch()..start();
       final res = await client.solve(payload);
       sw.stop();
-      debugPrint('--- NATIVE SOLVER COMPLETED IN: ${sw.elapsedMilliseconds}ms ---');
+      debugPrint(
+          '--- NATIVE SOLVER COMPLETED IN: ${sw.elapsedMilliseconds}ms ---');
       debugPrint('--- SOLVER STATUS: ${res.rawStatus} ---');
 
       status = res.rawStatus;

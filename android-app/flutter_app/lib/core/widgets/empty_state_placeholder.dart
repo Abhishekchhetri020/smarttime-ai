@@ -61,7 +61,8 @@ class EmptyStatePlaceholder extends StatelessWidget {
                 icon: const Icon(Icons.add, size: 18),
                 label: Text(actionLabel!),
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
               ),
             ],

@@ -29,7 +29,8 @@ class TimeOffMatrix extends StatelessWidget {
           child: DataTable(
             columns: [
               const DataColumn(label: Text('Day')),
-              for (int p = 1; p <= periodsPerDay; p++) DataColumn(label: Text('P$p')),
+              for (int p = 1; p <= periodsPerDay; p++)
+                DataColumn(label: Text('P$p')),
             ],
             rows: [
               for (int d = 0; d < days.length; d++)
@@ -60,7 +61,9 @@ class TimeOffMatrix extends StatelessWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
-                              unavailableSlots.contains(_key(d, p - 1)) ? Icons.block : Icons.check,
+                              unavailableSlots.contains(_key(d, p - 1))
+                                  ? Icons.block
+                                  : Icons.check,
                               size: 18,
                               color: unavailableSlots.contains(_key(d, p - 1))
                                   ? colorScheme.onErrorContainer
@@ -75,7 +78,8 @@ class TimeOffMatrix extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        const Text('Green = available, Red = unavailable', style: TextStyle(fontSize: 12)),
+        const Text('Green = available, Red = unavailable',
+            style: TextStyle(fontSize: 12)),
       ],
     );
   }

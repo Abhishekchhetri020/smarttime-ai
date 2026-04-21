@@ -299,7 +299,9 @@ class _RoomSetupScreenState extends State<RoomSetupScreen> {
                       title: Row(
                         children: [
                           Icon(
-                              isHidden ? Icons.visibility_off : Icons.visibility,
+                              isHidden
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                               size: 18,
                               color: isHidden
                                   ? Colors.grey
@@ -788,8 +790,8 @@ class _RoomCellState extends State<_RoomCell> {
                       planner.updateRoom(widget.room.copyWith(groupId: null));
                       Navigator.pop(ctx);
                     },
-                    child:
-                        const Text('Clear', style: TextStyle(color: Colors.red)),
+                    child: const Text('Clear',
+                        style: TextStyle(color: Colors.red)),
                   ),
                   const Spacer(),
                 ] else

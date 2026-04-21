@@ -5,6 +5,7 @@ class TimetableSlotDescriptor {
   final String label;
   final bool isBreak;
   final int? periodIndex;
+
   /// Time range string, e.g. '7:40 - 8:20'. Null if not available.
   final String? timeRange;
 
@@ -227,7 +228,7 @@ String _humanizeToken(String token) {
   // If it's literally just a roman numeral like "IV" or "XI"
   final upper = token.toUpperCase();
   if (RegExp(r'^[IVXLCDM]+$').hasMatch(upper)) return upper;
-  
+
   // If it has digits, keep it upper (like "1A", "C2")
   if (RegExp(r'\d').hasMatch(token)) return upper;
 

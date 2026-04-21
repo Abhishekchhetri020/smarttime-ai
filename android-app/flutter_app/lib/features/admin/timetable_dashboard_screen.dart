@@ -15,14 +15,16 @@ class TimetableDashboardScreen extends StatelessWidget {
       final importer = BulkImportService();
       final workbookFile = await importer.pickImportWorkbook();
       if (workbookFile == null) {
-        messenger.showSnackBar(const SnackBar(content: Text('Import cancelled.')));
+        messenger
+            .showSnackBar(const SnackBar(content: Text('Import cancelled.')));
         return;
       }
       if (!context.mounted) return;
       final planner = context.read<PlannerState>();
       final db = planner.db;
       if (db == null) {
-        messenger.showSnackBar(const SnackBar(content: Text('Database not ready. Try again.')));
+        messenger.showSnackBar(
+            const SnackBar(content: Text('Database not ready. Try again.')));
         return;
       }
       final summary = await importer.importMasterWorkbookData(
@@ -68,7 +70,9 @@ class TimetableDashboardScreen extends StatelessWidget {
             flexibleSpace: FlexibleSpaceBar(
               titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
               title: Text(
-                planner.schoolName.isNotEmpty ? planner.schoolName : 'SmartTime AI',
+                planner.schoolName.isNotEmpty
+                    ? planner.schoolName
+                    : 'SmartTime AI',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -157,7 +161,8 @@ class TimetableDashboardScreen extends StatelessWidget {
                 onCreate: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                      builder: (_) =>
+                          ChangeNotifierProvider<PlannerState>.value(
                         value: planner,
                         child: const TimetableSetupShell(),
                       ),
@@ -187,7 +192,8 @@ class TimetableDashboardScreen extends StatelessWidget {
                     onCreate: () {
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                          builder: (_) =>
+                              ChangeNotifierProvider<PlannerState>.value(
                             value: planner,
                             child: const TimetableSetupShell(),
                           ),
@@ -442,7 +448,8 @@ class _QuickActionsGrid extends StatelessWidget {
           color: const Color(0xFF059669),
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Generate a timetable first to export.')),
+              const SnackBar(
+                  content: Text('Generate a timetable first to export.')),
             );
           },
         ),
@@ -453,7 +460,8 @@ class _QuickActionsGrid extends StatelessWidget {
           color: const Color(0xFFE11D48),
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Generate a timetable first to export.')),
+              const SnackBar(
+                  content: Text('Generate a timetable first to export.')),
             );
           },
         ),
@@ -545,7 +553,9 @@ class _StatusCard extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            hasData ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded,
+            hasData
+                ? Icons.check_circle_outline_rounded
+                : Icons.info_outline_rounded,
             color: hasData ? AppTheme.successGreen : AppTheme.accentAmber,
             size: 24,
           ),
@@ -557,7 +567,8 @@ class _StatusCard extends StatelessWidget {
                 Text(
                   hasData ? 'Ready to Generate' : 'Setup Required',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: hasData ? AppTheme.successGreen : AppTheme.espresso,
+                        color:
+                            hasData ? AppTheme.successGreen : AppTheme.espresso,
                       ),
                 ),
                 const SizedBox(height: 2),

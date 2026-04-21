@@ -56,7 +56,8 @@ class _ClassesTabState extends State<ClassesTab> {
           child: ElevatedButton(
             onPressed: _isClassFormValid
                 ? () {
-                    final c = ClassItem(name: _name.text.trim(), abbr: _abbr.text.trim());
+                    final c = ClassItem(
+                        name: _name.text.trim(), abbr: _abbr.text.trim());
                     context.read<PlannerState>().addClass(c);
                     setState(() => _selectedClassId = c.id);
                     _name.clear();
@@ -69,13 +70,15 @@ class _ClassesTabState extends State<ClassesTab> {
         const SizedBox(height: 12),
         Align(
           alignment: Alignment.centerLeft,
-          child: Text('Division Creator', style: Theme.of(context).textTheme.titleSmall),
+          child: Text('Division Creator',
+              style: Theme.of(context).textTheme.titleSmall),
         ),
         DropdownButtonFormField<String>(
           initialValue: _selectedClassId,
           decoration: const InputDecoration(labelText: 'Target class'),
           items: planner.classes
-              .map((c) => DropdownMenuItem(value: c.id, child: Text('${c.name} (${c.abbr})')))
+              .map((c) => DropdownMenuItem(
+                  value: c.id, child: Text('${c.name} (${c.abbr})')))
               .toList(),
           onChanged: (v) => setState(() => _selectedClassId = v),
         ),
@@ -84,7 +87,8 @@ class _ClassesTabState extends State<ClassesTab> {
             Expanded(
               child: TextField(
                 controller: _divisionName,
-                decoration: const InputDecoration(labelText: 'Division name (Boys/Girls/Hindi)'),
+                decoration: const InputDecoration(
+                    labelText: 'Division name (Boys/Girls/Hindi)'),
               ),
             ),
             const SizedBox(width: 8),
@@ -100,7 +104,9 @@ class _ClassesTabState extends State<ClassesTab> {
           alignment: Alignment.centerLeft,
           child: OutlinedButton(
             onPressed: () {
-              if (_selectedClassId == null || _divisionName.text.trim().isEmpty || _divisionCode.text.trim().isEmpty) {
+              if (_selectedClassId == null ||
+                  _divisionName.text.trim().isEmpty ||
+                  _divisionCode.text.trim().isEmpty) {
                 return;
               }
               context.read<PlannerState>().addDivision(
@@ -118,7 +124,8 @@ class _ClassesTabState extends State<ClassesTab> {
         for (final c in planner.classes)
           ListTile(
             title: Text(c.name),
-            subtitle: Text('${c.abbr} • divisions: ${c.divisions.map((d) => d.code).join(', ')}'),
+            subtitle: Text(
+                '${c.abbr} • divisions: ${c.divisions.map((d) => d.code).join(', ')}'),
           ),
       ],
     );

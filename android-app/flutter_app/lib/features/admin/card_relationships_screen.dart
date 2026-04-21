@@ -9,7 +9,8 @@ class CardRelationshipsScreen extends StatefulWidget {
   const CardRelationshipsScreen({super.key});
 
   @override
-  State<CardRelationshipsScreen> createState() => _CardRelationshipsScreenState();
+  State<CardRelationshipsScreen> createState() =>
+      _CardRelationshipsScreenState();
 }
 
 class _CardRelationshipsScreenState extends State<CardRelationshipsScreen> {
@@ -60,7 +61,8 @@ class _CardRelationshipsScreenState extends State<CardRelationshipsScreen> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                        builder: (_) =>
+                            ChangeNotifierProvider<PlannerState>.value(
                           value: planner,
                           child: const CardRelationshipBuilder(),
                         ),
@@ -97,7 +99,8 @@ class _CardRelationshipsScreenState extends State<CardRelationshipsScreen> {
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                              builder: (_) =>
+                                  ChangeNotifierProvider<PlannerState>.value(
                                 value: planner,
                                 child: CardRelationshipBuilder(
                                   existingRule: rule,
@@ -221,14 +224,17 @@ class _RuleCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLabelRow('Condition', rule.condition, Colors.black87, true),
+                        _buildLabelRow(
+                            'Condition', rule.condition, Colors.black87, true),
                         const SizedBox(height: 8),
                         if (subjects.isNotEmpty)
-                          _buildLabelRow('Subjects', subjects, const Color(0xFF6366F1), false),
+                          _buildLabelRow('Subjects', subjects,
+                              const Color(0xFF6366F1), false),
                         if (subjects.isNotEmpty && classes.isNotEmpty)
                           const SizedBox(height: 6),
                         if (classes.isNotEmpty)
-                          _buildLabelRow('Classes', classes, const Color(0xFF0891B2), false),
+                          _buildLabelRow('Classes', classes,
+                              const Color(0xFF0891B2), false),
                       ],
                     ),
                   ),
@@ -236,12 +242,14 @@ class _RuleCard extends StatelessWidget {
                   Switch(
                     value: rule.isActive,
                     onChanged: (val) {
-                      final idx = planner.cardRelationships.indexWhere((r) => r.id == rule.id);
+                      final idx = planner.cardRelationships
+                          .indexWhere((r) => r.id == rule.id);
                       if (idx >= 0) {
                         planner.cardRelationships[idx].isActive = val;
                         // The class setter in Provider needs to be wrapped or manually called notifyListeners
                         // but since CardRelationship is mutable and planner_state doesn't know, we must force save
-                        planner.updateCardRelationship(planner.cardRelationships[idx]);
+                        planner.updateCardRelationship(
+                            planner.cardRelationships[idx]);
                       }
                     },
                     activeColor: AppTheme.motherSage,
@@ -254,15 +262,19 @@ class _RuleCard extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getImportanceColor(rule.importance).withOpacity(0.1),
+                      color:
+                          _getImportanceColor(rule.importance).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.flag, size: 14, color: _getImportanceColor(rule.importance)),
+                        Icon(Icons.flag,
+                            size: 14,
+                            color: _getImportanceColor(rule.importance)),
                         const SizedBox(width: 4),
                         Text(
                           rule.importance,
@@ -299,7 +311,8 @@ class _RuleCard extends StatelessWidget {
     );
   }
 
-  Widget _buildLabelRow(String label, String value, Color valueColor, bool isBold) {
+  Widget _buildLabelRow(
+      String label, String value, Color valueColor, bool isBold) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

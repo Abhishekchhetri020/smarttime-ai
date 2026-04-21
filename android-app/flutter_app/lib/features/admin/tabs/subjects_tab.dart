@@ -18,7 +18,8 @@ class _SubjectsTabState extends State<SubjectsTab> {
   final _groupKey = TextEditingController();
 
   bool get _isSubjectFormValid {
-    final hasBaseFields = _name.text.trim().isNotEmpty && _abbr.text.trim().isNotEmpty;
+    final hasBaseFields =
+        _name.text.trim().isNotEmpty && _abbr.text.trim().isNotEmpty;
     if (!hasBaseFields) return false;
     if (_isElectiveGroup) return _groupKey.text.trim().isNotEmpty;
     return true;
@@ -149,8 +150,9 @@ class _SubjectsTabState extends State<SubjectsTab> {
                               name: _name.text.trim(),
                               abbr: _abbr.text.trim(),
                               color: 0xFF4F46E5,
-                              relationshipGroupKey:
-                                  _isElectiveGroup ? _groupKey.text.trim() : null,
+                              relationshipGroupKey: _isElectiveGroup
+                                  ? _groupKey.text.trim()
+                                  : null,
                             ),
                           );
 
@@ -179,7 +181,8 @@ class _SubjectsTabState extends State<SubjectsTab> {
 
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Subject saved successfully')),
+                        const SnackBar(
+                            content: Text('Subject saved successfully')),
                       );
 
                       _name.clear();

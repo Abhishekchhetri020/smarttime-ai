@@ -39,7 +39,15 @@ class GenerationInsightsSheet extends StatelessWidget {
 
     // Days from planner
     final workingDays = (plannerSnap?['workingDays'] as int?) ?? 6;
-    final dayNames = const ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final dayNames = const [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday'
+    ];
     final activeDays = dayNames.sublist(0, workingDays.clamp(1, 7));
 
     // Periods per day from schedule entries
@@ -52,7 +60,8 @@ class GenerationInsightsSheet extends StatelessWidget {
     // Total required vs scheduled
     final totalRequired = lessons.fold<int>(0, (s, l) => s + l.periodsPerWeek);
     final totalScheduled = cards.length;
-    final totalUnscheduled = (totalRequired - totalScheduled).clamp(0, totalRequired);
+    final totalUnscheduled =
+        (totalRequired - totalScheduled).clamp(0, totalRequired);
     final completion = totalRequired > 0 ? totalScheduled / totalRequired : 0.0;
 
     // Lesson distribution by day
@@ -66,9 +75,11 @@ class GenerationInsightsSheet extends StatelessWidget {
     final classUsage = <_UsageRow>[];
     for (final cls in classes) {
       final clsLessons = lessons.where((l) => l.classIds.contains(cls.id));
-      final clsRequired = clsLessons.fold<int>(0, (s, l) => s + l.periodsPerWeek);
+      final clsRequired =
+          clsLessons.fold<int>(0, (s, l) => s + l.periodsPerWeek);
       final clsCards = cards.where((c) {
-        final l = lessons.firstWhere((l) => l.id == c.lessonId, orElse: () => lessons.first);
+        final l = lessons.firstWhere((l) => l.id == c.lessonId,
+            orElse: () => lessons.first);
         return l.classIds.contains(cls.id);
       }).length;
       classUsage.add(_UsageRow(
@@ -84,7 +95,8 @@ class GenerationInsightsSheet extends StatelessWidget {
       final tLessons = lessons.where((l) => l.teacherIds.contains(t.id));
       final tRequired = tLessons.fold<int>(0, (s, l) => s + l.periodsPerWeek);
       final tCards = cards.where((c) {
-        final l = lessons.firstWhere((l) => l.id == c.lessonId, orElse: () => lessons.first);
+        final l = lessons.firstWhere((l) => l.id == c.lessonId,
+            orElse: () => lessons.first);
         return l.teacherIds.contains(t.id);
       }).length;
       teacherUsage.add(_UsageRow(
@@ -134,9 +146,8 @@ class GenerationInsightsSheet extends StatelessWidget {
       }
 
       final usedDays = dayBuckets.where((d) => d > 0).length;
-      final idealSpread = l.periodsPerWeek <= workingDays
-          ? l.periodsPerWeek
-          : workingDays;
+      final idealSpread =
+          l.periodsPerWeek <= workingDays ? l.periodsPerWeek : workingDays;
       final isPerfect = usedDays >= idealSpread;
 
       if (isPerfect) {
@@ -227,8 +238,7 @@ class GenerationInsightsSheet extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: [AppTheme.indigo, AppTheme.indigoDark],
                 ),
-                borderRadius:
-                    BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Row(
                 children: [
@@ -353,7 +363,8 @@ class _UsageRow {
   final String label;
   final int used;
   final int total;
-  const _UsageRow({required this.label, required this.used, required this.total});
+  const _UsageRow(
+      {required this.label, required this.used, required this.total});
 }
 
 class _PoorDistribution {
@@ -421,8 +432,7 @@ class _CompletionCard extends StatelessWidget {
               value: d.completion.clamp(0.0, 1.0),
               minHeight: 8,
               backgroundColor: Colors.grey.shade200,
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(AppTheme.indigo),
+              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.indigo),
             ),
           ),
         ],
@@ -489,7 +499,8 @@ class _DayDistributionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.calendar_month, size: 20, color: AppTheme.indigo),
+              const Icon(Icons.calendar_month,
+                  size: 20, color: AppTheme.indigo),
               const SizedBox(width: 8),
               const Text('Lesson Distribution by Day',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
@@ -551,8 +562,7 @@ class _UsageSection extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                    child: Text(r.label,
-                        style: const TextStyle(fontSize: 13))),
+                    child: Text(r.label, style: const TextStyle(fontSize: 13))),
                 Text(
                   '${r.used} / ${r.total} periods (${r.total > 0 ? ((r.used / r.total) * 100).toStringAsFixed(1) : 0}%)',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
@@ -563,9 +573,7 @@ class _UsageSection extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: r.total > 0
-                    ? (r.used / r.total).clamp(0.0, 1.0)
-                    : 0.0,
+                value: r.total > 0 ? (r.used / r.total).clamp(0.0, 1.0) : 0.0,
                 minHeight: 6,
                 backgroundColor: Colors.grey.shade200,
                 valueColor: AlwaysStoppedAnimation<Color>(
@@ -595,7 +603,8 @@ class _DistributionAnalysisCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.calendar_month, size: 20, color: AppTheme.indigo),
+              const Icon(Icons.calendar_month,
+                  size: 20, color: AppTheme.indigo),
               const SizedBox(width: 8),
               const Text('Lesson Unit Distribution\nAnalysis',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
@@ -653,12 +662,12 @@ class _StatPill extends StatelessWidget {
           Icon(Icons.check_circle, size: 18, color: color),
           const SizedBox(width: 10),
           Text(label,
-              style:
-                  TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color)),
+              style: TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w600, color: color)),
           const Spacer(),
           Text('$count',
-              style:
-                  TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color)),
+              style: TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.w800, color: color)),
         ],
       ),
     );
@@ -719,8 +728,7 @@ class _PoorDistCard extends StatelessWidget {
               const Icon(Icons.grid_view, size: 16, color: AppTheme.errorRed),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppTheme.errorRed.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(10),
@@ -738,8 +746,7 @@ class _PoorDistCard extends StatelessWidget {
             children: [
               const Text('Subjects: ', style: TextStyle(fontSize: 12)),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppTheme.indigoLight,
                   borderRadius: BorderRadius.circular(6),
@@ -757,8 +764,7 @@ class _PoorDistCard extends StatelessWidget {
               const SizedBox(width: 4),
               const Text('Teachers: ', style: TextStyle(fontSize: 12)),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(6),

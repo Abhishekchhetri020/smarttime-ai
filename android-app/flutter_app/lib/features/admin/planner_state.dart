@@ -25,8 +25,8 @@ class SubjectItem {
     required this.color,
     this.relationshipGroupKey,
     Map<String, TimeOffState>? timeOff,
-  }) : id = id ?? abbr,
-       timeOff = timeOff ?? {};
+  })  : id = id ?? abbr,
+        timeOff = timeOff ?? {};
 
   SubjectItem copyWith({
     String? name,
@@ -287,7 +287,8 @@ class CardRelationship {
         'isActive': isActive,
       };
 
-  factory CardRelationship.fromJson(Map<String, dynamic> json) => CardRelationship(
+  factory CardRelationship.fromJson(Map<String, dynamic> json) =>
+      CardRelationship(
         id: json['id'] as String,
         subjectIds: List<String>.from(json['subjectIds'] ?? []),
         classIds: List<String>.from(json['classIds'] ?? []),
@@ -387,7 +388,9 @@ class PlannerState extends ChangeNotifier {
     scheduleEntries
       ..clear()
       ..addAll(
-        bellTimes.asMap().entries
+        bellTimes
+            .asMap()
+            .entries
             .map((entry) =>
                 ScheduleEntry.fromBellTime(entry.value, index: entry.key))
             .whereType<ScheduleEntry>(),
@@ -420,7 +423,8 @@ class PlannerState extends ChangeNotifier {
     _persist();
   }
 
-  void updateSubjectConstraints(String subjectId, Map<String, TimeOffState> newTimeOff) {
+  void updateSubjectConstraints(
+      String subjectId, Map<String, TimeOffState> newTimeOff) {
     final idx = subjects.indexWhere((s) => s.id == subjectId);
     if (idx == -1) return;
     subjects[idx] = subjects[idx].copyWith(timeOff: newTimeOff);
@@ -566,24 +570,25 @@ class PlannerState extends ChangeNotifier {
     final tIds = teacherIds ?? [if (teacherId != null) teacherId];
     final cIds = classIds ?? [if (classId != null) classId];
 
-    final lessonId = id ?? "LS${lessons.length + 1}_${DateTime.now().millisecondsSinceEpoch}";
+    final lessonId = id ??
+        "LS${lessons.length + 1}_${DateTime.now().millisecondsSinceEpoch}";
 
     final spec = LessonSpec(
       id: lessonId,
       subjectId: subjectId,
       teacherIds: tIds,
-        classIds: cIds,
-        classDivisionId: classDivisionId,
-        countPerWeek: countPerWeek,
-        length: length,
-        requiredClassroomId: requiredClassroomId,
-        isPinned: isPinned,
-        fixedDay: fixedDay,
-        fixedPeriod: fixedPeriod,
-        roomTypeId: roomTypeId,
-        relationshipType: relationshipType,
-        relationshipGroupKey: relationshipGroupKey,
-      );
+      classIds: cIds,
+      classDivisionId: classDivisionId,
+      countPerWeek: countPerWeek,
+      length: length,
+      requiredClassroomId: requiredClassroomId,
+      isPinned: isPinned,
+      fixedDay: fixedDay,
+      fixedPeriod: fixedPeriod,
+      roomTypeId: roomTypeId,
+      relationshipType: relationshipType,
+      relationshipGroupKey: relationshipGroupKey,
+    );
 
     if (id != null) {
       final idx = lessons.indexWhere((l) => l.id == id);
@@ -607,6 +612,7 @@ class PlannerState extends ChangeNotifier {
     softWeights[key] = value.clamp(0, 10);
     _touch();
   }
+
   // ── Card Relationships ──
   void addCardRelationship(CardRelationship rule) {
     cardRelationships.add(rule);
@@ -625,7 +631,6 @@ class PlannerState extends ChangeNotifier {
     cardRelationships.removeWhere((r) => r.id == id);
     _touch();
   }
-
 
   Future<void> saveToDatabase() async {
     await _persist();
@@ -650,7 +655,8 @@ class PlannerState extends ChangeNotifier {
 
       draftName = (snap['draftName'] as String?) ?? 'Untitled Timetable';
       status = (snap['status'] as String?) ?? 'draft';
-      createdAt = DateTime.tryParse(snap['createdAt'] as String? ?? '') ?? DateTime.now();
+      createdAt = DateTime.tryParse(snap['createdAt'] as String? ?? '') ??
+          DateTime.now();
 
       sessionName = (snap['sessionName'] as String?) ?? sessionName;
       sessionStartDate = snap['sessionStartDate'] as String?;
@@ -677,8 +683,8 @@ class PlannerState extends ChangeNotifier {
 
       bellTimes
         ..clear()
-        ..addAll(
-            ((snap['bellTimes'] as List?) ?? const []).map((e) => e.toString()));
+        ..addAll(((snap['bellTimes'] as List?) ?? const [])
+            .map((e) => e.toString()));
 
       final rawEntries = (snap['scheduleEntries'] as List?) ?? const [];
       if (rawEntries.isNotEmpty) {
@@ -708,7 +714,8 @@ class PlannerState extends ChangeNotifier {
         ..addAll((((snap['subjects'] as List?) ?? const []))
             .whereType<Map<String, dynamic>>()
             .map((m) {
-          final rawOff = Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
+          final rawOff =
+              Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
           return SubjectItem(
             id: m['id']?.toString(),
             name: m['name']?.toString() ?? '',
@@ -717,9 +724,10 @@ class PlannerState extends ChangeNotifier {
             relationshipGroupKey: m['relationshipGroupKey']?.toString(),
             timeOff: rawOff.map((k, v) {
               final idx = (v as num?)?.toInt();
-              final state = (idx != null && idx >= 0 && idx < TimeOffState.values.length)
-                  ? TimeOffState.values[idx]
-                  : TimeOffState.available;
+              final state =
+                  (idx != null && idx >= 0 && idx < TimeOffState.values.length)
+                      ? TimeOffState.values[idx]
+                      : TimeOffState.available;
               return MapEntry(k, state);
             }),
           );
@@ -730,20 +738,22 @@ class PlannerState extends ChangeNotifier {
         ..addAll((((snap['classes'] as List?) ?? const []))
             .whereType<Map<String, dynamic>>()
             .map((m) {
-          final rawOff = Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
+          final rawOff =
+              Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
           return ClassItem(
-              id: m['id']?.toString(),
-              name: m['name']?.toString() ?? '',
-              abbr: m['abbr']?.toString() ?? '',
-              classTeacherId: m['classTeacherId']?.toString(),
-              timeOff: rawOff.map((k, v) {
-                final idx = (v as num?)?.toInt();
-                final state = (idx != null && idx >= 0 && idx < TimeOffState.values.length)
-                    ? TimeOffState.values[idx]
-                    : TimeOffState.available;
-                return MapEntry(k, state);
-              }),
-            );
+            id: m['id']?.toString(),
+            name: m['name']?.toString() ?? '',
+            abbr: m['abbr']?.toString() ?? '',
+            classTeacherId: m['classTeacherId']?.toString(),
+            timeOff: rawOff.map((k, v) {
+              final idx = (v as num?)?.toInt();
+              final state =
+                  (idx != null && idx >= 0 && idx < TimeOffState.values.length)
+                      ? TimeOffState.values[idx]
+                      : TimeOffState.available;
+              return MapEntry(k, state);
+            }),
+          );
         }));
 
       divisions
@@ -776,14 +786,14 @@ class PlannerState extends ChangeNotifier {
             lastName: m['lastName']?.toString() ?? '',
             abbr: m['abbr']?.toString() ?? '',
             maxGapsPerDay: (m['maxGapsPerDay'] as num?)?.toInt(),
-            maxConsecutivePeriods: (m['maxConsecutivePeriods'] as num?)?.toInt(),
+            maxConsecutivePeriods:
+                (m['maxConsecutivePeriods'] as num?)?.toInt(),
             timeOff: rawOff.map((k, v) {
               final idx = (v as num?)?.toInt();
-              final state = (idx != null &&
-                      idx >= 0 &&
-                      idx < TimeOffState.values.length)
-                  ? TimeOffState.values[idx]
-                  : TimeOffState.available;
+              final state =
+                  (idx != null && idx >= 0 && idx < TimeOffState.values.length)
+                      ? TimeOffState.values[idx]
+                      : TimeOffState.available;
               return MapEntry(k, state);
             }),
             email: m['email']?.toString(),
@@ -797,26 +807,32 @@ class PlannerState extends ChangeNotifier {
         ..addAll((((snap['classrooms'] as List?) ?? const []))
             .whereType<Map<String, dynamic>>()
             .map((m) {
-          final rawOff = Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
+          final rawOff =
+              Map<String, dynamic>.from((m['timeOff'] as Map?) ?? const {});
           return ClassroomItem(
-              id: m['id']?.toString(),
-              name: m['name']?.toString() ?? '',
-              roomType: m['roomType']?.toString() ?? 'standard',
-              abbr: m['abbr']?.toString(),
-              buildingName: m['buildingName']?.toString(),
-              capacity: (m['capacity'] as num?)?.toInt(),
-              color: m['color']?.toString(),
-              groupId: m['groupId']?.toString(),
-              assignedTeacherIds: ((m['assignedTeacherIds'] as List?) ?? const []).map((e) => e.toString()).toList(),
-              assignedClassIds: ((m['assignedClassIds'] as List?) ?? const []).map((e) => e.toString()).toList(),
-              timeOff: rawOff.map((k, v) {
-                final idx = (v as num?)?.toInt();
-                final state = (idx != null && idx >= 0 && idx < TimeOffState.values.length)
-                    ? TimeOffState.values[idx]
-                    : TimeOffState.available;
-                return MapEntry(k, state);
-              }),
-            );
+            id: m['id']?.toString(),
+            name: m['name']?.toString() ?? '',
+            roomType: m['roomType']?.toString() ?? 'standard',
+            abbr: m['abbr']?.toString(),
+            buildingName: m['buildingName']?.toString(),
+            capacity: (m['capacity'] as num?)?.toInt(),
+            color: m['color']?.toString(),
+            groupId: m['groupId']?.toString(),
+            assignedTeacherIds: ((m['assignedTeacherIds'] as List?) ?? const [])
+                .map((e) => e.toString())
+                .toList(),
+            assignedClassIds: ((m['assignedClassIds'] as List?) ?? const [])
+                .map((e) => e.toString())
+                .toList(),
+            timeOff: rawOff.map((k, v) {
+              final idx = (v as num?)?.toInt();
+              final state =
+                  (idx != null && idx >= 0 && idx < TimeOffState.values.length)
+                      ? TimeOffState.values[idx]
+                      : TimeOffState.available;
+              return MapEntry(k, state);
+            }),
+          );
         }));
 
       lessons
@@ -884,8 +900,8 @@ class PlannerState extends ChangeNotifier {
             .toList(),
         'classes': classes
             .map((c) => {
-                  'id': c.id, 
-                  'name': c.name, 
+                  'id': c.id,
+                  'name': c.name,
                   'abbr': c.abbr,
                   'color': c.color,
                   'classTeacherId': c.classTeacherId,
@@ -917,8 +933,8 @@ class PlannerState extends ChangeNotifier {
             .toList(),
         'classrooms': classrooms
             .map((r) => {
-                  'id': r.id, 
-                  'name': r.name, 
+                  'id': r.id,
+                  'name': r.name,
                   'roomType': r.roomType,
                   'abbr': r.abbr,
                   'buildingName': r.buildingName,

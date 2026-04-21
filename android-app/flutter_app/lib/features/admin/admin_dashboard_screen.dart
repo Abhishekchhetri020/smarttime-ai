@@ -14,6 +14,8 @@ import '../../core/services/export_service.dart';
 import '../timetable/data/conflict_service.dart';
 import '../timetable/data/preflight_service.dart';
 import '../timetable/data/timetable_pdf_service.dart';
+import '../../core/services/spreadsheet_ml_service.dart';
+import 'daily_substitution_screen.dart';
 import 'planner_state.dart';
 import 'setup/setup_wizard_screen.dart';
 import 'widgets/dashboard_analytics_widget.dart';
@@ -108,7 +110,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         return;
       }
       if (!mounted) return;
-      
+
       final summary = await importer.importMasterWorkbookData(
         db,
         planner.dbId,
@@ -136,7 +138,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       setState(() => _status = 'Database unavailable.');
       return;
     }
-    setState(() { _busy = true; _status = 'Generating Excel...'; });
+    setState(() {
+      _busy = true;
+      _status = 'Generating Excel...';
+    });
     try {
       await ExcelExportService().exportAndShare(db, planner.dbId);
       if (mounted) {
@@ -159,7 +164,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       setState(() => _status = 'Database unavailable.');
       return;
     }
-    setState(() { _busy = true; _status = 'Generating PDF...'; });
+    setState(() {
+      _busy = true;
+      _status = 'Generating PDF...';
+    });
     try {
       final cockpitService = TimetablePdfService();
       await cockpitService.printCockpitMasterPdf(db, planner.dbId);
@@ -172,7 +180,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Future<void> _downloadImportTemplate() async {
-    setState(() { _busy = true; _status = 'Generating import template...'; });
+    setState(() {
+      _busy = true;
+      _status = 'Generating import template...';
+    });
     try {
       await ExcelImportTemplateService().generateAndShare();
       if (mounted) {
@@ -260,7 +271,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       final sw = Stopwatch()..start();
       final nativeResponse = await EngineBridge.triggerSolver(payload);
       sw.stop();
-      debugPrint('--- ENGINEBRIDGE SOLVER COMPLETED IN: ${sw.elapsedMilliseconds}ms ---');
+      debugPrint(
+          '--- ENGINEBRIDGE SOLVER COMPLETED IN: ${sw.elapsedMilliseconds}ms ---');
 
       debugPrint('EngineBridge response: $nativeResponse');
 
@@ -331,6 +343,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
+  Future<void> _exportWorkloads() async {
+    final planner = context.read<PlannerState>();
+    try {
+      await SpreadsheetMlService().exportTeacherWorkloads(planner);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final planner = context.watch<PlannerState>();
@@ -375,7 +400,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                          builder: (_) =>
+                              ChangeNotifierProvider<PlannerState>.value(
                             value: planner,
                             child: Scaffold(
                               appBar: AppBar(title: const Text('Setup Wizard')),
@@ -515,6 +541,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     label: const Text('Export PDF'),
                   ),
                   OutlinedButton.icon(
+                    onPressed: _busy ? null : _exportWorkloads,
+                    icon: const Icon(Icons.description_outlined),
+                    label: const Text('Export Workloads (XML)'),
+                  ),
+                  OutlinedButton.icon(
                     onPressed: _busy ? null : _downloadImportTemplate,
                     icon: const Icon(Icons.file_download),
                     label: const Text('Import Template'),
@@ -524,7 +555,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                            builder: (_) =>
+                                ChangeNotifierProvider<PlannerState>.value(
                               value: planner,
                               child: const SolverDebugScreen(),
                             ),
@@ -535,6 +567,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     ),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ChangeNotifierProvider<PlannerState>.value(
+                            value: planner,
+                            child: const DailySubstitutionScreen(),
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.event_note),
+                    label: const Text('Daily Substitutions'),
+                  ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple,
                       foregroundColor: Colors.white,
                     ),
@@ -543,7 +594,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       if (db == null) return;
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                          builder: (_) =>
+                              ChangeNotifierProvider<PlannerState>.value(
                             value: planner,
                             child: CockpitScreen(db: db, dbId: planner.dbId),
                           ),

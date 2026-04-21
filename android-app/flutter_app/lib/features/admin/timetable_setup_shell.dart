@@ -54,10 +54,10 @@ class TimetableSetupShell extends StatelessWidget {
   const TimetableSetupShell({super.key});
 
   // ── colours ──────────────────────────────────────────────────────────────
-  static const _scaffoldBg  = Color(0xFFF1F5F9);
+  static const _scaffoldBg = Color(0xFFF1F5F9);
   static const _completedBg = Color(0xFFEEF2FF);
   static const _completedBorder = Color(0xFF4F46E5);
-  static const _pendingBg   = Colors.white;
+  static const _pendingBg = Colors.white;
   static const _pendingBorder = Color(0xFFE2E8F0);
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -85,7 +85,9 @@ class TimetableSetupShell extends StatelessWidget {
             icon: Icons.article_outlined,
             title: 'Timetable Details',
             description: 'Name, start date, and end date for this session.',
-            statusText: planner.sessionName.isNotEmpty ? planner.sessionName : 'Not configured',
+            statusText: planner.sessionName.isNotEmpty
+                ? planner.sessionName
+                : 'Not configured',
             warningCount: planner.sessionName.isNotEmpty ? 0 : 1,
             builder: (_) => const TimetableDetailsScreen(),
           ),
@@ -115,7 +117,8 @@ class TimetableSetupShell extends StatelessWidget {
           _SetupEntry(
             icon: Icons.school_outlined,
             title: 'Grades & Divisions',
-            description: 'Define grade levels (e.g., Grade 5) and their divisions (A, B, C).',
+            description:
+                'Define grade levels (e.g., Grade 5) and their divisions (A, B, C).',
             statusText: planner.classes.isEmpty
                 ? '0 grades configured'
                 : '${planner.classes.length} grade${planner.classes.length != 1 ? 's' : ''} configured',
@@ -141,7 +144,8 @@ class TimetableSetupShell extends StatelessWidget {
           _SetupEntry(
             icon: Icons.menu_book_outlined,
             title: 'Subjects & Activities',
-            description: 'Define subjects like Math, Science, and activities like Assembly.',
+            description:
+                'Define subjects like Math, Science, and activities like Assembly.',
             statusText: planner.subjects.isEmpty
                 ? '0 subjects configured'
                 : '${planner.subjects.length} subject${planner.subjects.length != 1 ? 's' : ''} configured',
@@ -151,7 +155,8 @@ class TimetableSetupShell extends StatelessWidget {
           _SetupEntry(
             icon: Icons.list_alt_outlined,
             title: 'Lessons',
-            description: 'Assign subjects to grades with faculty and period counts.',
+            description:
+                'Assign subjects to grades with faculty and period counts.',
             statusText: planner.lessons.isEmpty
                 ? '0 lessons configured'
                 : '${planner.lessons.length} lesson${planner.lessons.length != 1 ? 's' : ''} configured',
@@ -166,7 +171,8 @@ class TimetableSetupShell extends StatelessWidget {
           _SetupEntry(
             icon: Icons.settings_outlined,
             title: 'System Settings',
-            description: 'Faculty constraints, optimization weights, and execution time.',
+            description:
+                'Faculty constraints, optimization weights, and execution time.',
             statusText: 'Configured',
             warningCount: 0,
             isOptional: true,
@@ -175,15 +181,18 @@ class TimetableSetupShell extends StatelessWidget {
           _SetupEntry(
             icon: Icons.rule_outlined,
             title: 'Conditions & Constraints',
-            description: 'Subject sequencing rules, control which subjects should or shouldn\'t follow each other.',
-            statusText: '${planner.cardRelationships.where((r) => r.isActive).length} active rule(s)',
+            description:
+                'Subject sequencing rules, control which subjects should or shouldn\'t follow each other.',
+            statusText:
+                '${planner.cardRelationships.where((r) => r.isActive).length} active rule(s)',
             warningCount: 0,
             builder: (_) => const CardRelationshipsScreen(),
           ),
           _SetupEntry(
             icon: Icons.analytics_outlined,
             title: 'Workload Analysis',
-            description: 'Period distribution across classes, teachers, and rooms.',
+            description:
+                'Period distribution across classes, teachers, and rooms.',
             statusText: 'View Analysis',
             warningCount: 0,
             isOptional: true,
@@ -254,10 +263,10 @@ class TimetableSetupShell extends StatelessWidget {
                           }
                           final summary =
                               await importer.importMasterWorkbookData(
-                                db,
-                                planner.dbId,
-                                workbookFile: workbookOption,
-                              );
+                            db,
+                            planner.dbId,
+                            workbookFile: workbookOption,
+                          );
                           messenger.showSnackBar(
                             SnackBar(
                               content: Text(
@@ -294,10 +303,10 @@ class _SectionBlock extends StatelessWidget {
   const _SectionBlock({required this.section});
   final _SetupSection section;
 
-  static const _completedBg     = TimetableSetupShell._completedBg;
+  static const _completedBg = TimetableSetupShell._completedBg;
   static const _completedBorder = TimetableSetupShell._completedBorder;
-  static const _pendingBg       = TimetableSetupShell._pendingBg;
-  static const _pendingBorder   = TimetableSetupShell._pendingBorder;
+  static const _pendingBg = TimetableSetupShell._pendingBg;
+  static const _pendingBorder = TimetableSetupShell._pendingBorder;
 
   @override
   Widget build(BuildContext context) {
@@ -325,11 +334,11 @@ class _SectionBlock extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: section.entries.asMap().entries.map((mapEntry) {
-                final i     = mapEntry.key;
+                final i = mapEntry.key;
                 final entry = mapEntry.value;
-                final isFirst  = i == 0;
-                final isLast   = i == section.entries.length - 1;
-                final done     = entry.isCompleted;
+                final isFirst = i == 0;
+                final isLast = i == section.entries.length - 1;
+                final done = entry.isCompleted;
 
                 return Column(
                   mainAxisSize: MainAxisSize.min,
@@ -338,7 +347,9 @@ class _SectionBlock extends StatelessWidget {
                     if (!isFirst)
                       Container(
                         height: 1,
-                        color: done ? _completedBorder.withOpacity(0.25) : _pendingBorder,
+                        color: done
+                            ? _completedBorder.withOpacity(0.25)
+                            : _pendingBorder,
                       ),
 
                     Material(
@@ -348,7 +359,8 @@ class _SectionBlock extends StatelessWidget {
                           final planner = context.read<PlannerState>();
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                              builder: (_) =>
+                                  ChangeNotifierProvider<PlannerState>.value(
                                 value: planner,
                                 child: entry.builder(context),
                               ),
@@ -359,23 +371,31 @@ class _SectionBlock extends StatelessWidget {
                           decoration: BoxDecoration(
                             border: Border(
                               left: BorderSide(
-                                color: done ? _completedBorder : Colors.transparent,
+                                color: done
+                                    ? _completedBorder
+                                    : Colors.transparent,
                                 width: 3,
                               ),
                               // top border only on first item
                               top: isFirst
                                   ? BorderSide(
-                                      color: done ? _completedBorder.withOpacity(0.5) : _pendingBorder,
+                                      color: done
+                                          ? _completedBorder.withOpacity(0.5)
+                                          : _pendingBorder,
                                     )
                                   : BorderSide.none,
                               // bottom border only on last item
                               bottom: isLast
                                   ? BorderSide(
-                                      color: done ? _completedBorder.withOpacity(0.5) : _pendingBorder,
+                                      color: done
+                                          ? _completedBorder.withOpacity(0.5)
+                                          : _pendingBorder,
                                     )
                                   : BorderSide.none,
                               right: BorderSide(
-                                color: done ? _completedBorder.withOpacity(0.5) : _pendingBorder,
+                                color: done
+                                    ? _completedBorder.withOpacity(0.5)
+                                    : _pendingBorder,
                               ),
                             ),
                           ),
@@ -456,9 +476,7 @@ class _SectionBlock extends StatelessWidget {
                               ),
                               // Trailing icon
                               Icon(
-                                done
-                                    ? Icons.check_circle
-                                    : Icons.chevron_right,
+                                done ? Icons.check_circle : Icons.chevron_right,
                                 size: done ? 22 : 20,
                                 color: done
                                     ? _completedBorder
@@ -570,8 +588,7 @@ class _PreGenerationReviewCard extends StatelessWidget {
   final List<String> missing;
   final Future<void> Function() onImport;
 
-  bool get canGenerate =>
-      teacherCount > 0 && classCount > 0 && lessonCount > 0;
+  bool get canGenerate => teacherCount > 0 && classCount > 0 && lessonCount > 0;
 
   @override
   Widget build(BuildContext context) {
@@ -598,8 +615,8 @@ class _PreGenerationReviewCard extends StatelessWidget {
                   ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
           Text('$completed of $total setup sections are ready.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant)),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: 14),
           ...checks.map(
             (c) => Padding(
@@ -626,8 +643,8 @@ class _PreGenerationReviewCard extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             ...missing.map((m) => Text('• $m',
-                style: TextStyle(
-                    fontSize: 13, color: theme.colorScheme.error))),
+                style:
+                    TextStyle(fontSize: 13, color: theme.colorScheme.error))),
             const SizedBox(height: 12),
           ],
           const SizedBox(height: 8),
@@ -647,7 +664,8 @@ class _PreGenerationReviewCard extends StatelessWidget {
               onPressed: canGenerate
                   ? () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => ChangeNotifierProvider<PlannerState>.value(
+                          builder: (_) =>
+                              ChangeNotifierProvider<PlannerState>.value(
                             value: planner,
                             child: const GenerationProgressScreen(),
                           ),
@@ -716,12 +734,10 @@ class _ValidationStatusCard extends StatelessWidget {
     final theme = Theme.of(context);
     final allPassed = canGenerate && missing.isEmpty;
     final color = allPassed ? const Color(0xFF059669) : const Color(0xFFD97706);
-    final bgColor = allPassed
-        ? const Color(0xFFECFDF5)
-        : const Color(0xFFFFFBEB);
-    final borderColor = allPassed
-        ? const Color(0xFFBBF7D0)
-        : const Color(0xFFFDE68A);
+    final bgColor =
+        allPassed ? const Color(0xFFECFDF5) : const Color(0xFFFFFBEB);
+    final borderColor =
+        allPassed ? const Color(0xFFBBF7D0) : const Color(0xFFFDE68A);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -777,8 +793,8 @@ class _YourTimetableCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final totalLessons = planner.lessons.fold<int>(
-        0, (sum, l) => sum + l.countPerWeek);
+    final totalLessons =
+        planner.lessons.fold<int>(0, (sum, l) => sum + l.countPerWeek);
     final scheduled = planner.scheduledLessonCount;
     final pct = totalLessons > 0
         ? ((scheduled / totalLessons) * 100).clamp(0, 100).round()
@@ -789,14 +805,11 @@ class _YourTimetableCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: allScheduled
-            ? const Color(0xFFECFDF5)
-            : const Color(0xFFFFF7ED),
+        color: allScheduled ? const Color(0xFFECFDF5) : const Color(0xFFFFF7ED),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: allScheduled
-              ? const Color(0xFFBBF7D0)
-              : const Color(0xFFFED7AA),
+          color:
+              allScheduled ? const Color(0xFFBBF7D0) : const Color(0xFFFED7AA),
         ),
       ),
       child: Column(
@@ -825,8 +838,8 @@ class _YourTimetableCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Auto Generated  •  ${_formatDt(generatedAt)}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
           const SizedBox(height: 12),
@@ -858,8 +871,18 @@ class _YourTimetableCard extends StatelessWidget {
 
   String _formatDt(DateTime dt) {
     final months = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
@@ -899,8 +922,8 @@ class _StatChip extends StatelessWidget {
                 style: theme.textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.bold, color: color)),
             Text(label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant)),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           ],
         ),
       ),
@@ -1024,7 +1047,8 @@ class _WarningsSection extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Icon(Icons.chevron_right, size: 18, color: Colors.red.shade700),
+                  Icon(Icons.chevron_right,
+                      size: 18, color: Colors.red.shade700),
                 ],
               ),
             ),
@@ -1052,8 +1076,10 @@ class _WarningsSection extends StatelessWidget {
                   if (overloadedTeachers.isNotEmpty)
                     _OverflowRow(
                       icon: Icons.people_alt_outlined,
-                      label: '${overloadedTeachers.length} teacher${overloadedTeachers.length != 1 ? 's' : ''} with too many lessons assigned',
-                      detail: 'Teachers: ${overloadedTeachers.map((t) => t.fullName.isNotEmpty ? t.fullName : t.abbr).join(', ')}',
+                      label:
+                          '${overloadedTeachers.length} teacher${overloadedTeachers.length != 1 ? 's' : ''} with too many lessons assigned',
+                      detail:
+                          'Teachers: ${overloadedTeachers.map((t) => t.fullName.isNotEmpty ? t.fullName : t.abbr).join(', ')}',
                     ),
                   if (overloadedTeachers.isNotEmpty && roomOverflow)
                     const SizedBox(height: 8),
@@ -1061,7 +1087,8 @@ class _WarningsSection extends StatelessWidget {
                     _OverflowRow(
                       icon: Icons.meeting_room_outlined,
                       label: 'Total lessons exceed available room slots',
-                      detail: 'Rooms: $totalLessons lessons vs $totalRoomSlots slots',
+                      detail:
+                          'Rooms: $totalLessons lessons vs $totalRoomSlots slots',
                     ),
                 ],
               ),

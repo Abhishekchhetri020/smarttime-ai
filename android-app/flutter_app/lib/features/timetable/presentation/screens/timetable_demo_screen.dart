@@ -43,12 +43,15 @@ class _TimetableDemoScreenState extends State<TimetableDemoScreen> {
           children: [
             Row(
               children: [
-                const Text('View: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                const Text('View: ',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(width: 8),
                 SegmentedButton<ViewMode>(
                   segments: const [
-                    ButtonSegment(value: ViewMode.teacher, label: Text('Teacher')),
-                    ButtonSegment(value: ViewMode.classView, label: Text('Class')),
+                    ButtonSegment(
+                        value: ViewMode.teacher, label: Text('Teacher')),
+                    ButtonSegment(
+                        value: ViewMode.classView, label: Text('Class')),
                     ButtonSegment(value: ViewMode.room, label: Text('Room')),
                   ],
                   selected: {_mode},

@@ -17,7 +17,8 @@ class GenerationProgressScreen extends StatefulWidget {
   const GenerationProgressScreen({super.key});
 
   @override
-  State<GenerationProgressScreen> createState() => _GenerationProgressScreenState();
+  State<GenerationProgressScreen> createState() =>
+      _GenerationProgressScreenState();
 }
 
 class _GenerationProgressScreenState extends State<GenerationProgressScreen>
@@ -25,7 +26,7 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
   late final SolverController _solver;
   late final AnimationController _pulseController;
   late final AnimationController _ringController;
-  
+
   _SolverPhase _phase = _SolverPhase.validating;
   double _progress = 0.0;
   bool _completed = false;
@@ -39,12 +40,12 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
       mapper: SolverPayloadMapper(),
       conflictService: ConflictService(),
     );
-    
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
-    
+
     _ringController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -67,69 +68,69 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
     // Subjects
     for (final s in planner.subjects) {
       await db.into(db.subjects).insertOnConflictUpdate(
-        SubjectsCompanion.insert(
-          id: s.id,
-          guid: Value(s.id),
-          name: s.name,
-          abbr: s.abbr,
-          color: Value(s.color),
-          groupId: Value(s.relationshipGroupKey),
-        ),
-      );
+            SubjectsCompanion.insert(
+              id: s.id,
+              guid: Value(s.id),
+              name: s.name,
+              abbr: s.abbr,
+              color: Value(s.color),
+              groupId: Value(s.relationshipGroupKey),
+            ),
+          );
     }
 
     // Teachers
     for (final t in planner.teachers) {
       await db.into(db.teachers).insertOnConflictUpdate(
-        TeachersCompanion.insert(
-          id: t.id,
-          guid: Value(t.id),
-          name: t.fullName,
-          abbreviation: t.abbr,
-          maxGapsPerDay: Value(t.maxGapsPerDay),
-        ),
-      );
+            TeachersCompanion.insert(
+              id: t.id,
+              guid: Value(t.id),
+              name: t.fullName,
+              abbreviation: t.abbr,
+              maxGapsPerDay: Value(t.maxGapsPerDay),
+            ),
+          );
     }
 
     // Classes & Divisions
     for (final c in planner.classes) {
       await db.into(db.classes).insertOnConflictUpdate(
-        ClassesCompanion.insert(
-          id: c.id,
-          guid: Value(c.id),
-          name: c.name,
-          abbr: c.abbr,
-        ),
-      );
+            ClassesCompanion.insert(
+              id: c.id,
+              guid: Value(c.id),
+              name: c.name,
+              abbr: c.abbr,
+            ),
+          );
       for (final d in c.divisions) {
         await db.into(db.divisions).insertOnConflictUpdate(
-          DivisionsCompanion.insert(
-            id: d.id,
-            classId: c.id,
-            name: d.name,
-          ),
-        );
+              DivisionsCompanion.insert(
+                id: d.id,
+                classId: c.id,
+                name: d.name,
+              ),
+            );
       }
     }
 
     // Lessons
     for (final l in planner.lessons) {
       await db.into(db.lessons).insertOnConflictUpdate(
-        LessonsCompanion.insert(
-          id: l.id,
-          subjectId: l.subjectId,
-          periodsPerWeek: Value(l.countPerWeek),
-          teacherIds: Value(l.teacherIds),
-          classIds: Value(l.classIds),
-          classDivisionId: Value(l.classDivisionId),
-          isPinned: Value(l.isPinned),
-          fixedDay: Value(l.fixedDay),
-          fixedPeriod: Value(l.fixedPeriod),
-          roomTypeId: Value(l.roomTypeId),
-          relationshipType: Value(l.relationshipType),
-          relationshipGroupKey: Value(l.relationshipGroupKey),
-        ),
-      );
+            LessonsCompanion.insert(
+              id: l.id,
+              subjectId: l.subjectId,
+              periodsPerWeek: Value(l.countPerWeek),
+              teacherIds: Value(l.teacherIds),
+              classIds: Value(l.classIds),
+              classDivisionId: Value(l.classDivisionId),
+              isPinned: Value(l.isPinned),
+              fixedDay: Value(l.fixedDay),
+              fixedPeriod: Value(l.fixedPeriod),
+              roomTypeId: Value(l.roomTypeId),
+              relationshipType: Value(l.relationshipType),
+              relationshipGroupKey: Value(l.relationshipGroupKey),
+            ),
+          );
     }
   }
 
@@ -172,7 +173,8 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Failed to generate timetable. Check the error below.'),
+            content: const Text(
+                'Failed to generate timetable. Check the error below.'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -209,19 +211,22 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
 
         for (final a in _solver.assignments) {
           final lastUnderscore = a.lessonId.lastIndexOf('_');
-          final originalId = lastUnderscore != -1 ? a.lessonId.substring(0, lastUnderscore) : a.lessonId;
-          
+          final originalId = lastUnderscore != -1
+              ? a.lessonId.substring(0, lastUnderscore)
+              : a.lessonId;
+
           await db.into(db.cards).insert(
-            CardsCompanion.insert(
-              id: '${originalId}_${a.day}_${a.period}',
-              lessonId: originalId,
-              dayIndex: a.day,     // solver slots are already 0-indexed
-              periodIndex: a.period,
-              roomId: Value(a.roomId.isEmpty ? null : a.roomId),
-            ),
-          );
+                CardsCompanion.insert(
+                  id: '${originalId}_${a.day}_${a.period}',
+                  lessonId: originalId,
+                  dayIndex: a.day, // solver slots are already 0-indexed
+                  periodIndex: a.period,
+                  roomId: Value(a.roomId.isEmpty ? null : a.roomId),
+                ),
+              );
         }
-        debugPrint('--- PERSISTED ${_solver.assignments.length} cards to DB ---');
+        debugPrint(
+            '--- PERSISTED ${_solver.assignments.length} cards to DB ---');
       } catch (e, st) {
         debugPrint('--- DB PERSIST ERROR: $e ---\n$st');
         if (mounted) {
@@ -248,15 +253,16 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
 
   String _friendlyError(String raw) {
     final lower = raw.toLowerCase();
-    
+
     // Custom constraint intercepts based on Card Relationships logic
-    if (lower.contains('consecutive limit exceeded') || lower.contains('maxconsecutive')) {
+    if (lower.contains('consecutive limit exceeded') ||
+        lower.contains('maxconsecutive')) {
       return 'Constraint Violation: A class or teacher exceeded their maximum consecutive periods limit. Check your Global Constraints or add more breaks.';
     }
     if (lower.contains('dailylimit') || lower.contains('distribution')) {
       return 'Constraint Violation: Subject daily limits were breached. Check if "Card distribution over the week" rules are too strict for the available days.';
     }
-    
+
     if (lower.contains('double booking') ||
         lower.contains('fatal') ||
         lower.contains('halt') ||
@@ -293,7 +299,8 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
                 width: 200,
                 height: 200,
                 child: AnimatedBuilder(
-                  animation: Listenable.merge([_ringController, _pulseController]),
+                  animation:
+                      Listenable.merge([_ringController, _pulseController]),
                   builder: (context, child) {
                     return CustomPaint(
                       painter: _ProgressRingPainter(
@@ -317,7 +324,11 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
                                 : _cleanError != null
                                     ? Icons.error_outline_rounded
                                     : Icons.auto_awesome_rounded,
-                            key: ValueKey(_completed ? 'done' : _cleanError != null ? 'error' : 'working'),
+                            key: ValueKey(_completed
+                                ? 'done'
+                                : _cleanError != null
+                                    ? 'error'
+                                    : 'working'),
                             size: 40,
                             color: statusColor,
                           ),
@@ -364,7 +375,8 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
               const SizedBox(height: 32),
 
               // ── Phase Steps ──
-              _PhaseStepIndicator(currentPhase: _phase, hasError: _cleanError != null),
+              _PhaseStepIndicator(
+                  currentPhase: _phase, hasError: _cleanError != null),
               const SizedBox(height: 32),
 
               // ── Error Card ──
@@ -375,18 +387,23 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
                   decoration: BoxDecoration(
                     color: AppTheme.errorRed.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.errorRed.withOpacity(0.2)),
+                    border:
+                        Border.all(color: AppTheme.errorRed.withOpacity(0.2)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.error_outline_rounded, color: AppTheme.errorRed, size: 20),
+                          Icon(Icons.error_outline_rounded,
+                              color: AppTheme.errorRed, size: 20),
                           const SizedBox(width: 8),
                           Text(
                             'Conflict Detected',
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
                                   color: AppTheme.errorRed,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -429,18 +446,23 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
                   decoration: BoxDecoration(
                     color: AppTheme.successGreen.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.successGreen.withOpacity(0.2)),
+                    border: Border.all(
+                        color: AppTheme.successGreen.withOpacity(0.2)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.check_circle_rounded, color: AppTheme.successGreen, size: 20),
+                          Icon(Icons.check_circle_rounded,
+                              color: AppTheme.successGreen, size: 20),
                           const SizedBox(width: 8),
                           Text(
                             'Timetable Generated!',
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
                                   color: AppTheme.successGreen,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -469,10 +491,13 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
                             final db = planner.db;
                             if (db == null) return;
                             Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(builder: (_) => CockpitScreen(db: db, dbId: planner.dbId)),
+                              MaterialPageRoute(
+                                  builder: (_) => CockpitScreen(
+                                      db: db, dbId: planner.dbId)),
                             );
                           },
-                          icon: const Icon(Icons.dashboard_customize_rounded, size: 18),
+                          icon: const Icon(Icons.dashboard_customize_rounded,
+                              size: 18),
                           label: const Text('View Timetable'),
                         ),
                       ),
@@ -489,10 +514,14 @@ class _GenerationProgressScreenState extends State<GenerationProgressScreen>
 
 // ── Solver Phases ──
 enum _SolverPhase {
-  validating('Validating Input', 'Checking teachers, classes, and lesson data...'),
-  seeding('Seeding Schedule', 'Creating initial timetable using greedy heuristic...'),
-  solving('Solving Constraints', 'Running AC-3 backtracking solver with MRV...'),
-  optimizing('Optimizing Quality', 'Simulated annealing to minimize teacher gaps...'),
+  validating(
+      'Validating Input', 'Checking teachers, classes, and lesson data...'),
+  seeding('Seeding Schedule',
+      'Creating initial timetable using greedy heuristic...'),
+  solving(
+      'Solving Constraints', 'Running AC-3 backtracking solver with MRV...'),
+  optimizing(
+      'Optimizing Quality', 'Simulated annealing to minimize teacher gaps...'),
   done('Complete', 'Your timetable is ready for review.');
 
   const _SolverPhase(this.label, this.description);
@@ -502,13 +531,15 @@ enum _SolverPhase {
 
 // ── Phase Step Indicator ──
 class _PhaseStepIndicator extends StatelessWidget {
-  const _PhaseStepIndicator({required this.currentPhase, required this.hasError});
+  const _PhaseStepIndicator(
+      {required this.currentPhase, required this.hasError});
   final _SolverPhase currentPhase;
   final bool hasError;
 
   @override
   Widget build(BuildContext context) {
-    final phases = _SolverPhase.values.where((p) => p != _SolverPhase.done).toList();
+    final phases =
+        _SolverPhase.values.where((p) => p != _SolverPhase.done).toList();
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -655,5 +686,7 @@ class _ProgressRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ProgressRingPainter old) =>
-      progress != old.progress || pulseValue != old.pulseValue || color != old.color;
+      progress != old.progress ||
+      pulseValue != old.pulseValue ||
+      color != old.color;
 }

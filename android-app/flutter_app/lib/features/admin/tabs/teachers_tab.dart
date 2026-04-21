@@ -112,12 +112,14 @@ class _TeachersTabState extends State<TeachersTab> {
                               abbr: _abbr.text.trim(),
                               maxGapsPerDay: _maxGaps,
                               maxConsecutivePeriods: _maxConsecutive,
-                              timeOff: Map<String, TimeOffState>.from(_timeOffDraft),
+                              timeOff:
+                                  Map<String, TimeOffState>.from(_timeOffDraft),
                             ),
                           );
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Teacher saved successfully')),
+                        const SnackBar(
+                            content: Text('Teacher saved successfully')),
                       );
                       _first.clear();
                       _last.clear();

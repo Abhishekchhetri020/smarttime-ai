@@ -30,7 +30,8 @@ class _AdminConsoleState extends State<AdminConsole> {
     if (_busy) return;
     final planner = context.read<PlannerState>(); // correct context usage
     if (!planner.hasMinimumData) {
-      setState(() => _status = 'Add at least 1 teacher, class, and subject first.');
+      setState(
+          () => _status = 'Add at least 1 teacher, class, and subject first.');
       return;
     }
 
@@ -59,17 +60,25 @@ class _AdminConsoleState extends State<AdminConsole> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${widget.role} Console', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          Text('${widget.role} Console',
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           const SizedBox(height: 12),
-
           const Text('Add Teacher'),
-          TextField(controller: _teacherFirst, decoration: const InputDecoration(hintText: 'First Name')),
-          TextField(controller: _teacherLast, decoration: const InputDecoration(hintText: 'Last Name')),
-          TextField(controller: _teacherAbbr, decoration: const InputDecoration(hintText: 'Abbreviation')),
+          TextField(
+              controller: _teacherFirst,
+              decoration: const InputDecoration(hintText: 'First Name')),
+          TextField(
+              controller: _teacherLast,
+              decoration: const InputDecoration(hintText: 'Last Name')),
+          TextField(
+              controller: _teacherAbbr,
+              decoration: const InputDecoration(hintText: 'Abbreviation')),
           const SizedBox(height: 8),
           ElevatedButton(
             onPressed: () {
-              if (_teacherFirst.text.trim().isEmpty || _teacherAbbr.text.trim().isEmpty) return;
+              if (_teacherFirst.text.trim().isEmpty ||
+                  _teacherAbbr.text.trim().isEmpty) return;
               context.read<PlannerState>().addTeacher(
                     TeacherItem(
                       firstName: _teacherFirst.text.trim(),
@@ -84,31 +93,43 @@ class _AdminConsoleState extends State<AdminConsole> {
             },
             child: const Text('Save Teacher'),
           ),
-
           const Divider(height: 24),
           const Text('Add Class'),
-          TextField(controller: _className, decoration: const InputDecoration(hintText: 'Class Name')),
-          TextField(controller: _classAbbr, decoration: const InputDecoration(hintText: 'Class Abbreviation')),
+          TextField(
+              controller: _className,
+              decoration: const InputDecoration(hintText: 'Class Name')),
+          TextField(
+              controller: _classAbbr,
+              decoration:
+                  const InputDecoration(hintText: 'Class Abbreviation')),
           const SizedBox(height: 8),
           ElevatedButton(
             onPressed: () {
-              if (_className.text.trim().isEmpty || _classAbbr.text.trim().isEmpty) return;
+              if (_className.text.trim().isEmpty ||
+                  _classAbbr.text.trim().isEmpty) return;
               context.read<PlannerState>().addClass(
-                    ClassItem(name: _className.text.trim(), abbr: _classAbbr.text.trim()),
+                    ClassItem(
+                        name: _className.text.trim(),
+                        abbr: _classAbbr.text.trim()),
                   );
               setState(() => _status = 'Class saved');
             },
             child: const Text('Save Class'),
           ),
-
           const Divider(height: 24),
           const Text('Add Subject'),
-          TextField(controller: _subjectName, decoration: const InputDecoration(hintText: 'Subject Name')),
-          TextField(controller: _subjectAbbr, decoration: const InputDecoration(hintText: 'Subject Abbreviation')),
+          TextField(
+              controller: _subjectName,
+              decoration: const InputDecoration(hintText: 'Subject Name')),
+          TextField(
+              controller: _subjectAbbr,
+              decoration:
+                  const InputDecoration(hintText: 'Subject Abbreviation')),
           const SizedBox(height: 8),
           ElevatedButton(
             onPressed: () {
-              if (_subjectName.text.trim().isEmpty || _subjectAbbr.text.trim().isEmpty) return;
+              if (_subjectName.text.trim().isEmpty ||
+                  _subjectAbbr.text.trim().isEmpty) return;
               context.read<PlannerState>().addSubject(
                     SubjectItem(
                       name: _subjectName.text.trim(),
@@ -120,9 +141,9 @@ class _AdminConsoleState extends State<AdminConsole> {
             },
             child: const Text('Save Subject'),
           ),
-
           const Divider(height: 24),
-          Text('Planner Data: T=${planner.teachers.length}, C=${planner.classes.length}, S=${planner.subjects.length}'),
+          Text(
+              'Planner Data: T=${planner.teachers.length}, C=${planner.classes.length}, S=${planner.subjects.length}'),
           const SizedBox(height: 8),
           ElevatedButton(
             onPressed: _busy ? null : _generateNow,

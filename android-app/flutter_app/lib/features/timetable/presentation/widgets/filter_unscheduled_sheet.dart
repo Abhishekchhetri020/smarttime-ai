@@ -61,8 +61,7 @@ class FilterUnscheduledSheet extends StatefulWidget {
   }
 
   @override
-  State<FilterUnscheduledSheet> createState() =>
-      _FilterUnscheduledSheetState();
+  State<FilterUnscheduledSheet> createState() => _FilterUnscheduledSheetState();
 }
 
 class _FilterResult {
@@ -137,8 +136,8 @@ class _FilterUnscheduledSheetState extends State<FilterUnscheduledSheet>
               const SizedBox(width: 8),
               const Expanded(
                 child: Text('Filter Unscheduled Lessons',
-                    style: TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w700)),
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
               ),
               GestureDetector(
                 onTap: () => Navigator.pop(context),
@@ -154,9 +153,7 @@ class _FilterUnscheduledSheetState extends State<FilterUnscheduledSheet>
           unselectedLabelColor: Colors.grey.shade600,
           indicatorColor: AppTheme.indigo,
           tabs: const [
-            Tab(
-                icon: Icon(Icons.grid_view_rounded, size: 18),
-                text: 'Classes'),
+            Tab(icon: Icon(Icons.grid_view_rounded, size: 18), text: 'Classes'),
             Tab(
                 icon: Icon(Icons.people_alt_outlined, size: 18),
                 text: 'Teachers'),
@@ -176,8 +173,7 @@ class _FilterUnscheduledSheetState extends State<FilterUnscheduledSheet>
               _CheckboxList(
                 items: widget.classes
                     .map((c) => _CheckItem(
-                        id: c.id,
-                        label: c.abbr.isNotEmpty ? c.abbr : c.name))
+                        id: c.id, label: c.abbr.isNotEmpty ? c.abbr : c.name))
                     .toList(),
                 selectedIds: _classIds,
                 onChanged: () => setState(() {}),
@@ -194,8 +190,7 @@ class _FilterUnscheduledSheetState extends State<FilterUnscheduledSheet>
               _CheckboxList(
                 items: widget.subjects
                     .map((s) => _CheckItem(
-                        id: s.id,
-                        label: s.abbr.isNotEmpty ? s.abbr : s.name))
+                        id: s.id, label: s.abbr.isNotEmpty ? s.abbr : s.name))
                     .toList(),
                 selectedIds: _subjectIds,
                 onChanged: () => setState(() {}),
@@ -205,7 +200,8 @@ class _FilterUnscheduledSheetState extends State<FilterUnscheduledSheet>
                 items: widget.rooms
                     .map((r) => _CheckItem(
                         id: r['id'] as String? ?? '',
-                        label: r['name'] as String? ?? r['id'] as String? ?? ''))
+                        label:
+                            r['name'] as String? ?? r['id'] as String? ?? ''))
                     .toList(),
                 selectedIds: _roomIds,
                 onChanged: () => setState(() {}),
@@ -266,12 +262,11 @@ class _CheckboxList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (items.isEmpty) {
       return Center(
-        child: Text(emptyMessage,
-            style: TextStyle(color: Colors.grey.shade500)),
+        child:
+            Text(emptyMessage, style: TextStyle(color: Colors.grey.shade500)),
       );
     }
-    final allSelected =
-        items.every((item) => selectedIds.contains(item.id));
+    final allSelected = items.every((item) => selectedIds.contains(item.id));
     return ListView(
       children: [
         CheckboxListTile(

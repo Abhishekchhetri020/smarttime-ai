@@ -83,7 +83,15 @@ class _CockpitScreenState extends State<CockpitScreen> {
 
   // ── Data stream ──────────────────────────────────────────────────────────
 
-  static const _allDays = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  static const _allDays = <String>[
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun'
+  ];
 
   List<String> _activeDays(int workingDays) {
     return _allDays.sublist(0, workingDays.clamp(1, 7));
@@ -151,12 +159,15 @@ class _CockpitScreenState extends State<CockpitScreen> {
       switch (_mode) {
         case ViewMode.classView:
           // Sort classes by name for consistent ordering
-          final sorted = classes.toList()..sort((a, b) => a.name.compareTo(b.name));
+          final sorted = classes.toList()
+            ..sort((a, b) => a.name.compareTo(b.name));
           for (final cls in sorted) {
             entityIds.add(cls.id);
             entityLabels.add(catalog.classLabel(cls.id));
           }
-          final entityRowByClassId = {for (var i = 0; i < entityIds.length; i++) entityIds[i]: i};
+          final entityRowByClassId = {
+            for (var i = 0; i < entityIds.length; i++) entityIds[i]: i
+          };
 
           for (final c in cards) {
             final lesson = lessonById[c.lessonId];
@@ -166,7 +177,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
               if (row == null) continue;
               final col = colMap['${c.dayIndex}:${c.periodIndex}'];
               if (col == null) continue;
-              cells[UniversalTimetableGrid.keyFor(row, col)] = TimetableCellData(
+              cells[UniversalTimetableGrid.keyFor(row, col)] =
+                  TimetableCellData(
                 id: lesson.id,
                 cardId: c.id,
                 primary: catalog.subjectLabel(lesson.subjectId),
@@ -178,12 +190,15 @@ class _CockpitScreenState extends State<CockpitScreen> {
           }
 
         case ViewMode.teacher:
-          final sorted = teachers.toList()..sort((a, b) => a.name.compareTo(b.name));
+          final sorted = teachers.toList()
+            ..sort((a, b) => a.name.compareTo(b.name));
           for (final t in sorted) {
             entityIds.add(t.id);
             entityLabels.add(catalog.teacherLabel(t.id));
           }
-          final entityRowByTeacherId = {for (var i = 0; i < entityIds.length; i++) entityIds[i]: i};
+          final entityRowByTeacherId = {
+            for (var i = 0; i < entityIds.length; i++) entityIds[i]: i
+          };
 
           for (final c in cards) {
             final lesson = lessonById[c.lessonId];
@@ -193,7 +208,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
               if (row == null) continue;
               final col = colMap['${c.dayIndex}:${c.periodIndex}'];
               if (col == null) continue;
-              cells[UniversalTimetableGrid.keyFor(row, col)] = TimetableCellData(
+              cells[UniversalTimetableGrid.keyFor(row, col)] =
+                  TimetableCellData(
                 id: lesson.id,
                 cardId: c.id,
                 primary: catalog.subjectLabel(lesson.subjectId),
@@ -205,17 +221,21 @@ class _CockpitScreenState extends State<CockpitScreen> {
           }
 
         case ViewMode.room:
-          final roomsList = ((plannerSnap?['classrooms'] as List<dynamic>?) ?? [])
+          final roomsList = ((plannerSnap?['classrooms'] as List<dynamic>?) ??
+                  [])
               .whereType<Map>()
               .map((r) => Map<String, dynamic>.from(r))
               .toList()
-            ..sort((a, b) => (a['name'] as String? ?? '').compareTo(b['name'] as String? ?? ''));
+            ..sort((a, b) => (a['name'] as String? ?? '')
+                .compareTo(b['name'] as String? ?? ''));
           for (final r in roomsList) {
             final id = r['id'] as String? ?? '';
             entityIds.add(id);
             entityLabels.add(catalog.roomLabel(id) ?? id);
           }
-          final entityRowByRoomId = {for (var i = 0; i < entityIds.length; i++) entityIds[i]: i};
+          final entityRowByRoomId = {
+            for (var i = 0; i < entityIds.length; i++) entityIds[i]: i
+          };
 
           for (final c in cards) {
             if (c.roomId == null || c.roomId!.trim().isEmpty) continue;
@@ -229,9 +249,10 @@ class _CockpitScreenState extends State<CockpitScreen> {
               id: lesson.id,
               cardId: c.id,
               primary: catalog.subjectLabel(lesson.subjectId),
-              secondary: [catalog.joinClassLabels(lesson.classIds), catalog.joinTeacherLabels(lesson.teacherIds)]
-                  .where((v) => v.trim().isNotEmpty)
-                  .join(' / '),
+              secondary: [
+                catalog.joinClassLabels(lesson.classIds),
+                catalog.joinTeacherLabels(lesson.teacherIds)
+              ].where((v) => v.trim().isNotEmpty).join(' / '),
               tertiary: null,
               accent: _subjectAccent(catalog.subjectColor(lesson.subjectId)),
             );
@@ -265,9 +286,14 @@ class _CockpitScreenState extends State<CockpitScreen> {
         cells: cells,
         periods: allPeriods,
         dayGroups: dayGroups,
-        basePeriods: basePeriods.map((s) => PeriodSlot(
-          id: s.id, label: s.label, isBreak: s.isBreak, periodIndex: s.periodIndex,
-        )).toList(),
+        basePeriods: basePeriods
+            .map((s) => PeriodSlot(
+                  id: s.id,
+                  label: s.label,
+                  isBreak: s.isBreak,
+                  periodIndex: s.periodIndex,
+                ))
+            .toList(),
         entityIds: entityIds,
         entityLabels: entityLabels,
         teachers: teachers.toList(),
@@ -315,7 +341,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
 
     if (conflicts.isNotEmpty && mounted) {
       final dayLabel = _allDays[dayIndex.clamp(0, 6)];
-      final choice = await _showCollisionDialog(conflicts, dayLabel, periodIndex + 1);
+      final choice =
+          await _showCollisionDialog(conflicts, dayLabel, periodIndex + 1);
       if (choice == null || choice == 'cancel') return null;
 
       if (choice == 'remove') {
@@ -381,7 +408,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Row(
                         children: [
-                          Icon(Icons.circle, size: 6, color: Colors.red.shade400),
+                          Icon(Icons.circle,
+                              size: 6, color: Colors.red.shade400),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text('$c - $dayLabel $period',
@@ -407,8 +435,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
               onTap: () => Navigator.pop(ctx, 'cancel'),
             ),
             ListTile(
-              leading: Icon(Icons.warning_outlined,
-                  color: Colors.amber.shade700),
+              leading:
+                  Icon(Icons.warning_outlined, color: Colors.amber.shade700),
               title: const Text('Ignore conflicts and place the card'),
               onTap: () => Navigator.pop(ctx, 'ignore'),
             ),
@@ -432,8 +460,10 @@ class _CockpitScreenState extends State<CockpitScreen> {
         onExport: (format, category) async {
           Navigator.pop(ctx);
           if (format == 'pdf') {
-            final bytes = await _pdfService.buildWorkbookPdf(widget.db, widget.dbId);
-            _pdfService.sharePdf(bytes, filename: 'SmartTime_${category.replaceAll(' ', '_')}.pdf');
+            final bytes =
+                await _pdfService.buildWorkbookPdf(widget.db, widget.dbId);
+            _pdfService.sharePdf(bytes,
+                filename: 'SmartTime_${category.replaceAll(' ', '_')}.pdf');
           } else {
             _excelService.exportAndShare(widget.db, widget.dbId);
           }
@@ -455,7 +485,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
       barrierColor: Colors.transparent,
       builder: (ctx) => Stack(
         children: [
-          GestureDetector(onTap: () => Navigator.pop(ctx), child: const SizedBox.expand()),
+          GestureDetector(
+              onTap: () => Navigator.pop(ctx), child: const SizedBox.expand()),
           Positioned(
             left: left.clamp(0, MediaQuery.of(ctx).size.width - 280),
             top: top,
@@ -476,25 +507,39 @@ class _CockpitScreenState extends State<CockpitScreen> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
                       child: Text('Clear Schedule',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.red.shade600)),
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.red.shade600)),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                       child: Text('Move lessons to unscheduled',
-                          style: TextStyle(fontSize: 12, color: Colors.red.shade300)),
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.red.shade300)),
                     ),
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.delete_outline),
-                      title: const Text('Clear Unlocked', style: TextStyle(fontSize: 14)),
-                      subtitle: const Text('Preserves locked & fixed', style: TextStyle(fontSize: 12)),
-                      onTap: () async { Navigator.pop(ctx); await _clearUnlocked(); },
+                      title: const Text('Clear Unlocked',
+                          style: TextStyle(fontSize: 14)),
+                      subtitle: const Text('Preserves locked & fixed',
+                          style: TextStyle(fontSize: 12)),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await _clearUnlocked();
+                      },
                     ),
                     ListTile(
                       leading: const Icon(Icons.cleaning_services_outlined),
-                      title: const Text('Clear All + Unlock', style: TextStyle(fontSize: 14)),
-                      subtitle: const Text('Clears locks, preserves only fixed', style: TextStyle(fontSize: 12)),
-                      onTap: () async { Navigator.pop(ctx); await _clearAllAndUnlock(); },
+                      title: const Text('Clear All + Unlock',
+                          style: TextStyle(fontSize: 14)),
+                      subtitle: const Text('Clears locks, preserves only fixed',
+                          style: TextStyle(fontSize: 12)),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await _clearAllAndUnlock();
+                      },
                     ),
                     const SizedBox(height: 4),
                   ],
@@ -584,9 +629,11 @@ class _CockpitScreenState extends State<CockpitScreen> {
             ),
             // Pin (fix day/period in DB)
             ListTile(
-              leading: const Icon(Icons.push_pin_rounded, color: Color(0xFF10B981)),
+              leading:
+                  const Icon(Icons.push_pin_rounded, color: Color(0xFF10B981)),
               title: const Text('Pin to this slot'),
-              subtitle: const Text('Hard-fix this lesson to its current time slot'),
+              subtitle:
+                  const Text('Hard-fix this lesson to its current time slot'),
               onTap: () async {
                 Navigator.pop(ctx);
                 // Parse day/period from cardId: format lessonId_day_period
@@ -598,13 +645,14 @@ class _CockpitScreenState extends State<CockpitScreen> {
                     await (widget.db.update(widget.db.lessons)
                           ..where((t) => t.id.equals(lessonId)))
                         .write(LessonsCompanion(
-                          isPinned: const Value(true),
-                          fixedDay: Value(day),
-                          fixedPeriod: Value(period),
-                        ));
+                      isPinned: const Value(true),
+                      fixedDay: Value(day),
+                      fixedPeriod: Value(period),
+                    ));
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Lesson pinned to this slot')),
+                        const SnackBar(
+                            content: Text('Lesson pinned to this slot')),
                       );
                     }
                   }
@@ -625,7 +673,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
                     .go();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Lesson moved to unscheduled')),
+                    const SnackBar(
+                        content: Text('Lesson moved to unscheduled')),
                   );
                 }
               },
@@ -666,23 +715,29 @@ class _CockpitScreenState extends State<CockpitScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.amber.shade50,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('$rowLabel — All Periods',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.amber.shade800)),
+                      style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.amber.shade800)),
                   const SizedBox(height: 2),
                   Text('Lock or unlock all lessons for $rowLabel',
-                      style: TextStyle(fontSize: 13, color: Colors.amber.shade600)),
+                      style: TextStyle(
+                          fontSize: 13, color: Colors.amber.shade600)),
                 ],
               ),
             ),
             ListTile(
               leading: Icon(Icons.lock_rounded, color: Colors.amber.shade700),
               title: const Text('Lock All Lessons'),
-              subtitle: const Text('Keep all lessons fixed during regeneration'),
+              subtitle:
+                  const Text('Keep all lessons fixed during regeneration'),
               onTap: () async {
                 Navigator.pop(ctx);
                 setState(() => _lockedCardIds.addAll(rowCardIds));
@@ -693,13 +748,15 @@ class _CockpitScreenState extends State<CockpitScreen> {
                 }
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${rowCardIds.length} lessons locked')),
+                    SnackBar(
+                        content: Text('${rowCardIds.length} lessons locked')),
                   );
                 }
               },
             ),
             ListTile(
-              leading: Icon(Icons.lock_open_rounded, color: Colors.amber.shade700),
+              leading:
+                  Icon(Icons.lock_open_rounded, color: Colors.amber.shade700),
               title: const Text('Unlock All Lessons'),
               subtitle: const Text('Allow lessons to be moved or regenerated'),
               onTap: () async {
@@ -712,7 +769,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
                 }
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${rowCardIds.length} lessons unlocked')),
+                    SnackBar(
+                        content: Text('${rowCardIds.length} lessons unlocked')),
                   );
                 }
               },
@@ -720,7 +778,10 @@ class _CockpitScreenState extends State<CockpitScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text('Fixed (pinned) lessons cannot be modified.',
-                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey.shade500)),
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey.shade500)),
             ),
             const SizedBox(height: 4),
           ],
@@ -742,7 +803,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
       barrierColor: Colors.transparent,
       builder: (ctx) => Stack(
         children: [
-          GestureDetector(onTap: () => Navigator.pop(ctx), child: const SizedBox.expand()),
+          GestureDetector(
+              onTap: () => Navigator.pop(ctx), child: const SizedBox.expand()),
           Positioned(
             left: left.clamp(0, MediaQuery.of(ctx).size.width - 280),
             top: top,
@@ -762,13 +824,39 @@ class _CockpitScreenState extends State<CockpitScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: Text('DISPLAY OPTIONS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.grey.shade600, letterSpacing: 0.5)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 4),
+                        child: Text('DISPLAY OPTIONS',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.grey.shade600,
+                                letterSpacing: 0.5)),
                       ),
-                      _displayCheckbox(setSheetState, ctx, 'Show Teacher Short Names', _showTeacherShortNames, (v) => _showTeacherShortNames = v),
-                      _displayCheckbox(setSheetState, ctx, 'Show Class Short Names', _showClassShortNames, (v) => _showClassShortNames = v),
-                      _displayCheckbox(setSheetState, ctx, 'Show Subject Short Names', _showSubjectShortNames, (v) => _showSubjectShortNames = v),
-                      _displayCheckbox(setSheetState, ctx, 'Show Room Short Names', _showRoomShortNames, (v) => _showRoomShortNames = v),
+                      _displayCheckbox(
+                          setSheetState,
+                          ctx,
+                          'Show Teacher Short Names',
+                          _showTeacherShortNames,
+                          (v) => _showTeacherShortNames = v),
+                      _displayCheckbox(
+                          setSheetState,
+                          ctx,
+                          'Show Class Short Names',
+                          _showClassShortNames,
+                          (v) => _showClassShortNames = v),
+                      _displayCheckbox(
+                          setSheetState,
+                          ctx,
+                          'Show Subject Short Names',
+                          _showSubjectShortNames,
+                          (v) => _showSubjectShortNames = v),
+                      _displayCheckbox(
+                          setSheetState,
+                          ctx,
+                          'Show Room Short Names',
+                          _showRoomShortNames,
+                          (v) => _showRoomShortNames = v),
                     ],
                   ),
                 ),
@@ -780,7 +868,8 @@ class _CockpitScreenState extends State<CockpitScreen> {
     );
   }
 
-  Widget _displayCheckbox(StateSetter setSheetState, BuildContext ctx, String label, bool value, void Function(bool) onChanged) {
+  Widget _displayCheckbox(StateSetter setSheetState, BuildContext ctx,
+      String label, bool value, void Function(bool) onChanged) {
     return CheckboxListTile(
       dense: true,
       title: Text(label, style: const TextStyle(fontSize: 14)),
@@ -886,22 +975,28 @@ class _CockpitScreenState extends State<CockpitScreen> {
                       }
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Regenerating timetable…')),
+                        const SnackBar(
+                            content: Text('Regenerating timetable…')),
                       );
                       try {
                         // Build solver payload from DB
-                        final lessons = await widget.db.select(widget.db.lessons).get();
-                        final snap = await widget.db.loadPlannerSnapshot(widget.dbId);
+                        final lessons =
+                            await widget.db.select(widget.db.lessons).get();
+                        final snap =
+                            await widget.db.loadPlannerSnapshot(widget.dbId);
                         final days = (snap?['workingDays'] as int?) ?? 6;
                         final periods = (snap?['periodsPerDay'] as int?) ?? 7;
                         final rooms = <SolverRoom>[];
                         final classrooms = (snap?['classrooms'] as List?) ?? [];
                         for (final r in classrooms) {
-                          if (r is Map) rooms.add(SolverRoom(id: r['id']?.toString() ?? ''));
+                          if (r is Map)
+                            rooms
+                                .add(SolverRoom(id: r['id']?.toString() ?? ''));
                         }
 
                         // Count how many cards are already locked per lesson
-                        final lockedCards = await widget.db.select(widget.db.cards).get();
+                        final lockedCards =
+                            await widget.db.select(widget.db.cards).get();
                         final lockedCountPerLesson = <String, int>{};
                         for (final c in lockedCards) {
                           if (_lockedCardIds.contains(c.id)) {
@@ -927,7 +1022,9 @@ class _CockpitScreenState extends State<CockpitScreen> {
                         if (solverLessons.isEmpty) {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('All lessons are locked — nothing to regenerate.')),
+                              const SnackBar(
+                                  content: Text(
+                                      'All lessons are locked — nothing to regenerate.')),
                             );
                           }
                           return;
@@ -948,25 +1045,30 @@ class _CockpitScreenState extends State<CockpitScreen> {
                             final originalId = a.lessonId.split('_').first;
                             final lesson = lessonById[originalId];
                             if (lesson == null) continue;
-                            await widget.db.into(widget.db.cards).insertOnConflictUpdate(
-                              CardsCompanion.insert(
-                                id: '${originalId}_${a.day}_${a.period}',
-                                lessonId: originalId,
-                                dayIndex: a.day,
-                                periodIndex: a.period,
-                                roomId: Value(a.roomId.isEmpty ? null : a.roomId),
-                              ),
-                            );
+                            await widget.db
+                                .into(widget.db.cards)
+                                .insertOnConflictUpdate(
+                                  CardsCompanion.insert(
+                                    id: '${originalId}_${a.day}_${a.period}',
+                                    lessonId: originalId,
+                                    dayIndex: a.day,
+                                    periodIndex: a.period,
+                                    roomId: Value(
+                                        a.roomId.isEmpty ? null : a.roomId),
+                                  ),
+                                );
                           }
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Timetable regenerated ✅')),
+                              const SnackBar(
+                                  content: Text('Timetable regenerated ✅')),
                             );
                           }
                         } else {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Solver: ${result.status}')),
+                              SnackBar(
+                                  content: Text('Solver: ${result.status}')),
                             );
                           }
                         }
@@ -1044,10 +1146,10 @@ class _CockpitScreenState extends State<CockpitScreen> {
                               onTapRowLabel: (rowIndex, rowLabel) =>
                                   _showRowLockDialog(rowIndex, rowLabel, vm),
                               onMoveCell: (id, r, c) =>
-                                  _moveLessonValidated(
-                                      id, r, c, vm.periods),
+                                  _moveLessonValidated(id, r, c, vm.periods),
                               onValidateMove: (lessonId, row, col) {
-                                final key = UniversalTimetableGrid.keyFor(row, col);
+                                final key =
+                                    UniversalTimetableGrid.keyFor(row, col);
                                 final existing = vm.cells[key];
                                 if (existing == null) return true;
                                 return existing.id == lessonId;
@@ -1088,7 +1190,6 @@ class _CockpitScreenState extends State<CockpitScreen> {
     );
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // View Model
@@ -1166,8 +1267,8 @@ class _HeaderRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 0.8)),
+        border:
+            Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.8)),
       ),
       child: Row(
         children: [
@@ -1238,9 +1339,7 @@ class _PillTab extends StatelessWidget {
               : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF5B6CF7)
-                : Colors.grey.shade300,
+            color: selected ? const Color(0xFF5B6CF7) : Colors.grey.shade300,
             width: 1.2,
           ),
         ),
@@ -1249,18 +1348,16 @@ class _PillTab extends StatelessWidget {
           children: [
             Icon(icon,
                 size: 16,
-                color: selected
-                    ? const Color(0xFF5B6CF7)
-                    : Colors.grey.shade600),
+                color:
+                    selected ? const Color(0xFF5B6CF7) : Colors.grey.shade600),
             const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: selected
-                    ? const Color(0xFF5B6CF7)
-                    : Colors.grey.shade600,
+                color:
+                    selected ? const Color(0xFF5B6CF7) : Colors.grey.shade600,
               ),
             ),
           ],
@@ -1294,23 +1391,27 @@ class _ToolbarRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 0.8)),
+        border:
+            Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.8)),
       ),
       child: Row(
         children: [
           _ToolbarIcon(Icons.undo, 'Undo', onTap: () {}),
           _ToolbarIcon(Icons.redo, 'Redo', onTap: () {}),
           // Eraser → Clear
-          Builder(builder: (ctx) => _ToolbarIcon(
-            Icons.auto_fix_high_outlined, 'Clear',
-            onTap: () => onClear(ctx),
-          )),
+          Builder(
+              builder: (ctx) => _ToolbarIcon(
+                    Icons.auto_fix_high_outlined,
+                    'Clear',
+                    onTap: () => onClear(ctx),
+                  )),
           // Gear → Display Options
-          Builder(builder: (ctx) => _ToolbarIcon(
-            Icons.settings_outlined, 'Display',
-            onTap: () => onDisplayOptions?.call(ctx),
-          )),
+          Builder(
+              builder: (ctx) => _ToolbarIcon(
+                    Icons.settings_outlined,
+                    'Display',
+                    onTap: () => onDisplayOptions?.call(ctx),
+                  )),
           // Document → Export
           _ToolbarIcon(Icons.description_outlined, 'Export', onTap: onExport),
           const Spacer(),
@@ -1436,8 +1537,7 @@ class _UnscheduledBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalRemaining =
-        unscheduled.fold<int>(0, (s, u) => s + u.remaining);
+    final totalRemaining = unscheduled.fold<int>(0, (s, u) => s + u.remaining);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOut,
@@ -1450,8 +1550,8 @@ class _UnscheduledBottomBar extends StatelessWidget {
             offset: const Offset(0, -3),
           ),
         ],
-        border: Border(
-            top: BorderSide(color: Colors.grey.shade200, width: 0.8)),
+        border:
+            Border(top: BorderSide(color: Colors.grey.shade200, width: 0.8)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1460,8 +1560,7 @@ class _UnscheduledBottomBar extends StatelessWidget {
           InkWell(
             onTap: onToggle,
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
                 children: [
                   Text(
@@ -1496,7 +1595,8 @@ class _UnscheduledBottomBar extends StatelessWidget {
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Manage lessons from the Timetable Setup flow.'),
+                          content: Text(
+                              'Manage lessons from the Timetable Setup flow.'),
                         ),
                       );
                     },
@@ -1549,8 +1649,7 @@ class _UnscheduledBottomBar extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
                 itemCount: unscheduled.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) =>
-                    _UnscheduledCard(lesson: unscheduled[i]),
+                itemBuilder: (_, i) => _UnscheduledCard(lesson: unscheduled[i]),
               ),
             ),
           if (expanded && unscheduled.isEmpty)
@@ -1699,7 +1798,8 @@ class _ExportPopupState extends State<_ExportPopup> {
           // Handle bar
           Center(
             child: Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               margin: const EdgeInsets.only(top: 10, bottom: 8),
               decoration: BoxDecoration(
                 color: Colors.grey.shade300,
@@ -1712,7 +1812,9 @@ class _ExportPopupState extends State<_ExportPopup> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                const Text('Format', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                const Text('Format',
+                    style:
+                        TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 const Spacer(),
                 SegmentedButton<String>(
                   selected: {_format},
@@ -1735,13 +1837,20 @@ class _ExportPopupState extends State<_ExportPopup> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Text(
               '${_format.toUpperCase()} EXPORT',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.grey.shade600, letterSpacing: 0.5),
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.grey.shade600,
+                  letterSpacing: 0.5),
             ),
           ),
           // Category list
           for (final cat in _categories)
             ListTile(
-              leading: Icon(Icons.description_outlined, color: _format == 'pdf' ? const Color(0xFFDC2626) : const Color(0xFF059669)),
+              leading: Icon(Icons.description_outlined,
+                  color: _format == 'pdf'
+                      ? const Color(0xFFDC2626)
+                      : const Color(0xFF059669)),
               title: Text(cat, style: const TextStyle(fontSize: 14)),
               onTap: () => widget.onExport(_format, cat),
             ),

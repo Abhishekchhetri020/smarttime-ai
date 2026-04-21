@@ -49,13 +49,16 @@ class _SolverDebugScreenState extends State<SolverDebugScreen> {
   TimetableDisplayCatalog _buildCatalog(PlannerState planner) {
     return TimetableDisplayCatalog(
       subjectById: {
-        for (final s in planner.subjects) s.id: s.abbr.isNotEmpty ? s.abbr : s.name,
+        for (final s in planner.subjects)
+          s.id: s.abbr.isNotEmpty ? s.abbr : s.name,
       },
       teacherById: {
-        for (final t in planner.teachers) t.id: t.abbr.isNotEmpty ? t.abbr : t.firstName,
+        for (final t in planner.teachers)
+          t.id: t.abbr.isNotEmpty ? t.abbr : t.firstName,
       },
       classById: {
-        for (final c in planner.classes) c.id: c.abbr.isNotEmpty ? c.abbr : c.name,
+        for (final c in planner.classes)
+          c.id: c.abbr.isNotEmpty ? c.abbr : c.name,
       },
       roomById: {
         for (final r in planner.classrooms) r.id: r.name,
@@ -158,42 +161,53 @@ class _SolverDebugScreenState extends State<SolverDebugScreen> {
                           : () async {
                               await controller.run(planner);
                               if (!context.mounted) return;
-                              if (controller.status == 'SEED_NOT_FOUND' || controller.status == 'SEED_INFEASIBLE_INPUT') {
+                              if (controller.status == 'SEED_NOT_FOUND' ||
+                                  controller.status ==
+                                      'SEED_INFEASIBLE_INPUT') {
                                 showDialog(
                                   context: context,
                                   builder: (dialogCtx) => AlertDialog(
-                                    title: Text(controller.status == 'SEED_NOT_FOUND'
-                                        ? 'No feasible seed found'
-                                        : 'Infeasible input'),
+                                    title: Text(
+                                        controller.status == 'SEED_NOT_FOUND'
+                                            ? 'No feasible seed found'
+                                            : 'Infeasible input'),
                                     content: Column(
                                       mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text('Likely causes:'),
                                         const SizedBox(height: 6),
-                                        for (final h in controller.failureHints) Text('• $h'),
+                                        for (final h in controller.failureHints)
+                                          Text('• $h'),
                                       ],
                                     ),
                                     actions: [
                                       TextButton(
-                                        onPressed: () => Navigator.pop(dialogCtx),
+                                        onPressed: () =>
+                                            Navigator.pop(dialogCtx),
                                         child: const Text('OK'),
                                       ),
                                     ],
                                   ),
                                 );
-                              } else if (controller.status == 'SUCCESS' || controller.status == 'SEED_FOUND') {
+                              } else if (controller.status == 'SUCCESS' ||
+                                  controller.status == 'SEED_FOUND') {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('✅ Timetable generated successfully')),
+                                  const SnackBar(
+                                      content: Text(
+                                          '✅ Timetable generated successfully')),
                                 );
                                 await _openPdfPreview(planner);
                               }
                             },
                       icon: const Icon(Icons.play_arrow),
-                      label: Text(controller.isLoading ? 'Running...' : 'Run Solver'),
+                      label: Text(
+                          controller.isLoading ? 'Running...' : 'Run Solver'),
                     ),
                     const SizedBox(width: 12),
-                    if (controller.status != null) Text('Status: ${controller.status}'),
+                    if (controller.status != null)
+                      Text('Status: ${controller.status}'),
                   ],
                 ),
                 if (controller.error != null)
@@ -205,7 +219,8 @@ class _SolverDebugScreenState extends State<SolverDebugScreen> {
                     ),
                   ),
                 const SizedBox(height: 8),
-                PreflightWarningsPanel(warnings: warnings, onJump: _jumpToConflict),
+                PreflightWarningsPanel(
+                    warnings: warnings, onJump: _jumpToConflict),
                 const SizedBox(height: 8),
                 Expanded(
                   child: TimetableGridView(
@@ -213,7 +228,9 @@ class _SolverDebugScreenState extends State<SolverDebugScreen> {
                     days: planner.workingDays,
                     periodsPerDay: planner.bellTimes.length,
                     onExportSelected: (o) => _onExport(o, planner),
-                    onRunSolver: controller.isLoading ? null : () => controller.run(planner),
+                    onRunSolver: controller.isLoading
+                        ? null
+                        : () => controller.run(planner),
                   ),
                 ),
               ],

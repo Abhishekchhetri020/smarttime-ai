@@ -110,7 +110,9 @@ class _AnalyticsCard extends StatelessWidget {
               builder: (context, animated, _) {
                 final isDecimal = value.contains('.');
                 return Text(
-                  isDecimal ? animated.toStringAsFixed(1) : animated.toInt().toString(),
+                  isDecimal
+                      ? animated.toStringAsFixed(1)
+                      : animated.toInt().toString(),
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,

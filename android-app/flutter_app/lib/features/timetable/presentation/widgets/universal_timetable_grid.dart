@@ -9,6 +9,7 @@ class PeriodSlot {
   final String label;
   final bool isBreak;
   final int? periodIndex;
+
   /// Which day this slot belongs to (0-based). Used for day-group headers.
   final int? dayIndex;
 
@@ -45,7 +46,8 @@ class DayGroup {
   final String label;
   final int startCol;
   final int colCount;
-  const DayGroup({required this.label, required this.startCol, required this.colCount});
+  const DayGroup(
+      {required this.label, required this.startCol, required this.colCount});
 }
 
 class UniversalTimetableGrid extends StatefulWidget {
@@ -77,6 +79,7 @@ class UniversalTimetableGrid extends StatefulWidget {
 
   /// Title shown in the corner (e.g. "Section", "Teacher").
   final String? cornerTitle;
+
   /// Count shown next to the title (e.g. 3).
   final int? cornerCount;
 
@@ -148,13 +151,20 @@ class _UniversalTimetableGridState extends State<UniversalTimetableGrid> {
   }
 
   double get _totalGridWidth => widget.periods.fold<double>(
-      0, (sum, p) => sum + (p.isBreak ? UniversalTimetableGrid._breakW : UniversalTimetableGrid._cellW));
+      0,
+      (sum, p) =>
+          sum +
+          (p.isBreak
+              ? UniversalTimetableGrid._breakW
+              : UniversalTimetableGrid._cellW));
 
-  double get _totalGridHeight => widget.rowLabels.length * UniversalTimetableGrid._cellH;
+  double get _totalGridHeight =>
+      widget.rowLabels.length * UniversalTimetableGrid._cellH;
 
   @override
   Widget build(BuildContext context) {
-    const headerH = UniversalTimetableGrid._dayHeaderH + UniversalTimetableGrid._periodHeaderH;
+    const headerH = UniversalTimetableGrid._dayHeaderH +
+        UniversalTimetableGrid._periodHeaderH;
     const rowLabelW = UniversalTimetableGrid._rowLabelW;
     final totalW = _totalGridWidth;
     final totalH = _totalGridHeight;
@@ -284,7 +294,9 @@ class _UniversalTimetableGridState extends State<UniversalTimetableGrid> {
       double x = 0;
       for (var c = 0; c < widget.periods.length; c++) {
         final slot = widget.periods[c];
-        final w = slot.isBreak ? UniversalTimetableGrid._breakW : UniversalTimetableGrid._cellW;
+        final w = slot.isBreak
+            ? UniversalTimetableGrid._breakW
+            : UniversalTimetableGrid._cellW;
         if (!slot.isBreak) {
           final data = widget.cells[UniversalTimetableGrid.keyFor(r, c)];
           out.add(
@@ -300,7 +312,8 @@ class _UniversalTimetableGridState extends State<UniversalTimetableGrid> {
                 onMoveCell: widget.onMoveCell,
                 onValidateMove: widget.onValidateMove,
                 onTapCell: widget.onTapCell,
-                isLocked: data != null && (widget.lockedIds?.contains(data.cardId) ?? false),
+                isLocked: data != null &&
+                    (widget.lockedIds?.contains(data.cardId) ?? false),
               ),
             ),
           );
@@ -342,7 +355,8 @@ class _CornerCell extends StatelessWidget {
                     title ?? 'Section',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                 ),
                 if (count != null)
@@ -367,7 +381,9 @@ class _CornerCell extends StatelessWidget {
                   Icon(Icons.search, size: 12, color: Colors.grey.shade400),
                   const SizedBox(width: 2),
                   Flexible(
-                    child: Text('Search...', style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+                    child: Text('Search...',
+                        style: TextStyle(
+                            fontSize: 10, color: Colors.grey.shade400)),
                   ),
                 ],
               ),
@@ -418,24 +434,30 @@ class _TwoLevelHeader extends StatelessWidget {
             height: dayHeaderH,
             child: Container(
               alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: Colors.white,
+              decoration: const BoxDecoration(
+                color: Color(0xFFEEEEEE),
                 border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade200, width: 0.8),
-                  right: BorderSide(color: Colors.grey.shade300, width: 0.8),
+                  bottom: BorderSide(color: Color(0xFFDDE7EE), width: 1.0),
+                  right: BorderSide(color: Color(0xFFDDE7EE), width: 1.0),
                 ),
               ),
               child: Text(
                 dg.label,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87),
               ),
             ),
           ),
         // If no dayGroups provided, show a single row
         if (dayGroups.isEmpty)
           Positioned(
-            left: 0, top: 0, width: x, height: dayHeaderH,
-            child: Container(color: Colors.white),
+            left: 0,
+            top: 0,
+            width: x,
+            height: dayHeaderH,
+            child: Container(color: const Color(0xFFEEEEEE)),
           ),
         // ── Period time row (bottom) ──
         for (var i = 0; i < periods.length; i++)
@@ -446,7 +468,7 @@ class _TwoLevelHeader extends StatelessWidget {
             height: periodHeaderH,
             child: periods[i].isBreak
                 ? _breakHeader(periods[i].label)
-                : _periodHeader(periods[i].label),
+                : _periodHeader(periods[i].label, i),
           ),
       ],
     );
@@ -464,21 +486,36 @@ class _TwoLevelHeader extends StatelessWidget {
     return w;
   }
 
-  Widget _periodHeader(String label) {
+  Widget _periodHeader(String label, int index) {
+    final colors = const [
+      Color(0xFFC33D3A),
+      Color(0xFF05BB58),
+      Color(0xFF3C78C0)
+    ];
+    final pillColor = colors[index % colors.length];
+
     return Container(
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2F4F8),
+      decoration: const BoxDecoration(
+        color: Colors.white,
         border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300, width: 0.8),
-          right: BorderSide(color: Colors.grey.shade300, width: 0.5),
+          bottom: BorderSide(color: Color(0xFFDDE7EE), width: 1.0),
+          right: BorderSide(color: Color(0xFFDDE7EE), width: 1.0),
         ),
       ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF555555)),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: pillColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+        ),
       ),
     );
   }
@@ -486,11 +523,11 @@ class _TwoLevelHeader extends StatelessWidget {
   Widget _breakHeader(String label) {
     return Container(
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: const Color(0xFFEDE5FF),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF2F4F8),
         border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300, width: 0.8),
-          right: BorderSide(color: const Color(0xFFCDB9FA), width: 0.5),
+          bottom: BorderSide(color: Color(0xFFDDE7EE), width: 1.0),
+          right: BorderSide(color: Color(0xFFDDE7EE), width: 1.0),
         ),
       ),
       child: Text(
@@ -500,7 +537,7 @@ class _TwoLevelHeader extends StatelessWidget {
         style: const TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.w700,
-          color: Color(0xFF6B4DB5),
+          color: Color(0xFF888888),
           letterSpacing: 0.2,
         ),
       ),
@@ -528,7 +565,10 @@ class _RowLabelColumn extends StatelessWidget {
       children: [
         for (var r = 0; r < rowLabels.length; r++)
           Positioned(
-            left: 0, top: r * cellH, width: rowLabelW, height: cellH,
+            left: 0,
+            top: r * cellH,
+            width: rowLabelW,
+            height: cellH,
             child: _rowLabelBox(rowLabels[r], r),
           ),
       ],
@@ -537,7 +577,8 @@ class _RowLabelColumn extends StatelessWidget {
 
   Widget _rowLabelBox(String label, int rowIndex) {
     return GestureDetector(
-      onTap: onTapRowLabel != null ? () => onTapRowLabel!(rowIndex, label) : null,
+      onTap:
+          onTapRowLabel != null ? () => onTapRowLabel!(rowIndex, label) : null,
       child: Container(
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -560,7 +601,8 @@ class _RowLabelColumn extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -596,7 +638,10 @@ class _GridBody extends StatelessWidget {
       for (final p in periods) {
         final w = p.isBreak ? breakW : cellW;
         children.add(Positioned(
-          left: gx, top: y, width: w, height: cellH,
+          left: gx,
+          top: y,
+          width: w,
+          height: cellH,
           child: Container(
             decoration: BoxDecoration(
               color: p.isBreak ? const Color(0xFFF3EDFF) : null,
@@ -613,7 +658,10 @@ class _GridBody extends StatelessWidget {
                         p.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF6B4DB5)),
+                        style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF6B4DB5)),
                       ),
                     ),
                   )
@@ -668,7 +716,8 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
         final error = await move(details.data, widget.row, widget.col);
         if (!context.mounted) return;
         if (error != null && error.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(error)));
         }
       },
       builder: (context, candidateData, rejectedData) {
@@ -679,7 +728,9 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
           Color borderColor = Colors.transparent;
           if (isHovering) {
             final lessonId = candidateData.first;
-            final isValid = widget.onValidateMove?.call(lessonId!, widget.row, widget.col) ?? true;
+            final isValid = widget.onValidateMove
+                    ?.call(lessonId!, widget.row, widget.col) ??
+                true;
             if (isValid) {
               bgColor = const Color(0xFF4F46E5).withValues(alpha: 0.3);
               borderColor = const Color(0xFF4F46E5);
@@ -692,7 +743,6 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
             duration: const Duration(milliseconds: 120),
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: BorderRadius.circular(6),
               border: Border.all(color: borderColor, width: 1.5),
             ),
             child: const SizedBox.expand(),
@@ -711,7 +761,8 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
                 data: widget.data!.id,
                 onDragStarted: () => setState(() => _dragging = true),
                 onDragEnd: (_) => setState(() => _dragging = false),
-                onDraggableCanceled: (_, __) => setState(() => _dragging = false),
+                onDraggableCanceled: (_, __) =>
+                    setState(() => _dragging = false),
                 feedback: Material(
                   color: Colors.transparent,
                   child: SizedBox(
@@ -720,8 +771,12 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
                     child: TimetableCell(data: widget.data!, isDragging: true),
                   ),
                 ),
-                childWhenDragging: Opacity(opacity: 0.20, child: TimetableCell(data: widget.data!)),
-                child: TimetableCell(data: widget.data!, isDragging: _dragging, isLocked: widget.isLocked),
+                childWhenDragging: Opacity(
+                    opacity: 0.20, child: TimetableCell(data: widget.data!)),
+                child: TimetableCell(
+                    data: widget.data!,
+                    isDragging: _dragging,
+                    isLocked: widget.isLocked),
               ),
             ),
             if (isHovering)
@@ -730,10 +785,12 @@ class _TimetableDropCellState extends State<TimetableDropCell> {
                   duration: const Duration(milliseconds: 120),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEF4444).withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFEF4444), width: 2),
+                    border:
+                        Border.all(color: const Color(0xFFEF4444), width: 2),
                   ),
-                  child: const Center(child: Icon(Icons.swap_horiz, color: Color(0xFFEF4444), size: 20)),
+                  child: const Center(
+                      child: Icon(Icons.swap_horiz,
+                          color: Color(0xFFEF4444), size: 20)),
                 ),
               ),
           ],
@@ -760,77 +817,77 @@ class TimetableCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = data.accent ?? const Color(0xFF4F46E5);
+    final borderColor = isDragging
+        ? const Color(0xFF5E7FB4)
+        : (isLocked ? Colors.amber.shade600 : const Color(0xFF5E7FB4));
 
     return AnimatedScale(
       scale: isDragging ? 1.04 : 1.0,
       duration: const Duration(milliseconds: 120),
       child: AnimatedOpacity(
-        opacity: isDragging ? 0.85 : 1.0,
+        opacity: isDragging ? 0.9 : 1.0,
         duration: const Duration(milliseconds: 120),
-        child: Material(
-          color: Colors.transparent,
-          elevation: isDragging ? 12 : 1.5,
-          shadowColor: Colors.black45,
-          borderRadius: BorderRadius.circular(6),
+        child: Container(
+          decoration: BoxDecoration(
+            color: accent,
+            border: Border(
+              bottom: BorderSide(color: borderColor, width: 1.0),
+              left: isDragging || isLocked
+                  ? BorderSide(color: borderColor, width: 1.0)
+                  : BorderSide.none,
+              right: isDragging || isLocked
+                  ? BorderSide(color: borderColor, width: 1.0)
+                  : BorderSide.none,
+              top: isDragging || isLocked
+                  ? BorderSide(color: borderColor, width: 1.0)
+                  : BorderSide.none,
+            ),
+          ),
           child: Stack(
             children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.88),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: isLocked ? Colors.amber.shade300 : Colors.black12,
-                    width: isLocked ? 2.0 : 0.8,
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        data.primary,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          height: 1.15,
-                        ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data.primary,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
                       ),
-                      const SizedBox(height: 2),
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.topLeft,
-                          child: Text(
-                            data.secondary,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.92),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              height: 1.15,
-                            ),
+                    ),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Text(
+                          data.secondary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            height: 1.1,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
               if (isLocked)
                 Positioned(
-                  top: 3,
-                  right: 3,
+                  bottom: 0,
+                  right: 0,
                   child: Container(
-                    padding: const EdgeInsets.all(1.5),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade600,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: const Icon(Icons.lock_rounded, size: 10, color: Colors.white),
+                    width: 6,
+                    height: 6,
+                    color: Colors.amber.shade600,
                   ),
                 ),
             ],

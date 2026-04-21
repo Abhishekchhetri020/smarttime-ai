@@ -786,8 +786,7 @@ class _SubjectSearchFieldState extends State<_SubjectSearchField> {
               borderRadius: BorderRadius.circular(8),
               color: Colors.white,
               boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withOpacity(0.05), blurRadius: 4)
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)
               ],
             ),
             child: ListView.builder(

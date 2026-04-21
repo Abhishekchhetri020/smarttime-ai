@@ -45,7 +45,9 @@ class _WorkloadAnalysisScreenState extends State<WorkloadAnalysisScreen>
           tabs: const [
             Tab(icon: Icon(Icons.person_outline, size: 18), text: 'Teachers'),
             Tab(icon: Icon(Icons.class_outlined, size: 18), text: 'Classes'),
-            Tab(icon: Icon(Icons.meeting_room_outlined, size: 18), text: 'Rooms'),
+            Tab(
+                icon: Icon(Icons.meeting_room_outlined, size: 18),
+                text: 'Rooms'),
           ],
         ),
       ),
@@ -179,10 +181,11 @@ class _UtilizationBar extends StatelessWidget {
             children: [
               Text('${pct.round()}%',
                   style: TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w700, color: barColor)),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: barColor)),
               Text('$assignedPeriods / $totalSlots',
-                  style: TextStyle(
-                      fontSize: 10, color: Colors.grey.shade500)),
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
             ],
           ),
         ],
@@ -213,8 +216,7 @@ class _TeacherWorkload extends StatelessWidget {
     }
 
     final totalTeachers = planner.teachers.length;
-    final totalAssigned =
-        teacherPeriods.values.fold<int>(0, (s, v) => s + v);
+    final totalAssigned = teacherPeriods.values.fold<int>(0, (s, v) => s + v);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -279,8 +281,7 @@ class _ClassWorkload extends StatelessWidget {
     }
 
     final totalClasses = planner.classes.length;
-    final totalAssigned =
-        classPeriods.values.fold<int>(0, (s, v) => s + v);
+    final totalAssigned = classPeriods.values.fold<int>(0, (s, v) => s + v);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -345,8 +346,7 @@ class _RoomWorkload extends StatelessWidget {
     }
 
     final totalRooms = planner.classrooms.length;
-    final totalAssigned =
-        roomPeriods.values.fold<int>(0, (s, v) => s + v);
+    final totalAssigned = roomPeriods.values.fold<int>(0, (s, v) => s + v);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -377,7 +377,8 @@ class _RoomWorkload extends StatelessWidget {
           final assigned = roomPeriods[r.id] ?? 0;
           return _UtilizationBar(
             name: r.name,
-            abbr: r.abbr ?? r.name.substring(0, r.name.length > 2 ? 2 : r.name.length),
+            abbr: r.abbr ??
+                r.name.substring(0, r.name.length > 2 ? 2 : r.name.length),
             assignedPeriods: assigned,
             totalSlots: totalSlots,
             colorValue: r.color != null ? int.tryParse(r.color!) : null,

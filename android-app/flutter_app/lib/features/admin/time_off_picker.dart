@@ -66,9 +66,18 @@ class _TimeOffPickerState extends State<TimeOffPicker> {
         const Wrap(
           spacing: 12,
           children: [
-            _Legend(label: 'Available', color: Color(0xFF16A34A), icon: Icons.check),
-            _Legend(label: 'Unavailable', color: Color(0xFFDC2626), icon: Icons.close),
-            _Legend(label: 'Conditional', color: Color(0xFF4F46E5), icon: Icons.question_mark),
+            _Legend(
+                label: 'Available',
+                color: Color(0xFF16A34A),
+                icon: Icons.check),
+            _Legend(
+                label: 'Unavailable',
+                color: Color(0xFFDC2626),
+                icon: Icons.close),
+            _Legend(
+                label: 'Conditional',
+                color: Color(0xFF4F46E5),
+                icon: Icons.question_mark),
           ],
         ),
         const SizedBox(height: 8),
@@ -77,7 +86,8 @@ class _TimeOffPickerState extends State<TimeOffPicker> {
           child: DataTable(
             columns: [
               const DataColumn(label: Text('P\\D')),
-              for (int d = 1; d <= widget.days; d++) DataColumn(label: Text('D$d')),
+              for (int d = 1; d <= widget.days; d++)
+                DataColumn(label: Text('D$d')),
             ],
             rows: [
               for (int p = 1; p <= widget.periodsPerDay; p++)
@@ -94,7 +104,8 @@ class _TimeOffPickerState extends State<TimeOffPicker> {
                             color: _bg(_grid['$d-$p']!),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Icon(_icon(_grid['$d-$p']!), size: 16, color: Colors.white),
+                          child: Icon(_icon(_grid['$d-$p']!),
+                              size: 16, color: Colors.white),
                         ),
                       ),
                     ),
