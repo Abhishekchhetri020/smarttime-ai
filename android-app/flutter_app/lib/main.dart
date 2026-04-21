@@ -5,7 +5,7 @@ import 'features/admin/my_timetables_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     debugPrint('GLOBAL_ERROR: ${details.exception}');

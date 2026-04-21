@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smarttime_ai/core/database.dart';
 
 void main() {
-  test('streamed analytics counts joint class lesson as single lesson', () async {
+  test('streamed analytics counts joint class lesson as single lesson',
+      () async {
     final db = AppDatabase(NativeDatabase.memory());
 
     await db.savePlannerSnapshot({

@@ -4,14 +4,17 @@ import 'package:smarttime_ai/core/database.dart';
 import 'package:smarttime_ai/features/admin/planner_state.dart';
 
 void main() {
-  test('pinned lesson survives reload and is exported to solver payload', () async {
+  test('pinned lesson survives reload and is exported to solver payload',
+      () async {
     final db = AppDatabase(NativeDatabase.memory());
 
     final p1 = PlannerState(db);
     p1.draftName = 'Test';
     p1.addClass(ClassItem(id: 'C1', name: 'Class 1', abbr: 'C1'));
-    p1.addTeacher(TeacherItem(id: 'T1', firstName: 'A', lastName: 'B', abbr: 'T1'));
-    p1.addSubject(SubjectItem(id: 'S1', name: 'Math', abbr: 'MATH', color: 0xFF0B3D91));
+    p1.addTeacher(
+        TeacherItem(id: 'T1', firstName: 'A', lastName: 'B', abbr: 'T1'));
+    p1.addSubject(
+        SubjectItem(id: 'S1', name: 'Math', abbr: 'MATH', color: 0xFF0B3D91));
     p1.addLesson(
       subjectId: 'S1',
       teacherIds: const ['T1'],

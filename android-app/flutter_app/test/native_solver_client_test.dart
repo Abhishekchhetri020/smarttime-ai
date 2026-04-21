@@ -36,7 +36,8 @@ void main() {
 
   test('native solver client maps status correctly', () async {
     final client = NativeSolverClient();
-    final res = await client.solve({'days': 5, 'periodsPerDay': 8, 'lessons': []});
+    final res =
+        await client.solve({'days': 5, 'periodsPerDay': 8, 'lessons': []});
 
     expect(res.rawStatus, 'SEED_FOUND');
     expect(res.status, SolverStatus.seedFound);

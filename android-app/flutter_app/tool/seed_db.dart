@@ -18,8 +18,14 @@ void main() async {
   final schoolName = 'Audit Academy High';
   final workingDays = 6;
   final bellTimes = [
-    '08:00-08:45', '08:45-09:30', '09:45-10:30', '10:30-11:15',
-    '11:30-12:15', '12:15-13:00', '13:30-14:15', '14:15-15:00'
+    '08:00-08:45',
+    '08:45-09:30',
+    '09:45-10:30',
+    '10:30-11:15',
+    '11:30-12:15',
+    '12:15-13:00',
+    '13:30-14:15',
+    '14:15-15:00'
   ];
 
   final subjects = [
@@ -36,12 +42,34 @@ void main() async {
   final classes = List.generate(10, (i) {
     final grade = (i / 2).floor() + 6;
     final section = i % 2 == 0 ? 'A' : 'B';
-    return {'id': 'C$i', 'name': 'Class $grade$section', 'abbr': '$grade$section'};
+    return {
+      'id': 'C$i',
+      'name': 'Class $grade$section',
+      'abbr': '$grade$section'
+    };
   });
 
   final teachers = List.generate(40, (i) {
-    final firstNames = ['Amit', 'Priya', 'Raj', 'Sneh', 'Vikram', 'Anjali', 'Deepak', 'Megha'];
-    final lastNames = ['Sharma', 'Verma', 'Gupta', 'Singh', 'Chhetri', 'Kapoor', 'Reddy', 'Das'];
+    final firstNames = [
+      'Amit',
+      'Priya',
+      'Raj',
+      'Sneh',
+      'Vikram',
+      'Anjali',
+      'Deepak',
+      'Megha'
+    ];
+    final lastNames = [
+      'Sharma',
+      'Verma',
+      'Gupta',
+      'Singh',
+      'Chhetri',
+      'Kapoor',
+      'Reddy',
+      'Das'
+    ];
     final fn = firstNames[random.nextInt(firstNames.length)];
     final ln = lastNames[random.nextInt(lastNames.length)];
     return {
@@ -68,7 +96,7 @@ void main() async {
     final sub = subjects[random.nextInt(subjects.length)];
     final cls = classes[random.nextInt(classes.length)];
     final t1 = teachers[random.nextInt(teachers.length)];
-    
+
     final tIds = [t1['id']];
     if (random.nextDouble() < 0.1) {
       tIds.add(teachers[random.nextInt(teachers.length)]['id'] as String);
@@ -87,7 +115,9 @@ void main() async {
       'periodsPerWeek': 2 + random.nextInt(3),
       'countPerWeek': 2 + random.nextInt(3),
       'length': random.nextDouble() < 0.15 ? 'double' : 'single',
-      'requiredClassroomId': random.nextDouble() < 0.3 ? classrooms[random.nextInt(classrooms.length)]['id'] : null,
+      'requiredClassroomId': random.nextDouble() < 0.3
+          ? classrooms[random.nextInt(classrooms.length)]['id']
+          : null,
       'isPinned': false,
     });
   }
@@ -102,22 +132,26 @@ void main() async {
     'classrooms': classrooms,
     'lessons': lessons,
     'divisions': [],
-    'scheduleEntries': bellTimes.asMap().entries.map((e) => {
-      'id': 'P${e.key}',
-      'label': 'Period ${e.key + 1}',
-      'timeRange': e.value,
-      'type': 0, // period
-    }).toList(),
+    'scheduleEntries': bellTimes
+        .asMap()
+        .entries
+        .map((e) => {
+              'id': 'P${e.key}',
+              'label': 'Period ${e.key + 1}',
+              'timeRange': e.value,
+              'type': 0, // period
+            })
+        .toList(),
   };
 
   final encoded = jsonEncode(plannerJson);
 
   final executor = database;
-  
+
   try {
     await executor.ensureOpen(_User());
     await executor.runCustom('PRAGMA user_version = 12;');
-    
+
     // 1. Clear existing
     await executor.runCustom('DELETE FROM app_state;');
     await executor.runCustom('DELETE FROM lessons;');
@@ -127,25 +161,46 @@ void main() async {
 
     // 2. Insert granular tables for Solver
     for (var s in subjects) {
-      await executor.runCustom('INSERT INTO subjects (id, name, abbr, color) VALUES (?, ?, ?, ?)', [s['id'], s['name'], s['abbr'], s['color']]);
+      await executor.runCustom(
+          'INSERT INTO subjects (id, name, abbr, color) VALUES (?, ?, ?, ?)',
+          [s['id'], s['name'], s['abbr'], s['color']]);
     }
     for (var c in classes) {
-      await executor.runCustom('INSERT INTO classes (id, name, abbr) VALUES (?, ?, ?)', [c['id'], c['name'], c['abbr']]);
+      await executor.runCustom(
+          'INSERT INTO classes (id, name, abbr) VALUES (?, ?, ?)',
+          [c['id'], c['name'], c['abbr']]);
     }
     for (var t in teachers) {
-      await executor.runCustom('INSERT INTO teachers (id, name, abbreviation, max_gaps_per_day) VALUES (?, ?, ?, ?)', [t['id'], '${t['firstName']} ${t['lastName']}', t['abbr'], t['maxGapsPerDay']]);
+      await executor.runCustom(
+          'INSERT INTO teachers (id, name, abbreviation, max_gaps_per_day) VALUES (?, ?, ?, ?)',
+          [
+            t['id'],
+            '${t['firstName']} ${t['lastName']}',
+            t['abbr'],
+            t['maxGapsPerDay']
+          ]);
     }
     for (var l in lessons) {
-      await executor.runCustom('INSERT INTO lessons (id, subject_id, periods_per_week, teacher_ids, class_ids, is_pinned) VALUES (?, ?, ?, ?, ?, ?)', 
-        [l['id'], l['subjectId'], l['periodsPerWeek'], jsonEncode(l['teacherIds']), jsonEncode(l['classIds']), 0]);
+      await executor.runCustom(
+          'INSERT INTO lessons (id, subject_id, periods_per_week, teacher_ids, class_ids, is_pinned) VALUES (?, ?, ?, ?, ?, ?)',
+          [
+            l['id'],
+            l['subjectId'],
+            l['periodsPerWeek'],
+            jsonEncode(l['teacherIds']),
+            jsonEncode(l['classIds']),
+            0
+          ]);
     }
 
     // 3. Insert Snapshot for PlannerState
-    await executor.runCustom('INSERT OR REPLACE INTO app_state (id, planner_json, updated_at) VALUES (1, ?, ?)', [
-      encoded,
-      DateTime.now().millisecondsSinceEpoch,
-    ]);
-    
+    await executor.runCustom(
+        'INSERT OR REPLACE INTO app_state (id, planner_json, updated_at) VALUES (1, ?, ?)',
+        [
+          encoded,
+          DateTime.now().millisecondsSinceEpoch,
+        ]);
+
     print('Successfully seeded Tables and Snapshot (Version 12).');
   } catch (e) {
     print('Error seeding: $e');
@@ -154,7 +209,8 @@ void main() async {
 
 class _User extends QueryExecutorUser {
   @override
-  Future<void> beforeOpen(QueryExecutor executor, OpeningDetails details) async {}
+  Future<void> beforeOpen(
+      QueryExecutor executor, OpeningDetails details) async {}
 
   @override
   int get schemaVersion => 12;

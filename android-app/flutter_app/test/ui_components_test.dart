@@ -20,7 +20,8 @@ void main() {
       await db.close();
     });
 
-    testWidgets('DashboardAnalyticsWidget renders correctly with default data', (tester) async {
+    testWidgets('DashboardAnalyticsWidget renders correctly with default data',
+        (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light(),
@@ -47,7 +48,8 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('TimetableDashboardScreen renders all premium UI components', (tester) async {
+    testWidgets('TimetableDashboardScreen renders all premium UI components',
+        (tester) async {
       await tester.pumpWidget(
         ChangeNotifierProvider<PlannerState>(
           create: (_) => PlannerState(db),
@@ -89,4 +91,3 @@ void main() {
     });
   });
 }
-

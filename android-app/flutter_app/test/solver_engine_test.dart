@@ -56,23 +56,24 @@ void main() {
         timeoutMs: timeoutMs,
         lessons: lessons,
         rooms: rooms,
-        teacherProfiles: teacherProfiles ?? {
-          for (final t in teachers)
-            t: SolverTeacherProfile(id: t),
-        },
-        classProfiles: classProfiles ?? {
-          for (final c in classes)
-            c: SolverClassProfile(id: c),
-        },
-        subjectProfiles: subjectProfiles ?? {
-          for (final s in subjects)
-            s: SolverSubjectProfile(id: s),
-        },
+        teacherProfiles: teacherProfiles ??
+            {
+              for (final t in teachers) t: SolverTeacherProfile(id: t),
+            },
+        classProfiles: classProfiles ??
+            {
+              for (final c in classes) c: SolverClassProfile(id: c),
+            },
+        subjectProfiles: subjectProfiles ??
+            {
+              for (final s in subjects) s: SolverSubjectProfile(id: s),
+            },
         variantCount: 1,
       );
     }
 
-    test('1. Small school: 5 teachers, 3 classes, 24 lessons → all scheduled', () {
+    test('1. Small school: 5 teachers, 3 classes, 24 lessons → all scheduled',
+        () {
       final payload = _buildPayload(
         teacherCount: 5,
         classCount: 3,
@@ -91,7 +92,9 @@ void main() {
       expect(result.variants.first.hardViolations, 0);
     });
 
-    test('2. Medium school: 20 teachers, 10 classes, 100 lessons → all scheduled', () {
+    test(
+        '2. Medium school: 20 teachers, 10 classes, 100 lessons → all scheduled',
+        () {
       final payload = _buildPayload(
         teacherCount: 20,
         classCount: 10,
@@ -296,7 +299,8 @@ void main() {
       expect(
         result.variants.first.assignments.length,
         greaterThanOrEqualTo((300 * 0.8).toInt()),
-        reason: 'At least 80% of lessons should be placed (validation fence may remove hard-violations)',
+        reason:
+            'At least 80% of lessons should be placed (validation fence may remove hard-violations)',
       );
     });
 
@@ -354,10 +358,11 @@ void main() {
 
       final assignments = result.variants.first.assignments;
       final periods = assignments.map((a) => a.period).toList()..sort();
-      
+
       // If we have 4 lessons in 5 periods, and max consecutive is 2,
       // the only valid layouts are (0,1, 3,4). (2) must be empty.
-      expect(periods.contains(2), isFalse, reason: 'Teacher scheduled for more than max consecutive periods');
+      expect(periods.contains(2), isFalse,
+          reason: 'Teacher scheduled for more than max consecutive periods');
     });
 
     test('11. Class max periods per day respected', () {
@@ -378,9 +383,11 @@ void main() {
       final assignments = result.variants.first.assignments;
       int day0Count = assignments.where((a) => a.day == 0).length;
       int day1Count = assignments.where((a) => a.day == 1).length;
-      
-      expect(day0Count, lessThanOrEqualTo(3), reason: 'Day 0 exceeded class max periods');
-      expect(day1Count, lessThanOrEqualTo(3), reason: 'Day 1 exceeded class max periods');
+
+      expect(day0Count, lessThanOrEqualTo(3),
+          reason: 'Day 0 exceeded class max periods');
+      expect(day1Count, lessThanOrEqualTo(3),
+          reason: 'Day 1 exceeded class max periods');
     });
 
     test('12. Subject morning preference pushes lessons early', () {
@@ -392,7 +399,8 @@ void main() {
         days: 1,
         periodsPerDay: 8,
         subjectProfiles: {
-          'S1': const SolverSubjectProfile(id: 'S1', preferMorning: true), // prefer first 3 periods
+          'S1': const SolverSubjectProfile(
+              id: 'S1', preferMorning: true), // prefer first 3 periods
         },
       );
       final result = SolverEngine.solveSync(payload);
@@ -422,13 +430,16 @@ void main() {
 
       final result = SolverEngine.solveSync(payload);
       expect(result.isOk, isTrue);
-      
+
       final assignments = result.variants.first.assignments;
-      expect(assignments.length, 1, reason: 'Double lesson should generate 1 assignment spanning 2 periods');
-      
+      expect(assignments.length, 1,
+          reason:
+              'Double lesson should generate 1 assignment spanning 2 periods');
+
       final a = assignments.first;
       // It should fit within the day bounds
-      expect(a.period + 1, lessThan(8), reason: 'Double lesson trailing period exceeds max periods in day');
+      expect(a.period + 1, lessThan(8),
+          reason: 'Double lesson trailing period exceeds max periods in day');
     });
 
     test('14. Progress callbacks fire', () {
@@ -448,7 +459,8 @@ void main() {
       expect(phases, contains('optimize'));
     });
 
-    test('15. Extreme Stress Test (300 teachers, 50 classes, 50 constraints)', () {
+    test('15. Extreme Stress Test (300 teachers, 50 classes, 50 constraints)',
+        () {
       final payload = _buildPayload(
         teacherCount: 300,
         classCount: 50,
@@ -465,15 +477,19 @@ void main() {
       }
 
       final sw = Stopwatch()..start();
-      final result = SolverEngine.solveSync(payload, constraints: customConstraints);
+      final result =
+          SolverEngine.solveSync(payload, constraints: customConstraints);
       sw.stop();
 
-      print('Extreme Stress Test (1250 lessons, 300 teachers, 50 constraints) took ${sw.elapsedMilliseconds} ms');
-      
-      expect(result.isOk, isTrue, reason: 'Solver crashed or failed critically');
+      print(
+          'Extreme Stress Test (1250 lessons, 300 teachers, 50 constraints) took ${sw.elapsedMilliseconds} ms');
+
+      expect(result.isOk, isTrue,
+          reason: 'Solver crashed or failed critically');
       expect(
         result.variants.first.assignments.length,
-        greaterThanOrEqualTo((1250 * 0.9).toInt()),  // Expect at least 90% scheduled
+        greaterThanOrEqualTo(
+            (1250 * 0.9).toInt()), // Expect at least 90% scheduled
         reason: 'Failed to schedule reasonable portion of 1250 lessons',
       );
     });
@@ -484,7 +500,10 @@ class _DummyConstraint extends EngineConstraint {
   final int index;
   _DummyConstraint(this.index);
 
-  @override String get name => 'Dummy Constraint $index';
-  @override bool get isHard => false;
-  @override double scoreSoft(SolverState state) => 0.0;
+  @override
+  String get name => 'Dummy Constraint $index';
+  @override
+  bool get isHard => false;
+  @override
+  double scoreSoft(SolverState state) => 0.0;
 }
