@@ -1,19 +1,26 @@
 name: smarttime-ci
 
 on:
+  workflow_dispatch:
   push:
     paths:
-      - 'smarttime-ai/**'
+      - '.github/workflows/ci.yml'
+      - 'solver/**'
+      - 'backend/functions/**'
+      - 'admin-web/**'
   pull_request:
     paths:
-      - 'smarttime-ai/**'
+      - '.github/workflows/ci.yml'
+      - 'solver/**'
+      - 'backend/functions/**'
+      - 'admin-web/**'
 
 jobs:
   solver-tests:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: smarttime-ai/solver
+        working-directory: solver
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: smarttime-ai/backend/functions
+        working-directory: backend/functions
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: smarttime-ai/backend/functions
+        working-directory: backend/functions
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,3 +56,16 @@ jobs:
       - run: npm install
       - run: npm install -g firebase-tools
       - run: firebase emulators:exec --project demo-smarttime --only firestore "npm test -- --runInBand tests/emulator.smoke.test.ts tests/repositories.emulator.test.ts"
+
+  admin-web-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npm run build
