@@ -4,7 +4,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 app = FastAPI(title='SmartTime Solver', version='0.4.0')
@@ -94,6 +94,24 @@ def _consecutive_run_length(periods: List[int], pivot: int) -> int:
     return run
 
 
+def _consecutive_overflow(periods: List[int], limit: int) -> int:
+    if not periods or limit <= 0:
+        return 0
+    s = sorted(set(periods))
+    overflow = 0
+    run = 1
+    for i in range(1, len(s)):
+        if s[i] == s[i - 1] + 1:
+            run += 1
+        else:
+            if run > limit:
+                overflow += run - limit
+            run = 1
+    if run > limit:
+        overflow += run - limit
+    return overflow
+
+
 def _can_place(
     lesson: Lesson,
     slot: Slot,
@@ -139,6 +157,35 @@ def _can_place(
             return False, 'subject_daily_limit'
 
     return True, ''
+
+
+def _trial_respects_hard_constraints(
+    trial: List[Dict[str, Any]],
+    constraints: ConstraintConfig,
+    availability: Dict[str, set[str]],
+) -> bool:
+    teacher_day_load: Dict[Tuple[str, int], int] = defaultdict(int)
+    class_day_load: Dict[Tuple[str, int], int] = defaultdict(int)
+    class_subject_day_count: Dict[Tuple[str, str, int], int] = defaultdict(int)
+    for t in trial:
+        teacher_day_load[(t['teacherId'], t['day'])] += 1
+        class_day_load[(t['classId'], t['day'])] += 1
+        class_subject_day_count[(t['classId'], t['subjectId'], t['day'])] += 1
+
+    for t in trial:
+        if t['teacherId'] in availability:
+            if _slot_key(t['day'], t['period']) not in availability[t['teacherId']]:
+                return False
+        tcap = constraints.teacherMaxPeriodsPerDay.get(t['teacherId'])
+        if tcap is not None and teacher_day_load[(t['teacherId'], t['day'])] > tcap:
+            return False
+        ccap = constraints.classMaxPeriodsPerDay.get(t['classId'])
+        if ccap is not None and class_day_load[(t['classId'], t['day'])] > ccap:
+            return False
+        scap = constraints.subjectDailyLimit.get(f"{t['classId']}:{t['subjectId']}")
+        if scap is not None and class_subject_day_count[(t['classId'], t['subjectId'], t['day'])] > scap:
+            return False
+    return True
 
 
 def _resolve_room(lesson: Lesson, rooms: List[Room]) -> Optional[str]:
@@ -197,20 +244,14 @@ def _soft_penalties(
         limit = teacher_max_consecutive.get(teacher)
         if not limit:
             continue
-        for p in periods:
-            run = _consecutive_run_length(periods, p)
-            if run > limit:
-                teacher_consecutive_pen += (run - limit)
+        teacher_consecutive_pen += _consecutive_overflow(periods, limit)
 
     class_consecutive_pen = 0
     for (class_id, _day), periods in by_class_day.items():
         limit = class_max_consecutive.get(class_id)
         if not limit:
             continue
-        for p in periods:
-            run = _consecutive_run_length(periods, p)
-            if run > limit:
-                class_consecutive_pen += (run - limit)
+        class_consecutive_pen += _consecutive_overflow(periods, limit)
 
     teacher_last_period_count = Counter()
     for a in assignments:
@@ -238,7 +279,12 @@ def _score_penalties(penalties: List[Dict[str, Any]]) -> int:
     return sum(int(p['penalty']) * int(p['weight']) for p in penalties)
 
 
-def _optimize_assignments(assignments: List[Dict[str, Any]], req: SolveRequest, rounds: int = 1) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+def _optimize_assignments(
+    assignments: List[Dict[str, Any]],
+    req: SolveRequest,
+    availability: Dict[str, set[str]],
+    rounds: int = 1,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     best = list(assignments)
     base = _score_penalties(
         _soft_penalties(
@@ -290,6 +336,9 @@ def _optimize_assignments(assignments: List[Dict[str, Any]], req: SolveRequest, 
                 if not valid:
                     continue
 
+                if not _trial_respects_hard_constraints(trial, req.constraints, availability):
+                    continue
+
                 trial_score = _score_penalties(
                     _soft_penalties(
                         trial,
@@ -321,6 +370,9 @@ def health():
 
 @app.post('/solve', response_model=SolveResponse)
 def solve(req: SolveRequest):
+    if req.days < 1 or req.periodsPerDay < 1:
+        raise HTTPException(status_code=400, detail='days and periodsPerDay must be >= 1')
+
     slots = _build_slots(req.days, req.periodsPerDay)
 
     availability = _availability_index(req.constraints.teacherAvailability)
@@ -341,9 +393,21 @@ def solve(req: SolveRequest):
     start = req.seed % max(1, len(slots))
     ordered_slots = slots[start:] + slots[:start]
 
+    # Apply fixedPeriods overrides up-front so the heuristic ordering below
+    # treats those lessons as fixed and schedules them before unconstrained ones.
+    resolved_lessons: List[Lesson] = []
+    for lesson in req.lessons:
+        forced = req.constraints.fixedPeriods.get(lesson.id) if req.constraints.fixedPeriods else None
+        if forced:
+            lesson = lesson.model_copy(update={
+                'fixedDay': int(forced['day']),
+                'fixedPeriod': int(forced['period']),
+            })
+        resolved_lessons.append(lesson)
+
     # Fixed and more constrained lessons first (FET-inspired heuristic ordering)
     ordered_lessons = sorted(
-        req.lessons,
+        resolved_lessons,
         key=lambda l: (
             0 if (l.fixedDay and l.fixedPeriod) else 1,
             0 if l.requiredRoomType else 1,
@@ -352,32 +416,84 @@ def solve(req: SolveRequest):
         ),
     )
 
-    for pin in req.pinned:
+    for pin_index, pin in enumerate(req.pinned):
         day = int(pin['day'])
         period = int(pin['period'])
-        room_id = pin.get('roomId') or f"room_{pin.get('classId', 'X')}"
+        is_lab = bool(pin.get('isLabDouble', False))
+
+        if day < 1 or day > req.days or period < 1 or period > req.periodsPerDay:
+            hard_violations.append({
+                'type': 'invalid_pin',
+                'pin': pin,
+                'reason': 'pin_out_of_range',
+            })
+            continue
+        if is_lab and period + 1 > req.periodsPerDay:
+            hard_violations.append({
+                'type': 'invalid_pin',
+                'pin': pin,
+                'reason': 'lab_double_out_of_bounds',
+            })
+            continue
+
+        class_id = pin.get('classId')
+        if pin.get('roomId'):
+            room_id = pin['roomId']
+        elif class_id:
+            room_id = f'room_{class_id}'
+        else:
+            room_id = f'room_pin_{pin_index}'
+
         t = pin.get('teacherId')
-        c = pin.get('classId')
+        c = class_id
         s = pin.get('subjectId')
 
-        if t:
-            teacher_slot.add((t, day, period))
-            teacher_day_load[(t, day)] += 1
-        if c:
-            class_slot.add((c, day, period))
-            class_day_load[(c, day)] += 1
-        if c and s:
-            class_subject_day_count[(c, s, day)] += 1
-        room_slot.add((room_id, day, period))
-        assignments.append({**pin, 'roomId': room_id, 'pinned': True, 'isLabDouble': pin.get('isLabDouble', False)})
+        pin_slots = [(day, period)]
+        if is_lab:
+            pin_slots.append((day, period + 1))
+
+        conflict_reason: Optional[str] = None
+        for d, p in pin_slots:
+            if t and (t, d, p) in teacher_slot:
+                conflict_reason = 'teacher_conflict'
+                break
+            if c and (c, d, p) in class_slot:
+                conflict_reason = 'class_conflict'
+                break
+            if (room_id, d, p) in room_slot:
+                conflict_reason = 'room_conflict'
+                break
+
+        if conflict_reason:
+            hard_violations.append({
+                'type': 'invalid_pin',
+                'pin': pin,
+                'reason': conflict_reason,
+            })
+            continue
+
+        for d, p in pin_slots:
+            if t:
+                teacher_slot.add((t, d, p))
+                teacher_day_load[(t, d)] += 1
+            if c:
+                class_slot.add((c, d, p))
+                class_day_load[(c, d)] += 1
+            if c and s:
+                class_subject_day_count[(c, s, d)] += 1
+            room_slot.add((room_id, d, p))
+            assignments.append({
+                **pin,
+                'day': d,
+                'period': p,
+                'roomId': room_id,
+                'pinned': True,
+                'isLabDouble': is_lab,
+            })
 
     unscheduled_reasons = Counter()
 
     for lesson in ordered_lessons:
-        forced = req.constraints.fixedPeriods.get(lesson.id) if req.constraints.fixedPeriods else None
-        if forced:
-            lesson = lesson.model_copy(update={'fixedDay': int(forced['day']), 'fixedPeriod': int(forced['period'])})
-
         room_id = _resolve_room(lesson, req.rooms)
         if room_id is None:
             unscheduled_reasons['no_matching_room_type'] += 1
@@ -498,7 +614,7 @@ def solve(req: SolveRequest):
                 'attemptedSlots': len(candidate_slots),
             })
 
-    assignments, optimization = _optimize_assignments(assignments, req, rounds=2)
+    assignments, optimization = _optimize_assignments(assignments, req, availability, rounds=2)
 
     penalties = _soft_penalties(
         assignments,
